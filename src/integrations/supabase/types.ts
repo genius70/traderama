@@ -9,6 +9,174 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      broker_connections: {
+        Row: {
+          account_id: string
+          api_credentials: Json | null
+          broker: Database["public"]["Enums"]["broker_name"]
+          connected_at: string | null
+          id: string
+          is_active: boolean | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          api_credentials?: Json | null
+          broker: Database["public"]["Enums"]["broker_name"]
+          connected_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          api_credentials?: Json | null
+          broker?: Database["public"]["Enums"]["broker_name"]
+          connected_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broker_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iron_condor_trades: {
+        Row: {
+          broker_connection_id: string | null
+          call_spread_long_strike: number
+          call_spread_short_strike: number
+          closed_at: string | null
+          contracts: number
+          current_pnl: number | null
+          entry_price: number | null
+          exit_price: number | null
+          expiration_date: string
+          id: string
+          max_loss: number | null
+          max_profit: number | null
+          notes: string | null
+          opened_at: string | null
+          put_spread_long_strike: number
+          put_spread_short_strike: number
+          status: Database["public"]["Enums"]["trade_status"] | null
+          strategy_id: string | null
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          broker_connection_id?: string | null
+          call_spread_long_strike: number
+          call_spread_short_strike: number
+          closed_at?: string | null
+          contracts: number
+          current_pnl?: number | null
+          entry_price?: number | null
+          exit_price?: number | null
+          expiration_date: string
+          id?: string
+          max_loss?: number | null
+          max_profit?: number | null
+          notes?: string | null
+          opened_at?: string | null
+          put_spread_long_strike: number
+          put_spread_short_strike: number
+          status?: Database["public"]["Enums"]["trade_status"] | null
+          strategy_id?: string | null
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          broker_connection_id?: string | null
+          call_spread_long_strike?: number
+          call_spread_short_strike?: number
+          closed_at?: string | null
+          contracts?: number
+          current_pnl?: number | null
+          entry_price?: number | null
+          exit_price?: number | null
+          expiration_date?: string
+          id?: string
+          max_loss?: number | null
+          max_profit?: number | null
+          notes?: string | null
+          opened_at?: string | null
+          put_spread_long_strike?: number
+          put_spread_short_strike?: number
+          status?: Database["public"]["Enums"]["trade_status"] | null
+          strategy_id?: string | null
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iron_condor_trades_broker_connection_id_fkey"
+            columns: ["broker_connection_id"]
+            isOneToOne: false
+            referencedRelation: "broker_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iron_condor_trades_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "trading_strategies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iron_condor_trades_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_data: {
+        Row: {
+          close_price: number | null
+          created_at: string | null
+          high_price: number | null
+          id: string
+          iv_rank: number | null
+          low_price: number | null
+          open_price: number | null
+          symbol: string
+          timestamp: string
+          volume: number | null
+        }
+        Insert: {
+          close_price?: number | null
+          created_at?: string | null
+          high_price?: number | null
+          id?: string
+          iv_rank?: number | null
+          low_price?: number | null
+          open_price?: number | null
+          symbol: string
+          timestamp: string
+          volume?: number | null
+        }
+        Update: {
+          close_price?: number | null
+          created_at?: string | null
+          high_price?: number | null
+          id?: string
+          iv_rank?: number | null
+          low_price?: number | null
+          open_price?: number | null
+          symbol?: string
+          timestamp?: string
+          volume?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -16,6 +184,10 @@ export type Database = {
           id: string
           name: string | null
           role: Database["public"]["Enums"]["user_role"]
+          subscription_expires_at: string | null
+          subscription_tier:
+            | Database["public"]["Enums"]["subscription_tier"]
+            | null
           updated_at: string
         }
         Insert: {
@@ -24,6 +196,10 @@ export type Database = {
           id: string
           name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          subscription_expires_at?: string | null
+          subscription_tier?:
+            | Database["public"]["Enums"]["subscription_tier"]
+            | null
           updated_at?: string
         }
         Update: {
@@ -32,9 +208,105 @@ export type Database = {
           id?: string
           name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          subscription_expires_at?: string | null
+          subscription_tier?:
+            | Database["public"]["Enums"]["subscription_tier"]
+            | null
           updated_at?: string
         }
         Relationships: []
+      }
+      strategy_subscriptions: {
+        Row: {
+          fees_paid: number | null
+          id: string
+          purchased_at: string | null
+          strategy_id: string
+          total_profit: number | null
+          user_id: string
+        }
+        Insert: {
+          fees_paid?: number | null
+          id?: string
+          purchased_at?: string | null
+          strategy_id: string
+          total_profit?: number | null
+          user_id: string
+        }
+        Update: {
+          fees_paid?: number | null
+          id?: string
+          purchased_at?: string | null
+          strategy_id?: string
+          total_profit?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_subscriptions_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "trading_strategies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_strategies: {
+        Row: {
+          created_at: string | null
+          creator_id: string
+          description: string | null
+          fee_percentage: number | null
+          id: string
+          is_premium_only: boolean | null
+          performance_metrics: Json | null
+          status: Database["public"]["Enums"]["strategy_status"] | null
+          strategy_config: Json
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          creator_id: string
+          description?: string | null
+          fee_percentage?: number | null
+          id?: string
+          is_premium_only?: boolean | null
+          performance_metrics?: Json | null
+          status?: Database["public"]["Enums"]["strategy_status"] | null
+          strategy_config: Json
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          creator_id?: string
+          description?: string | null
+          fee_percentage?: number | null
+          id?: string
+          is_premium_only?: boolean | null
+          performance_metrics?: Json | null
+          status?: Database["public"]["Enums"]["strategy_status"] | null
+          strategy_config?: Json
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trading_strategies_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -51,6 +323,15 @@ export type Database = {
       }
     }
     Enums: {
+      broker_name:
+        | "ig"
+        | "tradestation"
+        | "tradier"
+        | "easymarkets"
+        | "tradenation"
+      strategy_status: "draft" | "published" | "archived"
+      subscription_tier: "free" | "premium" | "professional"
+      trade_status: "pending" | "executed" | "closed" | "cancelled"
       user_role: "user" | "admin" | "super_admin"
     }
     CompositeTypes: {
@@ -167,6 +448,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      broker_name: [
+        "ig",
+        "tradestation",
+        "tradier",
+        "easymarkets",
+        "tradenation",
+      ],
+      strategy_status: ["draft", "published", "archived"],
+      subscription_tier: ["free", "premium", "professional"],
+      trade_status: ["pending", "executed", "closed", "cancelled"],
       user_role: ["user", "admin", "super_admin"],
     },
   },
