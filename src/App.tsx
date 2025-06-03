@@ -10,6 +10,10 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import CreateStrategy from "./pages/CreateStrategy";
+import AdminAnalytics from "./pages/AdminAnalytics";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import Community from "./pages/Community";
 import NotFound from "./pages/NotFound";
 
 // Create QueryClient instance with proper configuration
@@ -35,6 +39,10 @@ const App = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/landing" element={<Index />} />
               <Route path="/create-strategy" element={<CreateStrategy />} />
+              <Route path="/admin" element={<AdminAnalytics />} />
+              <Route path="/profile/:userId?" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/community" element={<Community />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

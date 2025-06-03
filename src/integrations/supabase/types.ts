@@ -47,6 +47,102 @@ export type Database = {
           },
         ]
       }
+      group_memberships: {
+        Row: {
+          group_id: string | null
+          id: string
+          joined_at: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          group_id?: string | null
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          group_id?: string | null
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "trading_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_posts: {
+        Row: {
+          comments_count: number | null
+          content: string
+          created_at: string | null
+          group_id: string | null
+          id: string
+          likes_count: number | null
+          pinned: boolean | null
+          post_type: string | null
+          title: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          comments_count?: number | null
+          content: string
+          created_at?: string | null
+          group_id?: string | null
+          id?: string
+          likes_count?: number | null
+          pinned?: boolean | null
+          post_type?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          comments_count?: number | null
+          content?: string
+          created_at?: string | null
+          group_id?: string | null
+          id?: string
+          likes_count?: number | null
+          pinned?: boolean | null
+          post_type?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_posts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "trading_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       iron_condor_trades: {
         Row: {
           broker_connection_id: string | null
@@ -177,6 +273,202 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_analytics: {
+        Row: {
+          active_users: number | null
+          created_at: string | null
+          date: string
+          id: string
+          new_signups: number | null
+          new_strategies: number | null
+          new_trades: number | null
+          revenue: number | null
+          total_strategies: number | null
+          total_trades: number | null
+          total_users: number | null
+          total_volume: number | null
+        }
+        Insert: {
+          active_users?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          new_signups?: number | null
+          new_strategies?: number | null
+          new_trades?: number | null
+          revenue?: number | null
+          total_strategies?: number | null
+          total_trades?: number | null
+          total_users?: number | null
+          total_volume?: number | null
+        }
+        Update: {
+          active_users?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          new_signups?: number | null
+          new_strategies?: number | null
+          new_trades?: number | null
+          revenue?: number | null
+          total_strategies?: number | null
+          total_trades?: number | null
+          total_users?: number | null
+          total_volume?: number | null
+        }
+        Relationships: []
+      }
+      post_comments: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          likes_count: number | null
+          parent_comment_id: string | null
+          post_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          likes_count?: number | null
+          parent_comment_id?: string | null
+          post_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          likes_count?: number | null
+          parent_comment_id?: string | null
+          post_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "post_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_likes: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          comments_count: number | null
+          content: string
+          created_at: string | null
+          id: string
+          images: string[] | null
+          is_public: boolean | null
+          likes_count: number | null
+          post_type: string | null
+          shares_count: number | null
+          strategy_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          comments_count?: number | null
+          content: string
+          created_at?: string | null
+          id?: string
+          images?: string[] | null
+          is_public?: boolean | null
+          likes_count?: number | null
+          post_type?: string | null
+          shares_count?: number | null
+          strategy_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          comments_count?: number | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          images?: string[] | null
+          is_public?: boolean | null
+          likes_count?: number | null
+          post_type?: string | null
+          shares_count?: number | null
+          strategy_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "trading_strategies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -216,6 +508,74 @@ export type Database = {
         }
         Relationships: []
       }
+      social_profiles: {
+        Row: {
+          bio: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          followers_count: number | null
+          following_count: number | null
+          id: string
+          linkedin_url: string | null
+          location: string | null
+          profile_image_url: string | null
+          specialties: string[] | null
+          total_profit: number | null
+          total_strategies: number | null
+          trading_experience: number | null
+          twitter_handle: string | null
+          updated_at: string | null
+          user_id: string | null
+          website_url: string | null
+        }
+        Insert: {
+          bio?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          followers_count?: number | null
+          following_count?: number | null
+          id?: string
+          linkedin_url?: string | null
+          location?: string | null
+          profile_image_url?: string | null
+          specialties?: string[] | null
+          total_profit?: number | null
+          total_strategies?: number | null
+          trading_experience?: number | null
+          twitter_handle?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          website_url?: string | null
+        }
+        Update: {
+          bio?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          followers_count?: number | null
+          following_count?: number | null
+          id?: string
+          linkedin_url?: string | null
+          location?: string | null
+          profile_image_url?: string | null
+          specialties?: string[] | null
+          total_profit?: number | null
+          total_strategies?: number | null
+          trading_experience?: number | null
+          twitter_handle?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          website_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategy_subscriptions: {
         Row: {
           fees_paid: number | null
@@ -252,6 +612,56 @@ export type Database = {
           {
             foreignKeyName: "strategy_subscriptions_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_groups: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string | null
+          creator_id: string | null
+          description: string | null
+          group_type: string | null
+          id: string
+          max_members: number | null
+          members_count: number | null
+          name: string
+          tags: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          description?: string | null
+          group_type?: string | null
+          id?: string
+          max_members?: number | null
+          members_count?: number | null
+          name: string
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          description?: string | null
+          group_type?: string | null
+          id?: string
+          max_members?: number | null
+          members_count?: number | null
+          name?: string
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trading_groups_creator_id_fkey"
+            columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -303,6 +713,83 @@ export type Database = {
             foreignKeyName: "trading_strategies_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_follows: {
+        Row: {
+          created_at: string | null
+          follower_id: string | null
+          following_id: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          follower_id?: string | null
+          following_id?: string | null
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          follower_id?: string | null
+          following_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_follows_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_settings: {
+        Row: {
+          created_at: string | null
+          email_notifications: boolean | null
+          id: string
+          notifications_enabled: boolean | null
+          privacy_level: string | null
+          theme_preference: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          notifications_enabled?: boolean | null
+          privacy_level?: string | null
+          theme_preference?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          notifications_enabled?: boolean | null
+          privacy_level?: string | null
+          theme_preference?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },

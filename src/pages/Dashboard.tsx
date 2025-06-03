@@ -6,6 +6,10 @@ import TradingChart from '@/components/trading/TradingChart';
 import IronCondorBuilder from '@/components/trading/IronCondorBuilder';
 import StrategyMarketplace from '@/components/strategies/StrategyMarketplace';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link } from 'react-router-dom';
+import { Users, TrendingUp, Target, Plus } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -18,13 +22,88 @@ const Dashboard = () => {
     return <Navigate to="/auth" replace />;
   }
 
+  const isAdmin = user?.email === 'royan.shaw@gmail.com';
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       
-      <main className="container mx-auto p-6">
+      <main className="container mx-auto p-4 sm:p-6">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            Welcome back, {user.email?.split('@')[0]}!
+          </h1>
+          <p className="text-gray-600">Manage your iron condor strategies and connect with the trading community</p>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <Plus className="h-5 w-5 mr-2 text-blue-600" />
+                Create Strategy
+              </CardTitle>
+              <CardDescription>Build and publish new trading strategies</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/create-strategy">
+                <Button className="w-full">Get Started</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <Users className="h-5 w-5 mr-2 text-green-600" />
+                Community
+              </CardTitle>
+              <CardDescription>Connect with fellow traders</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/community">
+                <Button variant="outline" className="w-full">Join Discussion</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <Target className="h-5 w-5 mr-2 text-purple-600" />
+                Marketplace
+              </CardTitle>
+              <CardDescription>Browse trading strategies</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/landing">
+                <Button variant="outline" className="w-full">Explore</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          {isAdmin && (
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2 text-orange-600" />
+                  Analytics
+                </CardTitle>
+                <CardDescription>Platform insights and metrics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link to="/admin">
+                  <Button variant="outline" className="w-full">View Dashboard</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
         <Tabs defaultValue="trading" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
             <TabsTrigger value="trading">Trading</TabsTrigger>
             <TabsTrigger value="strategies">Strategies</TabsTrigger>
             <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
@@ -47,15 +126,35 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="portfolio">
-            <div className="text-center p-8 text-gray-500">
-              Portfolio management coming soon...
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Portfolio Management</CardTitle>
+                <CardDescription>Track your trading performance and positions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center p-8 text-gray-500">
+                  <Target className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium mb-2">Portfolio tracking coming soon</p>
+                  <p>We're building advanced portfolio management tools for you.</p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="brokers">
-            <div className="text-center p-8 text-gray-500">
-              Broker connections coming soon...
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Broker Connections</CardTitle>
+                <CardDescription>Connect your trading accounts for automated execution</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center p-8 text-gray-500">
+                  <TrendingUp className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium mb-2">Broker integrations coming soon</p>
+                  <p>We're partnering with top brokers to bring you seamless trading.</p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
