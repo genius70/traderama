@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
@@ -54,6 +53,22 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
+          {/* Upgrade to Premium Card - Only for non-premium users */}
+          {user?.subscription_tier !== 'premium' && (
+            <Card className="hover:shadow-md transition-shadow border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2 text-purple-600" />
+                  Go Premium
+                </CardTitle>
+                <CardDescription>Unlock advanced features and analytics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UpgradeToPremium />
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center">
@@ -73,14 +88,14 @@ const Dashboard = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center">
                 <Target className="h-5 w-5 mr-2 text-purple-600" />
-                Marketplace
+                Start Trading
               </CardTitle>
-              <CardDescription>Browse trading strategies</CardDescription>
+              <CardDescription>Begin your trading journey</CardDescription>
             </CardHeader>
             <CardContent>
-              <Link to="/landing">
-                <Button variant="outline" className="w-full">Explore</Button>
-              </Link>
+              <Button className="w-full bg-green-600 hover:bg-green-700">
+                Start Trading
+              </Button>
             </CardContent>
           </Card>
 
@@ -142,19 +157,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="brokers">
-            <Card>
-              <CardHeader>
-                <CardTitle>Broker Connections</CardTitle>
-                <CardDescription>Connect your trading accounts for automated execution</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center p-8 text-gray-500">
-                  <TrendingUp className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg font-medium mb-2">Broker integrations coming soon</p>
-                  <p>We're partnering with top brokers to bring you seamless trading.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <BrokerConnections />
           </TabsContent>
         </Tabs>
       </main>

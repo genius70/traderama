@@ -1,0 +1,176 @@
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Check, Crown, Zap } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+
+const UpgradeToPremium = () => {
+  const [selectedPlan, setSelectedPlan] = useState('monthly');
+  const [selectedProvider, setSelectedProvider] = useState('stripe');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
+
+  const plans = {
+    monthly: { price: 30, period: 'month', savings: 0 },
+    annual: { price: 200, period: 'year', savings: 160 }
+  };
+
+  const paymentProviders = {
+    stripe: 'Stripe (Credit/Debit Cards)',
+    wise: 'Wise (Bank Transfer)',
+    airtm: 'AirTM (Multiple Options)'
+  };
+
+  const premiumFeatures = [
+    'Unlimited strategy subscriptions',
+    'Advanced analytics dashboard',
+    'Real-time market data',
+    'Premium broker integrations',
+    'Priority customer support',
+    'Advanced risk management tools',
+    'Custom strategy builder',
+    'Portfolio optimization tools'
+  ];
+
+  const handleUpgrade = async () => {
+    setIsProcessing(true);
+    try {
+      // Here you would integrate with the selected payment provider
+      toast({
+        title: "Redirecting to payment...",
+        description: `Processing upgrade via ${paymentProviders[selectedProvider as keyof typeof paymentProviders]}`,
+      });
+      
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      toast({
+        title: "Upgrade successful!",
+        description: "Welcome to Premium! Your account has been upgraded.",
+      });
+    } catch (error) {
+      toast({
+        title: "Upgrade failed",
+        description: "Please try again or contact support.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const currentPlan = plans[selectedPlan as keyof typeof plans];
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white">
+          <Crown className="h-4 w-4 mr-2" />
+          Upgrade to Premium
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center text-2xl">
+            <Crown className="h-6 w-6 mr-2 text-yellow-500" />
+            Upgrade to Premium
+          </DialogTitle>
+          <DialogDescription>
+            Unlock advanced trading features and premium analytics
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Plan Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card 
+              className={`cursor-pointer transition-all ${selectedPlan === 'monthly' ? 'ring-2 ring-blue-500' : ''}`}
+              onClick={() => setSelectedPlan('monthly')}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  Monthly
+                  {selectedPlan === 'monthly' && <Badge variant="default">Selected</Badge>}
+                </CardTitle>
+                <CardDescription>
+                  <span className="text-2xl font-bold">${plans.monthly.price}</span>/month
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card 
+              className={`cursor-pointer transition-all ${selectedPlan === 'annual' ? 'ring-2 ring-blue-500' : ''}`}
+              onClick={() => setSelectedPlan('annual')}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  Annual
+                  {selectedPlan === 'annual' && <Badge variant="default">Selected</Badge>}
+                  <Badge variant="secondary" className="ml-2">Save ${plans.annual.savings}</Badge>
+                </CardTitle>
+                <CardDescription>
+                  <span className="text-2xl font-bold">${plans.annual.price}</span>/year
+                  <span className="text-sm text-gray-500 block">($16.67/month)</span>
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+
+          {/* Payment Provider Selection */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Payment Method</label>
+            <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="stripe">Stripe (Credit/Debit Cards)</SelectItem>
+                <SelectItem value="wise">Wise (Bank Transfer)</SelectItem>
+                <SelectItem value="airtm">AirTM (Multiple Options)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Features List */}
+          <div>
+            <h4 className="font-semibold mb-3">Premium Features</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {premiumFeatures.map((feature, index) => (
+                <div key={index} className="flex items-center text-sm">
+                  <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                  {feature}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Upgrade Button */}
+          <Button 
+            onClick={handleUpgrade} 
+            disabled={isProcessing}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            size="lg"
+          >
+            {isProcessing ? (
+              <>
+                <Zap className="h-4 w-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Crown className="h-4 w-4 mr-2" />
+                Upgrade for ${currentPlan.price}/{currentPlan.period}
+              </>
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default UpgradeToPremium;

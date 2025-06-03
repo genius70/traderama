@@ -156,6 +156,28 @@ const Settings = () => {
             </CardContent>
           </Card>
 
+          {/* Wallet Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Wallet & Payments</CardTitle>
+              <CardDescription>Manage your trading funds and payment methods</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WalletSettings />
+            </CardContent>
+          </Card>
+
+          {/* Broker Connections */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Broker Connections</CardTitle>
+              <CardDescription>Connect your trading accounts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BrokerConnections />
+            </CardContent>
+          </Card>
+
           {/* Notification Settings */}
           <Card>
             <CardHeader>
