@@ -9,13 +9,14 @@ import { Copy, Download, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ShareData {
-  type: 'pnl' | 'strategy' | 'trade';
+  type: 'pnl' | 'strategy' | 'trade' | 'post';
   userName: string;
   totalProfit?: number;
   totalTrades?: number;
   winRate?: string;
   timeframe?: string;
   strategyName?: string;
+  content?: string;
   timestamp: string;
 }
 

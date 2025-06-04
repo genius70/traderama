@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/layout/Header';
 import ProfitLossPanel from '@/components/trading/ProfitLossPanel';
 import SocialShareButton from '@/components/community/SocialShareButton';
+import InviteFriend from '@/components/community/InviteFriend';
 
 interface Profile {
   id: string;
@@ -374,11 +375,12 @@ const Profile = () => {
 
         {/* Profile Content Tabs */}
         <Tabs defaultValue="pnl" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
             <TabsTrigger value="pnl">P&L Analytics</TabsTrigger>
             <TabsTrigger value="strategies">Strategies</TabsTrigger>
             <TabsTrigger value="posts">Posts</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
+            {isOwnProfile && <TabsTrigger value="invite">Invite Friends</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="pnl">
@@ -462,6 +464,14 @@ const Profile = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {isOwnProfile && (
+            <TabsContent value="invite">
+              <div className="flex justify-center">
+                <InviteFriend />
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>

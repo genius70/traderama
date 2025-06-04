@@ -7,11 +7,12 @@ import IronCondorBuilder from '@/components/trading/IronCondorBuilder';
 import StrategyMarketplace from '@/components/strategies/StrategyMarketplace';
 import BrokerConnections from '@/components/brokers/BrokerConnections';
 import UpgradeToPremium from '@/components/subscription/UpgradeToPremium';
+import InviteFriend from '@/components/community/InviteFriend';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Users, TrendingUp, Target, Plus } from 'lucide-react';
+import { Users, TrendingUp, Target, Plus, UserPlus } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -123,11 +124,12 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="trading" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
             <TabsTrigger value="trading">Trading</TabsTrigger>
             <TabsTrigger value="strategies">Strategies</TabsTrigger>
             <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
             <TabsTrigger value="brokers">Brokers</TabsTrigger>
+            <TabsTrigger value="invite">Invite Friends</TabsTrigger>
           </TabsList>
 
           <TabsContent value="trading" className="space-y-6">
@@ -163,6 +165,12 @@ const Dashboard = () => {
 
           <TabsContent value="brokers">
             <BrokerConnections />
+          </TabsContent>
+
+          <TabsContent value="invite">
+            <div className="flex justify-center">
+              <InviteFriend />
+            </div>
           </TabsContent>
         </Tabs>
       </main>

@@ -28,7 +28,7 @@ const SocialShareButton: React.FC<SocialShareButtonProps> = ({
   const [showShareModal, setShowShareModal] = useState(false);
 
   const generateShareData = () => ({
-    type: postData.type || 'post' as const,
+    type: postData.type === 'post' ? 'post' as const : (postData.type || 'post') as const,
     userName: postData.author,
     content: postData.content,
     timestamp: new Date().toISOString()

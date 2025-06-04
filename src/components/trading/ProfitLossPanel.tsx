@@ -1,225 +1,198 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, TrendingDown, Share2, Calendar, DollarSign } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { TrendingUp, TrendingDown, DollarSign, Target, Calendar, Share2 } from 'lucide-react';
 import SocialShareModal from './SocialShareModal';
-
-interface PnLData {
-  date: string;
-  profit: number;
-  trades: number;
-  winRate: number;
-}
 
 interface ProfitLossPanelProps {
   userId: string;
   userName: string;
-  timeframe?: 'week' | 'month' | 'quarter' | 'year';
 }
 
-const ProfitLossPanel: React.FC<ProfitLossPanelProps> = ({ 
-  userId, 
-  userName, 
-  timeframe = 'month' 
-}) => {
-  const [selectedTimeframe, setSelectedTimeframe] = useState(timeframe);
+const ProfitLossPanel: React.FC<ProfitLossPanelProps> = ({ userId, userName }) => {
+  const [timeframe, setTimeframe] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [showShareModal, setShowShareModal] = useState(false);
 
-  // Mock P&L data - in real app this would come from backend
-  const pnlData: PnLData[] = [
-    { date: '2024-01-01', profit: 1250, trades: 15, winRate: 73 },
-    { date: '2024-01-02', profit: 890, trades: 12, winRate: 67 },
-    { date: '2024-01-03', profit: 1450, trades: 18, winRate: 78 },
-    { date: '2024-01-04', profit: -320, trades: 8, winRate: 38 },
-    { date: '2024-01-05', profit: 2100, trades: 22, winRate: 82 },
-    { date: '2024-01-06', profit: 1680, trades: 20, winRate: 75 },
-    { date: '2024-01-07', profit: 980, trades: 14, winRate: 71 }
-  ];
-
-  const totalProfit = pnlData.reduce((sum, data) => sum + data.profit, 0);
-  const totalTrades = pnlData.reduce((sum, data) => sum + data.trades, 0);
-  const avgWinRate = pnlData.reduce((sum, data) => sum + data.winRate, 0) / pnlData.length;
-  const profitGrowth = ((pnlData[pnlData.length - 1]?.profit - pnlData[0]?.profit) / Math.abs(pnlData[0]?.profit)) * 100;
-
-  const chartConfig = {
-    profit: {
-      label: 'Profit ($)',
-      color: totalProfit >= 0 ? '#10b981' : '#ef4444'
-    }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
+  // Mock data - in real app this would come from Supabase
+  const mockData = {
+    totalProfit: 15420.50,
+    totalTrades: 127,
+    winRate: 68.5,
+    bestTrade: 2340.00,
+    worstTrade: -890.00,
+    avgTradeSize: 1850.00,
+    dailyPnL: [
+      { date: '2024-01-01', pnl: 450 },
+      { date: '2024-01-02', pnl: -200 },
+      { date: '2024-01-03', pnl: 800 },
+      { date: '2024-01-04', pnl: 320 },
+      { date: '2024-01-05', pnl: -150 },
+      { date: '2024-01-06', pnl: 600 },
+      { date: '2024-01-07', pnl: 920 }
+    ],
+    monthlyPnL: [
+      { month: 'Jan', profit: 3200, loss: -800 },
+      { month: 'Feb', profit: 4100, loss: -1200 },
+      { month: 'Mar', profit: 2800, loss: -600 },
+      { month: 'Apr', profit: 5200, loss: -1800 },
+      { month: 'May', profit: 3900, loss: -900 },
+      { month: 'Jun', profit: 4600, loss: -1100 }
+    ]
   };
 
   const generateShareData = () => ({
-    type: 'pnl',
-    userName,
-    totalProfit,
-    totalTrades,
-    winRate: avgWinRate.toFixed(1),
-    timeframe: selectedTimeframe,
+    type: 'pnl' as const,
+    userName: userName,
+    totalProfit: mockData.totalProfit,
+    totalTrades: mockData.totalTrades,
+    winRate: mockData.winRate.toString(),
+    timeframe: timeframe,
     timestamp: new Date().toISOString()
   });
 
+  const isProfit = mockData.totalProfit > 0;
+  const profitPercentage = ((mockData.totalProfit / (mockData.avgTradeSize * mockData.totalTrades)) * 100).toFixed(2);
+
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total P&L</CardDescription>
-            <CardTitle className={`text-2xl ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(totalProfit)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2">
-              {profitGrowth >= 0 ? (
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              ) : (
-                <TrendingDown className="h-4 w-4 text-red-600" />
-              )}
-              <span className={`text-sm ${profitGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {profitGrowth >= 0 ? '+' : ''}{profitGrowth.toFixed(1)}%
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Trades</CardDescription>
-            <CardTitle className="text-2xl">{totalTrades}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant="outline">Active Trader</Badge>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Win Rate</CardDescription>
-            <CardTitle className="text-2xl text-blue-600">{avgWinRate.toFixed(1)}%</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant={avgWinRate >= 70 ? "default" : "secondary"}>
-              {avgWinRate >= 70 ? 'Excellent' : 'Good'}
-            </Badge>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Avg Daily</CardDescription>
-            <CardTitle className="text-2xl">{formatCurrency(totalProfit / pnlData.length)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">Last 7 days</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Header with Share Button */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">P&L Analytics</h2>
+          <p className="text-gray-600">Trading performance overview</p>
+        </div>
+        <Button 
+          onClick={() => setShowShareModal(true)}
+          className="flex items-center space-x-2"
+        >
+          <Share2 className="h-4 w-4" />
+          <span>Share Results</span>
+        </Button>
       </div>
 
-      {/* Charts and Share */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Performance Overview</CardTitle>
-              <CardDescription>Profit and loss trends over time</CardDescription>
-            </div>
-            <Button 
-              onClick={() => setShowShareModal(true)}
-              variant="outline" 
-              size="sm"
-              className="flex items-center space-x-2"
-            >
-              <Share2 className="h-4 w-4" />
-              <span>Share Results</span>
-            </Button>
+      {/* Timeframe Selection */}
+      <Tabs value={timeframe} onValueChange={(value) => setTimeframe(value as typeof timeframe)}>
+        <TabsList>
+          <TabsTrigger value="week">Week</TabsTrigger>
+          <TabsTrigger value="month">Month</TabsTrigger>
+          <TabsTrigger value="quarter">Quarter</TabsTrigger>
+          <TabsTrigger value="year">Year</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={timeframe} className="space-y-6">
+          {/* Key Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Total P&L
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
+                  ${mockData.totalProfit.toLocaleString()}
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  {isProfit ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                  {profitPercentage}% overall
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Target className="h-4 w-4 mr-2" />
+                  Win Rate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{mockData.winRate}%</div>
+                <div className="text-sm text-gray-600">
+                  {Math.round(mockData.totalTrades * (mockData.winRate / 100))} winning trades
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Trades</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{mockData.totalTrades}</div>
+                <div className="text-sm text-gray-600">
+                  Avg: ${mockData.avgTradeSize.toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Best/Worst</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm space-y-1">
+                  <div className="text-green-600 font-semibold">
+                    +${mockData.bestTrade.toLocaleString()}
+                  </div>
+                  <div className="text-red-600 font-semibold">
+                    ${mockData.worstTrade.toLocaleString()}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="profit" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="profit">Profit Trend</TabsTrigger>
-              <TabsTrigger value="trades">Trade Volume</TabsTrigger>
-              <TabsTrigger value="winrate">Win Rate</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="profit" className="space-y-4">
-              <ChartContainer config={chartConfig} className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={pnlData}>
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                    />
-                    <YAxis tickFormatter={(value) => `$${value}`} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Daily P&L Trend</CardTitle>
+                <CardDescription>Profit and loss over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={mockData.dailyPnL}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
                     <Line 
                       type="monotone" 
-                      dataKey="profit" 
-                      stroke="var(--color-profit)" 
+                      dataKey="pnl" 
+                      stroke="#8884d8" 
                       strokeWidth={2}
-                      dot={{ fill: "var(--color-profit)" }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
-              </ChartContainer>
-            </TabsContent>
+              </CardContent>
+            </Card>
 
-            <TabsContent value="trades" className="space-y-4">
-              <ChartContainer config={{ trades: { label: 'Trades', color: '#8b5cf6' } }} className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={pnlData}>
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                    />
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Comparison</CardTitle>
+                <CardDescription>Profits vs losses by month</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={mockData.monthlyPnL}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
                     <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="trades" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    <Tooltip />
+                    <Bar dataKey="profit" fill="#10b981" />
+                    <Bar dataKey="loss" fill="#ef4444" />
                   </BarChart>
                 </ResponsiveContainer>
-              </ChartContainer>
-            </TabsContent>
-
-            <TabsContent value="winrate" className="space-y-4">
-              <ChartContainer config={{ winRate: { label: 'Win Rate (%)', color: '#f59e0b' } }} className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={pnlData}>
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                    />
-                    <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="winRate" 
-                      stroke="#f59e0b" 
-                      strokeWidth={2}
-                      dot={{ fill: "#f59e0b" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Social Share Modal */}
       <SocialShareModal
