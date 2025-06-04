@@ -10,11 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+type AssetType = 'stock' | 'etf' | 'index' | 'crypto';
+
 interface Asset {
   id: string;
   symbol: string;
   name: string;
-  asset_type: 'stock' | 'etf' | 'index' | 'crypto';
+  asset_type: AssetType;
   exchange: string;
   is_options_available: boolean;
   is_active: boolean;
@@ -56,7 +58,7 @@ const AssetManagement = () => {
   const [newAsset, setNewAsset] = useState({
     symbol: '',
     name: '',
-    asset_type: 'stock' as const,
+    asset_type: 'stock' as AssetType,
     exchange: '',
     is_options_available: false
   });
@@ -160,7 +162,7 @@ const AssetManagement = () => {
                 <Label htmlFor="type">Asset Type *</Label>
                 <Select
                   value={newAsset.asset_type}
-                  onValueChange={(value: 'stock' | 'etf' | 'index' | 'crypto') => 
+                  onValueChange={(value: AssetType) => 
                     setNewAsset({...newAsset, asset_type: value})
                   }
                 >
@@ -233,7 +235,7 @@ const AssetManagement = () => {
                       <Label>Type</Label>
                       <Select
                         value={editingAsset.asset_type}
-                        onValueChange={(value: 'stock' | 'etf' | 'index' | 'crypto') => 
+                        onValueChange={(value: AssetType) => 
                           setEditingAsset({...editingAsset, asset_type: value})
                         }
                       >

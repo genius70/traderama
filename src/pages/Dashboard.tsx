@@ -25,6 +25,8 @@ const Dashboard = () => {
   }
 
   const isAdmin = user?.email === 'royan.shaw@gmail.com';
+  // Mock subscription tier - in real app this would come from profiles table
+  const isPremiumUser = false; // This would be fetched from user profile
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -57,7 +59,7 @@ const Dashboard = () => {
           </Card>
 
           {/* Upgrade to Premium Card - Only for non-premium users */}
-          {user?.subscription_tier !== 'premium' && (
+          {!isPremiumUser && (
             <Card className="hover:shadow-md transition-shadow border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center">
