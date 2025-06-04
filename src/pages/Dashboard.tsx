@@ -1,9 +1,12 @@
+
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import TradingChart from '@/components/trading/TradingChart';
 import IronCondorBuilder from '@/components/trading/IronCondorBuilder';
 import StrategyMarketplace from '@/components/strategies/StrategyMarketplace';
+import BrokerConnections from '@/components/brokers/BrokerConnections';
+import UpgradeToPremium from '@/components/subscription/UpgradeToPremium';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

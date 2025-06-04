@@ -1,15 +1,12 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Link2, Unlink, Shield, AlertCircle } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { Plus, Link as LinkIcon, Unlink, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface BrokerConnection {
@@ -21,146 +18,105 @@ interface BrokerConnection {
 }
 
 const BrokerConnections = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [connections, setConnections] = useState<BrokerConnection[]>([]);
-  const [selectedBroker, setSelectedBroker] = useState('');
-  const [accountId, setAccountId] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [apiSecret, setApiSecret] = useState('');
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newConnection, setNewConnection] = useState({
+    broker: '',
+    account_id: '',
+    api_key: '',
+    secret_key: ''
+  });
 
-  const brokers = [
-    { value: 'interactive_brokers', label: 'Interactive Brokers', icon: '🏦' },
-    { value: 'trade_station', label: 'TradeStation', icon: '📈' },
-    { value: 'trade_nation', label: 'Trade Nation', icon: '🌍' },
-    { value: 'tradier', label: 'Tradier', icon: '💰' },
-    { value: 'ig', label: 'IG', icon: '🎯' },
-    { value: 'binance', label: 'Binance (Crypto)', icon: '₿' }
+  const availableBrokers = [
+    { value: 'interactive_brokers', label: 'Interactive Brokers' },
+    { value: 'trade_station', label: 'TradeStation' },
+    { value: 'trade_nation', label: 'Trade Nation' },
+    { value: 'tradier', label: 'Tradier' },
+    { value: 'ig', label: 'IG' },
+    { value: 'binance', label: 'Binance (Crypto)' }
   ];
 
-  useEffect(() => {
-    if (user) {
-      fetchConnections();
-    }
-  }, [user]);
-
-  const fetchConnections = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('broker_connections')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('connected_at', { ascending: false });
-
-      if (error) throw error;
-      setConnections(data || []);
-    } catch (error) {
-      console.error('Error fetching connections:', error);
-    }
-  };
-
-  const handleConnect = async () => {
-    if (!selectedBroker || !accountId) return;
-
-    setIsConnecting(true);
-    try {
-      const { error } = await supabase
-        .from('broker_connections')
-        .insert({
-          user_id: user?.id,
-          broker: selectedBroker,
-          account_id: accountId,
-          api_credentials: {
-            api_key: apiKey,
-            api_secret: apiSecret
-          },
-          is_active: true
-        });
-
-      if (error) throw error;
-
+  const handleConnect = () => {
+    if (!newConnection.broker || !newConnection.account_id) {
       toast({
-        title: "Broker connected successfully",
-        description: `Connected to ${brokers.find(b => b.value === selectedBroker)?.label}`,
-      });
-
-      setSelectedBroker('');
-      setAccountId('');
-      setApiKey('');
-      setApiSecret('');
-      fetchConnections();
-    } catch (error) {
-      toast({
-        title: "Connection failed",
-        description: "Please check your credentials and try again",
+        title: "Error",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
-    } finally {
-      setIsConnecting(false);
+      return;
     }
+
+    const connection: BrokerConnection = {
+      id: Date.now().toString(),
+      broker: newConnection.broker,
+      account_id: newConnection.account_id,
+      is_active: true,
+      connected_at: new Date().toISOString()
+    };
+
+    setConnections([...connections, connection]);
+    setNewConnection({
+      broker: '',
+      account_id: '',
+      api_key: '',
+      secret_key: ''
+    });
+    setShowAddForm(false);
+
+    toast({
+      title: "Broker connected successfully",
+      description: `Connected to ${availableBrokers.find(b => b.value === newConnection.broker)?.label}`,
+    });
   };
 
-  const handleDisconnect = async (connectionId: string) => {
-    try {
-      const { error } = await supabase
-        .from('broker_connections')
-        .update({ is_active: false })
-        .eq('id', connectionId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Broker disconnected",
-        description: "The broker connection has been disabled",
-      });
-
-      fetchConnections();
-    } catch (error) {
-      toast({
-        title: "Disconnection failed",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getBrokerLabel = (brokerValue: string) => {
-    return brokers.find(b => b.value === brokerValue)?.label || brokerValue;
-  };
-
-  const getBrokerIcon = (brokerValue: string) => {
-    return brokers.find(b => b.value === brokerValue)?.icon || '🔗';
+  const handleDisconnect = (connectionId: string) => {
+    setConnections(connections.filter(conn => conn.id !== connectionId));
+    toast({
+      title: "Broker disconnected",
+      description: "Broker connection has been removed",
+    });
   };
 
   return (
     <div className="space-y-6">
-      {/* Add New Connection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Link2 className="h-5 w-5 mr-2" />
-            Connect New Broker
-          </CardTitle>
-          <CardDescription>
-            Connect your trading accounts for automated execution
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold">Broker Connections</h3>
+          <p className="text-sm text-gray-600">Connect your trading accounts</p>
+        </div>
+        <Button onClick={() => setShowAddForm(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Broker
+        </Button>
+      </div>
+
+      {/* Add New Connection Form */}
+      {showAddForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Shield className="h-5 w-5 mr-2" />
+              Connect New Broker
+            </CardTitle>
+            <CardDescription>
+              Your credentials are encrypted and stored securely
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="broker">Select Broker</Label>
-              <Select value={selectedBroker} onValueChange={setSelectedBroker}>
+              <Label htmlFor="broker">Broker *</Label>
+              <Select
+                value={newConnection.broker}
+                onValueChange={(value) => setNewConnection({...newConnection, broker: value})}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a broker" />
+                  <SelectValue placeholder="Select a broker" />
                 </SelectTrigger>
                 <SelectContent>
-                  {brokers.map((broker) => (
+                  {availableBrokers.map((broker) => (
                     <SelectItem key={broker.value} value={broker.value}>
-                      <span className="flex items-center">
-                        <span className="mr-2">{broker.icon}</span>
-                        {broker.label}
-                      </span>
+                      {broker.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -168,100 +124,98 @@ const BrokerConnections = () => {
             </div>
 
             <div>
-              <Label htmlFor="account">Account ID</Label>
+              <Label htmlFor="account_id">Account ID *</Label>
               <Input
-                id="account"
+                id="account_id"
+                value={newConnection.account_id}
+                onChange={(e) => setNewConnection({...newConnection, account_id: e.target.value})}
                 placeholder="Your account ID"
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
               />
             </div>
 
             <div>
-              <Label htmlFor="apikey">API Key</Label>
+              <Label htmlFor="api_key">API Key *</Label>
               <Input
-                id="apikey"
+                id="api_key"
                 type="password"
+                value={newConnection.api_key}
+                onChange={(e) => setNewConnection({...newConnection, api_key: e.target.value})}
                 placeholder="Your API key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
               />
             </div>
 
             <div>
-              <Label htmlFor="apisecret">API Secret</Label>
+              <Label htmlFor="secret_key">Secret Key *</Label>
               <Input
-                id="apisecret"
+                id="secret_key"
                 type="password"
-                placeholder="Your API secret"
-                value={apiSecret}
-                onChange={(e) => setApiSecret(e.target.value)}
+                value={newConnection.secret_key}
+                onChange={(e) => setNewConnection({...newConnection, secret_key: e.target.value})}
+                placeholder="Your secret key"
               />
             </div>
-          </div>
 
-          <div className="flex items-center space-x-2 text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
-            <AlertCircle className="h-4 w-4" />
-            <span>Your API credentials are encrypted and stored securely</span>
-          </div>
-
-          <Button 
-            onClick={handleConnect}
-            disabled={!selectedBroker || !accountId || isConnecting}
-            className="w-full"
-          >
-            {isConnecting ? 'Connecting...' : 'Connect Broker'}
-          </Button>
-        </CardContent>
-      </Card>
+            <div className="flex space-x-2">
+              <Button onClick={handleConnect}>
+                <LinkIcon className="h-4 w-4 mr-2" />
+                Connect
+              </Button>
+              <Button variant="outline" onClick={() => setShowAddForm(false)}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Connected Brokers */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Shield className="h-5 w-5 mr-2" />
-            Connected Brokers
-          </CardTitle>
-          <CardDescription>Manage your broker connections</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {connections.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No brokers connected yet</p>
-          ) : (
-            <div className="space-y-3">
-              {connections.map((connection) => (
-                <div key={connection.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{getBrokerIcon(connection.broker)}</span>
+      <div className="space-y-4">
+        {connections.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <LinkIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No brokers connected</h3>
+              <p className="text-gray-600 mb-4">Connect your trading accounts to start trading</p>
+              <Button onClick={() => setShowAddForm(true)}>
+                Connect Your First Broker
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          connections.map((connection) => (
+            <Card key={connection.id}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
                     <div>
-                      <p className="font-medium">{getBrokerLabel(connection.broker)}</p>
-                      <p className="text-sm text-gray-500">Account: {connection.account_id}</p>
-                      <p className="text-xs text-gray-400">
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-medium">
+                          {availableBrokers.find(b => b.value === connection.broker)?.label}
+                        </h4>
+                        <Badge variant={connection.is_active ? "default" : "secondary"}>
+                          {connection.is_active ? "Connected" : "Disconnected"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600">Account: {connection.account_id}</p>
+                      <p className="text-xs text-gray-500">
                         Connected: {new Date(connection.connected_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <Badge variant={connection.is_active ? 'default' : 'secondary'}>
-                      {connection.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                    {connection.is_active && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDisconnect(connection.id)}
-                      >
-                        <Unlink className="h-4 w-4 mr-1" />
-                        Disconnect
-                      </Button>
-                    )}
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDisconnect(connection.id)}
+                  >
+                    <Unlink className="h-4 w-4 mr-2" />
+                    Disconnect
+                  </Button>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 };
