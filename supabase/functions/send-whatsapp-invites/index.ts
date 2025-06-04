@@ -47,6 +47,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Send WhatsApp message to each friend
     for (const friend of friends) {
       try {
+        // Append Traderama.com to the message
+        const finalMessage = `Hi ${friend.name}! ${message} Check it out at Traderama.com`;
+        
         const response = await fetch(
           `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`,
           {
@@ -58,7 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
             body: new URLSearchParams({
               From: `whatsapp:${twilioWhatsAppNumber}`,
               To: `whatsapp:${friend.phoneNumber}`,
-              Body: `Hi ${friend.name}! ${message}`,
+              Body: finalMessage,
             }),
           }
         );
