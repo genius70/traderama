@@ -9,6 +9,50 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      airdrops: {
+        Row: {
+          created_at: string | null
+          credits_used: number
+          ethereum_wallet: string
+          id: string
+          kem_amount: number
+          processed_at: string | null
+          status: string | null
+          transaction_hash: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          credits_used: number
+          ethereum_wallet: string
+          id?: string
+          kem_amount: number
+          processed_at?: string | null
+          status?: string | null
+          transaction_hash?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          credits_used?: number
+          ethereum_wallet?: string
+          id?: string
+          kem_amount?: number
+          processed_at?: string | null
+          status?: string | null
+          transaction_hash?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "airdrops_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       broker_connections: {
         Row: {
           account_id: string
@@ -40,6 +84,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "broker_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escrow_accounts: {
+        Row: {
+          account_number: string
+          balance: number | null
+          created_at: string | null
+          id: string
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          account_number: string
+          balance?: number | null
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          account_number?: string
+          balance?: number | null
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_accounts_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -234,6 +316,44 @@ export type Database = {
           },
         ]
       }
+      kem_credits: {
+        Row: {
+          created_at: string | null
+          credits_earned: number | null
+          credits_spent: number | null
+          id: string
+          total_airdrops_received: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          credits_earned?: number | null
+          credits_spent?: number | null
+          id?: string
+          total_airdrops_received?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          credits_earned?: number | null
+          credits_spent?: number | null
+          id?: string
+          total_airdrops_received?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kem_credits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       market_data: {
         Row: {
           close_price: number | null
@@ -272,6 +392,98 @@ export type Database = {
           volume?: number | null
         }
         Relationships: []
+      }
+      notification_recipients: {
+        Row: {
+          created_at: string | null
+          delivered_at: string | null
+          id: string
+          notification_id: string | null
+          read_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivered_at?: string | null
+          id?: string
+          notification_id?: string | null
+          read_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          delivered_at?: string | null
+          id?: string
+          notification_id?: string | null
+          read_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_recipients_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_recipients_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          content: string
+          cost: number | null
+          created_at: string | null
+          id: string
+          notification_type: string
+          scheduled_at: string | null
+          sender_id: string | null
+          sent_at: string | null
+          status: string | null
+          target_audience: Json | null
+          title: string
+        }
+        Insert: {
+          content: string
+          cost?: number | null
+          created_at?: string | null
+          id?: string
+          notification_type: string
+          scheduled_at?: string | null
+          sender_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+          target_audience?: Json | null
+          title: string
+        }
+        Update: {
+          content?: string
+          cost?: number | null
+          created_at?: string | null
+          id?: string
+          notification_type?: string
+          scheduled_at?: string | null
+          sender_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+          target_audience?: Json | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       platform_analytics: {
         Row: {
@@ -475,38 +687,55 @@ export type Database = {
           email: string
           id: string
           name: string | null
+          referral_code: string | null
+          referred_by: string | null
           role: Database["public"]["Enums"]["user_role"]
           subscription_expires_at: string | null
           subscription_tier:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           created_at?: string
           email: string
           id: string
           name?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           subscription_expires_at?: string | null
           subscription_tier?:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
           name?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           subscription_expires_at?: string | null
           subscription_tier?:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
           updated_at?: string
+          username?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["referral_code"]
+          },
+        ]
       }
       social_profiles: {
         Row: {
@@ -618,6 +847,123 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string | null
+          expires_at: string | null
+          id: string
+          payment_method: string
+          plan_type: string
+          started_at: string | null
+          status: string | null
+          stripe_subscription_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          currency?: string | null
+          expires_at?: string | null
+          id?: string
+          payment_method: string
+          plan_type?: string
+          started_at?: string | null
+          status?: string | null
+          stripe_subscription_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string | null
+          expires_at?: string | null
+          id?: string
+          payment_method?: string
+          plan_type?: string
+          started_at?: string | null
+          status?: string | null
+          stripe_subscription_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_fees: {
+        Row: {
+          copy_trader_id: string | null
+          created_at: string | null
+          creator_fee_amount: number
+          creator_fee_percentage: number
+          id: string
+          processed_at: string | null
+          status: string | null
+          strategy_creator_id: string | null
+          trade_amount: number
+          trade_id: string | null
+          traderama_fee_amount: number
+          traderama_fee_percentage: number | null
+        }
+        Insert: {
+          copy_trader_id?: string | null
+          created_at?: string | null
+          creator_fee_amount: number
+          creator_fee_percentage: number
+          id?: string
+          processed_at?: string | null
+          status?: string | null
+          strategy_creator_id?: string | null
+          trade_amount: number
+          trade_id?: string | null
+          traderama_fee_amount: number
+          traderama_fee_percentage?: number | null
+        }
+        Update: {
+          copy_trader_id?: string | null
+          created_at?: string | null
+          creator_fee_amount?: number
+          creator_fee_percentage?: number
+          id?: string
+          processed_at?: string | null
+          status?: string | null
+          strategy_creator_id?: string | null
+          trade_amount?: number
+          trade_id?: string | null
+          traderama_fee_amount?: number
+          traderama_fee_percentage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trading_fees_copy_trader_id_fkey"
+            columns: ["copy_trader_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trading_fees_strategy_creator_id_fkey"
+            columns: ["strategy_creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trading_fees_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "iron_condor_trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trading_groups: {
         Row: {
           cover_image_url: string | null
@@ -712,6 +1058,51 @@ export type Database = {
           {
             foreignKeyName: "trading_strategies_creator_id_fkey"
             columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_activities: {
+        Row: {
+          activity_type: string
+          created_at: string | null
+          credits_awarded: number | null
+          id: string
+          referred_by: string | null
+          target_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string | null
+          credits_awarded?: number | null
+          id?: string
+          referred_by?: string | null
+          target_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string | null
+          credits_awarded?: number | null
+          id?: string
+          referred_by?: string | null
+          target_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activities_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_activities_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

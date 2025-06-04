@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Users, TrendingUp, Target, Plus, UserPlus } from 'lucide-react';
+import { Users, TrendingUp, Target, Plus, UserPlus, Gift, Mail, CreditCard } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -55,6 +55,36 @@ const Dashboard = () => {
             <CardContent>
               <Link to="/create-strategy">
                 <Button className="w-full">Get Started</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <Gift className="h-5 w-5 mr-2 text-purple-600" />
+                KEM Airdrop
+              </CardTitle>
+              <CardDescription>Claim your KEM tokens from earned credits</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/airdrop">
+                <Button variant="outline" className="w-full border-purple-200">Claim Tokens</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow border-green-200 bg-gradient-to-br from-green-50 to-blue-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <CreditCard className="h-5 w-5 mr-2 text-green-600" />
+                Premium Plans
+              </CardTitle>
+              <CardDescription>Upgrade to unlock advanced features</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/product-offers">
+                <Button variant="outline" className="w-full border-green-200">View Plans</Button>
               </Link>
             </CardContent>
           </Card>
@@ -104,6 +134,24 @@ const Dashboard = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Strategy Creator Notifications */}
+          {isPremiumUser && (
+            <Card className="hover:shadow-md transition-shadow border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center">
+                  <Mail className="h-5 w-5 mr-2 text-blue-600" />
+                  Notifications
+                </CardTitle>
+                <CardDescription>Send targeted messages to traders</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link to="/notifications">
+                  <Button variant="outline" className="w-full border-blue-200">Manage Notifications</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           {isAdmin && (
             <Card className="hover:shadow-md transition-shadow">

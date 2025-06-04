@@ -8,12 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, User, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
   const { user, signIn, signUp } = useAuth();
+  const { toast } = useToast();
 
   if (user) {
     return <Navigate to="/" replace />;
@@ -29,7 +34,77 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await signUp(email, password);
+    
+    // Check if username is available
+    const { data: existingUser } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', username)
+      .single();
+    
+    if (existingUser) {
+      toast({
+        title: "Username taken",
+        description: "Please choose a different username.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username: username,
+        }
+      }
+    });
+
+    if (error) {
+      toast({
+        title: "Error signing up",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      // Update profile with username after signup
+      await supabase
+        .from('profiles')
+        .update({ username })
+        .eq('email', email);
+      
+      toast({
+        title: "Account created successfully!",
+        description: "Please check your email for verification.",
+      });
+    }
+    
+    setLoading(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Password reset email sent",
+        description: "Please check your email for reset instructions.",
+      });
+    }
+    
     setLoading(false);
   };
 
@@ -37,9 +112,11 @@ const Auth = () => {
     if (type === 'user') {
       setEmail('user@traderama.com');
       setPassword('password123');
+      setUsername('demouser');
     } else {
       setEmail('admin@traderama.com');
       setPassword('password123');
+      setUsername('admin');
     }
   };
 
@@ -83,9 +160,10 @@ const Auth = () => {
           </div>
 
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="forgot">Forgot Password</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
@@ -119,6 +197,16 @@ const Auth = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
+                  <Label htmlFor="signup-username">Username</Label>
+                  <Input
+                    id="signup-username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <Input
                     id="signup-email"
@@ -140,6 +228,25 @@ const Auth = () => {
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Creating Account...' : 'Create Account'}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="forgot">
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Sending...' : 'Send Reset Email'}
                 </Button>
               </form>
             </TabsContent>
