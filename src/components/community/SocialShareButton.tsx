@@ -27,12 +27,16 @@ const SocialShareButton: React.FC<SocialShareButtonProps> = ({
 }) => {
   const [showShareModal, setShowShareModal] = useState(false);
 
-  const generateShareData = () => ({
-    type: postData.type === 'post' ? 'post' as const : (postData.type || 'post') as const,
-    userName: postData.author,
-    content: postData.content,
-    timestamp: new Date().toISOString()
-  });
+  const generateShareData = () => {
+    const shareType: 'pnl' | 'strategy' | 'trade' | 'post' = postData.type === 'post' ? 'post' : (postData.type as 'pnl' | 'strategy' | 'trade' | 'post') || 'post';
+    
+    return {
+      type: shareType,
+      userName: postData.author,
+      content: postData.content,
+      timestamp: new Date().toISOString()
+    };
+  };
 
   return (
     <>
