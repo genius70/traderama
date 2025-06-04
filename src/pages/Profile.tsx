@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useParams } from 'react-router-dom';
@@ -13,6 +12,8 @@ import { Users, MapPin, Globe, Twitter, Linkedin, TrendingUp, Target, Edit, User
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/layout/Header';
+import ProfitLossPanel from '@/components/trading/ProfitLossPanel';
+import SocialShareButton from '@/components/community/SocialShareButton';
 
 interface Profile {
   id: string;
@@ -372,12 +373,20 @@ const Profile = () => {
         )}
 
         {/* Profile Content Tabs */}
-        <Tabs defaultValue="strategies" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
+        <Tabs defaultValue="pnl" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+            <TabsTrigger value="pnl">P&L Analytics</TabsTrigger>
             <TabsTrigger value="strategies">Strategies</TabsTrigger>
             <TabsTrigger value="posts">Posts</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="pnl">
+            <ProfitLossPanel 
+              userId={profile.id} 
+              userName={profile.name || profile.email} 
+            />
+          </TabsContent>
 
           <TabsContent value="strategies">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -388,10 +397,20 @@ const Profile = () => {
                     <CardDescription>{strategy.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-4">
                       <Badge variant="outline">{strategy.strategy_config?.timeframe || 'Weekly'}</Badge>
                       <span className="text-sm text-gray-600">{strategy.fee_percentage}% fee</span>
                     </div>
+                    <SocialShareButton 
+                      postData={{
+                        id: strategy.id,
+                        content: `Check out my trading strategy: ${strategy.title}`,
+                        author: profile.name || profile.email,
+                        type: 'strategy'
+                      }}
+                      variant="outline"
+                      size="sm"
+                    />
                   </CardContent>
                 </Card>
               ))}
@@ -407,9 +426,24 @@ const Profile = () => {
                   </CardHeader>
                   <CardContent>
                     <p>{post.content}</p>
-                    <div className="flex items-center space-x-4 mt-4 text-sm text-gray-600">
-                      <span>{post.likes_count} likes</span>
-                      <span>{post.comments_count} comments</span>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center space-x-4 text-sm text-gray-600">
+                        <span>{post.likes_count} likes</span>
+                        <span>{post.comments_count} comments</span>
+                      </div>
+                      <SocialShareButton 
+                        postData={{
+                          id: post.id,
+                          content: post.content,
+                          author: profile.name || profile.email,
+                          type: 'post',
+                          metrics: {
+                            likes: post.likes_count,
+                            comments: post.comments_count,
+                            shares: post.shares_count
+                          }
+                        }}
+                      />
                     </div>
                   </CardContent>
                 </Card>
