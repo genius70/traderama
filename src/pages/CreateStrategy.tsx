@@ -17,12 +17,12 @@ import TradingOptionsSelector from "@/components/trading/TradingOptionsSelector"
 import TradingTemplate from "@/components/trading/TradingTemplate";
 
 interface TradingLeg {
-  strike: number;
-  type: string;
+  strike: string;
+  type: 'Call' | 'Put';
   expiration: string;
-  buySell: string;
+  buySell: 'Buy' | 'Sell';
   size: number;
-  price: number;
+  price: string;
 }
 
 interface StrategyConfig {
@@ -46,7 +46,7 @@ const CreateStrategy = () => {
   const [description, setDescription] = useState('');
   const [feePercentage, setFeePercentage] = useState(5);
   const [isPremiumOnly, setIsPremiumOnly] = useState(false);
-  const [selectedTradingType, setSelectedTradingType] = useState('');
+  const [selectedTradingOption, setSelectedTradingOption] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [strategyConfig, setStrategyConfig] = useState<StrategyConfig>({
@@ -69,15 +69,16 @@ const CreateStrategy = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const handleTradingTypeSelect = (tradingType: string) => {
-    setSelectedTradingType(tradingType);
+  const handleTradingOptionSelect = (option: any) => {
+    setSelectedTradingOption(option);
     setStrategyConfig(prev => ({
       ...prev,
-      tradingType
+      tradingType: option.name,
+      legs: option.template.legs
     }));
   };
 
-  const handleTemplateUpdate = (legs: TradingLeg[]) => {
+  const handleLegsChange = (legs: TradingLeg[]) => {
     setStrategyConfig(prev => ({
       ...prev,
       legs
@@ -97,7 +98,7 @@ const CreateStrategy = () => {
           description,
           fee_percentage: feePercentage,
           is_premium_only: isPremiumOnly,
-          strategy_config: strategyConfig as any, // Type assertion to handle the Json type
+          strategy_config: strategyConfig as any,
           status: 'draft'
         });
 
@@ -129,7 +130,7 @@ const CreateStrategy = () => {
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Trading Strategy</h1>
-            <p className="text-gray-600">Build and configure your iron condor trading strategy</p>
+            <p className="text-gray-600">Build and configure your trading strategy</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -215,29 +216,14 @@ const CreateStrategy = () => {
 
             {/* Trading Options */}
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Trading Options</CardTitle>
-                  <CardDescription>Select a trading strategy template</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <TradingOptionsSelector onSelectTradingType={handleTradingTypeSelect} />
-                </CardContent>
-              </Card>
+              <TradingOptionsSelector onSelectOption={handleTradingOptionSelect} />
 
-              {selectedTradingType && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{selectedTradingType}</CardTitle>
-                    <CardDescription>Configure your strategy template</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <TradingTemplate 
-                      tradingType={selectedTradingType}
-                      onTemplateUpdate={handleTemplateUpdate}
-                    />
-                  </CardContent>
-                </Card>
+              {selectedTradingOption && (
+                <TradingTemplate 
+                  strategyName={selectedTradingOption.name}
+                  legs={strategyConfig.legs}
+                  onLegsChange={handleLegsChange}
+                />
               )}
             </div>
           </div>
