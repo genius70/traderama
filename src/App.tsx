@@ -14,6 +14,8 @@ import AdminAnalytics from "./pages/AdminAnalytics";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Community from "./pages/Community";
+import AirdropPage from "./pages/AirdropPage";
+import ProductOffers from "./pages/ProductOffers";
 import NotFound from "./pages/NotFound";
 
 // Create QueryClient instance with proper configuration
@@ -43,6 +45,8 @@ const App = () => {
               <Route path="/profile/:userId?" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/community" element={<Community />} />
+              <Route path="/airdrop" element={<AirdropPage />} />
+              <Route path="/product-offers" element={<ProductOffers />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

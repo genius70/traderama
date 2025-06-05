@@ -129,9 +129,11 @@ const Dashboard = () => {
               <CardDescription>Begin your trading journey</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full bg-green-600 hover:bg-green-700">
-                Start Trading
-              </Button>
+              <Link to="/dashboard?tab=trading">
+                <Button className="w-full bg-green-600 hover:bg-green-700">
+                  Start Trading
+                </Button>
+              </Link>
             </CardContent>
           </Card>
 
