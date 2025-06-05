@@ -88,10 +88,22 @@ export const useKemCredits = () => {
               target_id: user.id
             }]);
 
-          await supabase.rpc('increment_credits', {
-            user_id: referrerProfile.id,
-            amount: 2
-          });
+          // Manually update referrer credits
+          const { data: referrerCredits } = await supabase
+            .from('kem_credits')
+            .select('*')
+            .eq('user_id', referrerProfile.id)
+            .single();
+
+          if (referrerCredits) {
+            await supabase
+              .from('kem_credits')
+              .update({
+                credits_earned: referrerCredits.credits_earned + 2,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', referrerProfile.id);
+          }
         }
       }
 

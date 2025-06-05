@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Crown, Mail, CreditCard, Building, Banknote, Check, Star } from 'lucide-react';
+import { Crown, Mail, CreditCard, Building, Banknote, Check, Star, Users, Plus } from 'lucide-react';
 
 interface SubscriptionPlan {
   id: string;
@@ -37,6 +37,20 @@ const ProductOffers: React.FC = () => {
         'Copy trading features'
       ],
       popular: true
+    },
+    {
+      id: 'premium-groups',
+      name: 'Premium Groups',
+      price: 50,
+      currency: 'USD',
+      features: [
+        'Create exclusive trading groups',
+        'Private strategy sharing',
+        'Group-only discussions',
+        'Advanced moderation tools',
+        'Custom group branding',
+        'Up to 500 members per group'
+      ]
     }
   ];
 
@@ -73,19 +87,19 @@ const ProductOffers: React.FC = () => {
     setLoading(`${planId}-${paymentMethod}`);
 
     try {
-      // For now, we'll simulate the subscription process
-      // In a real implementation, you'd integrate with Stripe, AirTM, and Wise APIs
-      
+      const plan = subscriptionPlans.find(p => p.id === planId);
+      if (!plan) throw new Error('Plan not found');
+
       const { error } = await supabase
         .from('subscriptions')
         .insert([{
           user_id: user.id,
           plan_type: planId,
           payment_method: paymentMethod,
-          amount: 25,
+          amount: plan.price,
           currency: 'USD',
           status: 'active',
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         }]);
 
       if (error) throw error;
@@ -100,7 +114,7 @@ const ProductOffers: React.FC = () => {
 
       toast({
         title: "Subscription Activated!",
-        description: `Your ${planId} subscription is now active.`,
+        description: `Your ${plan.name} subscription is now active.`,
       });
 
     } catch (error: any) {
@@ -112,6 +126,14 @@ const ProductOffers: React.FC = () => {
     } finally {
       setLoading(null);
     }
+  };
+
+  const handleCreateGroup = () => {
+    // Navigate to group creation or show modal
+    toast({
+      title: "Create Premium Group",
+      description: "Group creation feature coming soon!",
+    });
   };
 
   const handleNotificationService = async (paymentMethod: string) => {
@@ -176,7 +198,11 @@ const ProductOffers: React.FC = () => {
                 </Badge>
               )}
               <CardHeader className="text-center">
-                <Crown className="h-12 w-12 text-purple-600 mx-auto mb-2" />
+                {plan.id === 'premium-groups' ? (
+                  <Users className="h-12 w-12 text-blue-600 mx-auto mb-2" />
+                ) : (
+                  <Crown className="h-12 w-12 text-purple-600 mx-auto mb-2" />
+                )}
                 <CardTitle className="text-xl">{plan.name}</CardTitle>
                 <div className="text-3xl font-bold">
                   ${plan.price}
@@ -192,6 +218,16 @@ const ProductOffers: React.FC = () => {
                     </li>
                   ))}
                 </ul>
+
+                {plan.id === 'premium-groups' && (
+                  <Button
+                    className="w-full mb-4"
+                    onClick={handleCreateGroup}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Premium Group
+                  </Button>
+                )}
 
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-gray-700">Payment Methods:</p>

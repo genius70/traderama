@@ -114,8 +114,8 @@ const Auth = () => {
       setPassword('password123');
       setUsername('demouser');
     } else {
-      setEmail('admin@traderama.com');
-      setPassword('password123');
+      setEmail('royan.shaw@gmail.com');
+      setPassword('321xbetacashplus');
       setUsername('admin');
     }
   };
@@ -154,7 +154,7 @@ const Auth = () => {
                 onClick={() => useDefaultCredentials('admin')}
               >
                 <Shield className="h-4 w-4 mr-2" />
-                Admin Account
+                Admin Dev Account
               </Button>
             </div>
           </div>

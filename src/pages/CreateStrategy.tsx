@@ -13,7 +13,28 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { TrendingUp, Settings, DollarSign, Shield, ArrowLeft } from 'lucide-react';
+import { TrendingUp, Settings, DollarSign, ArrowLeft } from 'lucide-react';
+import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
+import TradingTemplate from '@/components/trading/TradingTemplate';
+
+interface TradingLeg {
+  strike: string;
+  type: 'Call' | 'Put';
+  expiration: string;
+  buySell: 'Buy' | 'Sell';
+  size: number;
+  price: string;
+}
+
+interface TradingOption {
+  id: string;
+  name: string;
+  type: 'Bullish' | 'Bearish' | 'Neutral';
+  template: {
+    strikes: number;
+    legs: TradingLeg[];
+  };
+}
 
 const CreateStrategy = () => {
   const { user } = useAuth();
@@ -21,6 +42,8 @@ const CreateStrategy = () => {
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<TradingOption | null>(null);
+  const [tradingLegs, setTradingLegs] = useState<TradingLeg[]>([]);
   const [strategy, setStrategy] = useState({
     title: '',
     description: '',
@@ -41,6 +64,16 @@ const CreateStrategy = () => {
     return <Navigate to="/auth" replace />;
   }
 
+  const handleOptionSelect = (option: TradingOption) => {
+    setSelectedOption(option);
+    setTradingLegs(option.template.legs);
+    setStrategy(prev => ({
+      ...prev,
+      title: `${option.name} Strategy`,
+      description: `${option.name} (${option.type}) options strategy`
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -56,6 +89,8 @@ const CreateStrategy = () => {
           strategy_config: {
             underlying: strategy.underlying,
             timeframe: strategy.timeframe,
+            tradingType: selectedOption?.name || 'Iron Condor',
+            legs: tradingLegs,
             ...strategy.config
           },
           is_premium_only: strategy.isPremiumOnly,
@@ -66,7 +101,7 @@ const CreateStrategy = () => {
 
       toast({
         title: "Strategy Created!",
-        description: "Your iron condor strategy has been published to the marketplace.",
+        description: "Your trading strategy has been published to the marketplace.",
       });
 
       navigate('/');
@@ -84,7 +119,7 @@ const CreateStrategy = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto max-w-6xl">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             <Button 
@@ -96,7 +131,7 @@ const CreateStrategy = () => {
               <span>Back to Dashboard</span>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Create Iron Condor Strategy</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Create Trading Strategy</h1>
               <p className="text-gray-600">Build and publish your trading strategy template</p>
             </div>
           </div>
@@ -106,6 +141,18 @@ const CreateStrategy = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Trading Options Selector */}
+          <TradingOptionsSelector onSelectOption={handleOptionSelect} />
+
+          {/* Trading Template Display */}
+          {selectedOption && (
+            <TradingTemplate
+              strategyName={selectedOption.name}
+              legs={tradingLegs}
+              onLegsChange={setTradingLegs}
+            />
+          )}
+
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -114,7 +161,7 @@ const CreateStrategy = () => {
                 <span>Basic Information</span>
               </CardTitle>
               <CardDescription>
-                Define the core details of your iron condor strategy
+                Define the core details of your trading strategy
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -156,7 +203,7 @@ const CreateStrategy = () => {
                   id="description"
                   value={strategy.description}
                   onChange={(e) => setStrategy({ ...strategy, description: e.target.value })}
-                  placeholder="Describe your iron condor strategy, target market conditions, and expected performance..."
+                  placeholder="Describe your trading strategy, target market conditions, and expected performance..."
                   rows={3}
                   required
                 />
@@ -199,7 +246,7 @@ const CreateStrategy = () => {
                 <span>Strategy Parameters</span>
               </CardTitle>
               <CardDescription>
-                Configure the technical parameters for your iron condor strategy
+                Configure the technical parameters for your trading strategy
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
