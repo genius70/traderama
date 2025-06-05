@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useParams } from 'react-router-dom';
@@ -37,6 +38,8 @@ interface SocialProfile {
   following_count: number;
   total_strategies: number;
   total_profit: number;
+  whatsapp_number: string;
+  ethereum_wallet: string;
 }
 
 const Profile = () => {
@@ -50,16 +53,14 @@ const Profile = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [strategies, setStrategies] = useState([]);
   const [posts, setPosts] = useState([]);
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  const [profileComplete, setProfileComplete] = useState(false);
+  const [editingLocation, setEditingLocation] = useState('');
+  const [editingWhatsapp, setEditingWhatsapp] = useState('');
+  const [editingWallet, setEditingWallet] = useState('');
 
   useEffect(() => {
+    if (!user) return;
+    
     const targetUserId = userId || user.id;
     setIsOwnProfile(!userId || userId === user.id);
     fetchProfile(targetUserId);
@@ -70,7 +71,16 @@ const Profile = () => {
     if (userId && userId !== user.id) {
       checkFollowStatus(userId);
     }
-  }, [userId, user.id]);
+  }, [userId, user?.id]);
+
+  useEffect(() => {
+    if (socialProfile && isOwnProfile) {
+      const isComplete = socialProfile.location && 
+                        socialProfile.whatsapp_number && 
+                        socialProfile.ethereum_wallet;
+      setProfileComplete(!!isComplete);
+    }
+  }, [socialProfile, isOwnProfile]);
 
   const fetchProfile = async (targetUserId: string) => {
     try {
@@ -102,6 +112,12 @@ const Profile = () => {
 
       if (error && error.code !== 'PGRST116') throw error;
       setSocialProfile(data);
+      
+      if (data && isOwnProfile) {
+        setEditingLocation(data.location || '');
+        setEditingWhatsapp(data.whatsapp_number || '');
+        setEditingWallet(data.ethereum_wallet || '');
+      }
     } catch (error) {
       console.error('Error fetching social profile:', error);
     }
@@ -139,6 +155,8 @@ const Profile = () => {
   };
 
   const checkFollowStatus = async (targetUserId: string) => {
+    if (!user) return;
+    
     try {
       const { data, error } = await supabase
         .from('user_follows')
@@ -155,7 +173,7 @@ const Profile = () => {
   };
 
   const handleFollow = async () => {
-    if (!userId) return;
+    if (!userId || !user) return;
 
     try {
       if (isFollowing) {
@@ -191,6 +209,8 @@ const Profile = () => {
   };
 
   const updateSocialProfile = async (updates: Partial<SocialProfile>) => {
+    if (!user) return;
+    
     try {
       const { data, error } = await supabase
         .from('social_profiles')
@@ -202,7 +222,6 @@ const Profile = () => {
       if (error) throw error;
       setSocialProfile({ ...socialProfile, ...updates } as SocialProfile);
       toast({ title: "Profile updated successfully" });
-      setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
@@ -213,8 +232,90 @@ const Profile = () => {
     }
   };
 
+  const handleCompleteProfile = async () => {
+    if (!editingLocation || !editingWhatsapp || !editingWallet) {
+      toast({
+        title: "Missing required fields",
+        description: "Please fill in all required fields to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await updateSocialProfile({
+      location: editingLocation,
+      whatsapp_number: editingWhatsapp,
+      ethereum_wallet: editingWallet
+    });
+    
+    setIsEditing(false);
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
   if (!profile) {
     return <div className="min-h-screen flex items-center justify-center">Loading profile...</div>;
+  }
+
+  // Show profile completion form for own profile if not complete
+  if (isOwnProfile && !profileComplete) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <main className="container mx-auto p-4 sm:p-6 max-w-2xl">
+          <Card>
+            <CardHeader>
+              <CardTitle>Complete Your Profile</CardTitle>
+              <CardDescription>
+                Please provide the following required information to access the platform
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-red-600">Location *</label>
+                <Input 
+                  value={editingLocation}
+                  onChange={(e) => setEditingLocation(e.target.value)}
+                  placeholder="City, Country"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-red-600">WhatsApp Number *</label>
+                <Input 
+                  value={editingWhatsapp}
+                  onChange={(e) => setEditingWhatsapp(e.target.value)}
+                  placeholder="+1234567890"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-red-600">Ethereum Wallet Address *</label>
+                <Input 
+                  value={editingWallet}
+                  onChange={(e) => setEditingWallet(e.target.value)}
+                  placeholder="0x..."
+                  required
+                />
+              </div>
+              <Button 
+                onClick={handleCompleteProfile}
+                className="w-full"
+                disabled={!editingLocation || !editingWhatsapp || !editingWallet}
+              >
+                Complete Profile
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -353,11 +454,13 @@ const Profile = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium">Location</label>
+                  <label className="text-sm font-medium text-red-600">Location *</label>
                   <Input 
-                    defaultValue={socialProfile?.location || ''}
+                    value={editingLocation}
+                    onChange={(e) => setEditingLocation(e.target.value)}
                     onBlur={(e) => updateSocialProfile({ location: e.target.value })}
                     placeholder="City, Country"
+                    required
                   />
                 </div>
                 <div>
@@ -366,6 +469,26 @@ const Profile = () => {
                     defaultValue={socialProfile?.website_url || ''}
                     onBlur={(e) => updateSocialProfile({ website_url: e.target.value })}
                     placeholder="https://yourwebsite.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-red-600">WhatsApp Number *</label>
+                  <Input 
+                    value={editingWhatsapp}
+                    onChange={(e) => setEditingWhatsapp(e.target.value)}
+                    onBlur={(e) => updateSocialProfile({ whatsapp_number: e.target.value })}
+                    placeholder="+1234567890"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-red-600">Ethereum Wallet *</label>
+                  <Input 
+                    value={editingWallet}
+                    onChange={(e) => setEditingWallet(e.target.value)}
+                    onBlur={(e) => updateSocialProfile({ ethereum_wallet: e.target.value })}
+                    placeholder="0x..."
+                    required
                   />
                 </div>
               </div>
