@@ -1,406 +1,247 @@
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Navigate, useNavigate } from 'react-router-dom';
-import { TrendingUp, Settings, DollarSign, ArrowLeft } from 'lucide-react';
-import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
-import TradingTemplate from '@/components/trading/TradingTemplate';
+import { useState, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Navigate, useNavigate } from "react-router-dom";
+import Header from "@/components/layout/Header";
+import TradingOptionsSelector from "@/components/trading/TradingOptionsSelector";
+import TradingTemplate from "@/components/trading/TradingTemplate";
 
 interface TradingLeg {
-  strike: string;
-  type: 'Call' | 'Put';
+  strike: number;
+  type: string;
   expiration: string;
-  buySell: 'Buy' | 'Sell';
+  buySell: string;
   size: number;
-  price: string;
+  price: number;
 }
 
-interface TradingOption {
-  id: string;
-  name: string;
-  type: 'Bullish' | 'Bearish' | 'Neutral';
-  template: {
-    strikes: number;
-    legs: TradingLeg[];
-  };
+interface StrategyConfig {
+  dteRange: number[];
+  deltaRange: number[];
+  profitTarget: number;
+  stopLoss: number;
+  ivThreshold: number;
+  underlying: string;
+  timeframe: string;
+  tradingType: string;
+  legs: TradingLeg[];
 }
 
 const CreateStrategy = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  
-  const [loading, setLoading] = useState(false);
-  const [selectedOption, setSelectedOption] = useState<TradingOption | null>(null);
-  const [tradingLegs, setTradingLegs] = useState<TradingLeg[]>([]);
-  const [strategy, setStrategy] = useState({
-    title: '',
-    description: '',
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [feePercentage, setFeePercentage] = useState(5);
+  const [isPremiumOnly, setIsPremiumOnly] = useState(false);
+  const [selectedTradingType, setSelectedTradingType] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [strategyConfig, setStrategyConfig] = useState<StrategyConfig>({
+    dteRange: [30, 45],
+    deltaRange: [0.15, 0.30],
+    profitTarget: 25,
+    stopLoss: 200,
+    ivThreshold: 20,
     underlying: 'SPY',
-    timeframe: 'weekly',
-    feePercentage: 10,
-    isPremiumOnly: false,
-    config: {
-      dteRange: [7, 14],
-      deltaRange: [15, 20],
-      profitTarget: 25,
-      stopLoss: 200,
-      ivThreshold: 20
-    }
+    timeframe: 'Weekly',
+    tradingType: '',
+    legs: []
   });
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
-  const handleOptionSelect = (option: TradingOption) => {
-    setSelectedOption(option);
-    setTradingLegs(option.template.legs);
-    setStrategy(prev => ({
+  const handleTradingTypeSelect = (tradingType: string) => {
+    setSelectedTradingType(tradingType);
+    setStrategyConfig(prev => ({
       ...prev,
-      title: `${option.name} Strategy`,
-      description: `${option.name} (${option.type}) options strategy`
+      tradingType
+    }));
+  };
+
+  const handleTemplateUpdate = (legs: TradingLeg[]) => {
+    setStrategyConfig(prev => ({
+      ...prev,
+      legs
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
       const { error } = await supabase
         .from('trading_strategies')
         .insert({
           creator_id: user.id,
-          title: strategy.title,
-          description: strategy.description,
-          fee_percentage: strategy.feePercentage,
-          strategy_config: {
-            underlying: strategy.underlying,
-            timeframe: strategy.timeframe,
-            tradingType: selectedOption?.name || 'Iron Condor',
-            legs: tradingLegs,
-            ...strategy.config
-          },
-          is_premium_only: strategy.isPremiumOnly,
-          status: 'published'
+          title,
+          description,
+          fee_percentage: feePercentage,
+          is_premium_only: isPremiumOnly,
+          strategy_config: strategyConfig as any, // Type assertion to handle the Json type
+          status: 'draft'
         });
 
       if (error) throw error;
 
       toast({
-        title: "Strategy Created!",
-        description: "Your trading strategy has been published to the marketplace.",
+        title: "Strategy created successfully!",
+        description: "Your trading strategy has been saved as a draft.",
       });
 
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating strategy:', error);
       toast({
-        title: "Error",
-        description: "Failed to create strategy. Please try again.",
+        title: "Error creating strategy",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      <div className="container mx-auto max-w-6xl">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/')}
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back to Dashboard</span>
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Create Trading Strategy</h1>
-              <p className="text-gray-600">Build and publish your trading strategy template</p>
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <div className="container mx-auto px-6 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Trading Strategy</h1>
+            <p className="text-gray-600">Build and configure your iron condor trading strategy</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Strategy Configuration */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Strategy Details</CardTitle>
+                <CardDescription>Configure your trading strategy parameters</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Strategy Title</Label>
+                    <Input
+                      id="title"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="e.g., Conservative SPY Iron Condor"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe your strategy, entry/exit rules, and risk management..."
+                      rows={4}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fee">Fee Percentage (5-25%)</Label>
+                      <Input
+                        id="fee"
+                        type="number"
+                        min="5"
+                        max="25"
+                        value={feePercentage}
+                        onChange={(e) => setFeePercentage(Number(e.target.value))}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="underlying">Underlying Asset</Label>
+                      <Select value={strategyConfig.underlying} onValueChange={(value) => 
+                        setStrategyConfig(prev => ({ ...prev, underlying: value }))
+                      }>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="SPY">SPY</SelectItem>
+                          <SelectItem value="QQQ">QQQ</SelectItem>
+                          <SelectItem value="IWM">IWM</SelectItem>
+                          <SelectItem value="AAPL">AAPL</SelectItem>
+                          <SelectItem value="TSLA">TSLA</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="premium"
+                      checked={isPremiumOnly}
+                      onCheckedChange={setIsPremiumOnly}
+                    />
+                    <Label htmlFor="premium">Premium Members Only</Label>
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? 'Creating Strategy...' : 'Create Strategy'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Trading Options */}
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Trading Options</CardTitle>
+                  <CardDescription>Select a trading strategy template</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TradingOptionsSelector onSelectTradingType={handleTradingTypeSelect} />
+                </CardContent>
+              </Card>
+
+              {selectedTradingType && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{selectedTradingType}</CardTitle>
+                    <CardDescription>Configure your strategy template</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <TradingTemplate 
+                      tradingType={selectedTradingType}
+                      onTemplateUpdate={handleTemplateUpdate}
+                    />
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
-          <Badge variant="secondary" className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-            Premium Feature
-          </Badge>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Trading Options Selector */}
-          <TradingOptionsSelector onSelectOption={handleOptionSelect} />
-
-          {/* Trading Template Display */}
-          {selectedOption && (
-            <TradingTemplate
-              strategyName={selectedOption.name}
-              legs={tradingLegs}
-              onLegsChange={setTradingLegs}
-            />
-          )}
-
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5" />
-                <span>Basic Information</span>
-              </CardTitle>
-              <CardDescription>
-                Define the core details of your trading strategy
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="title">Strategy Title</Label>
-                  <Input
-                    id="title"
-                    value={strategy.title}
-                    onChange={(e) => setStrategy({ ...strategy, title: e.target.value })}
-                    placeholder="e.g., SPY Weekly Iron Condor"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="underlying">Underlying Asset</Label>
-                  <Select 
-                    value={strategy.underlying} 
-                    onValueChange={(value) => setStrategy({ ...strategy, underlying: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SPY">SPY - SPDR S&P 500 ETF</SelectItem>
-                      <SelectItem value="QQQ">QQQ - Invesco QQQ Trust</SelectItem>
-                      <SelectItem value="IWM">IWM - iShares Russell 2000</SelectItem>
-                      <SelectItem value="DIA">DIA - SPDR Dow Jones</SelectItem>
-                      <SelectItem value="TSLA">TSLA - Tesla Inc</SelectItem>
-                      <SelectItem value="AAPL">AAPL - Apple Inc</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="description">Strategy Description</Label>
-                <Textarea
-                  id="description"
-                  value={strategy.description}
-                  onChange={(e) => setStrategy({ ...strategy, description: e.target.value })}
-                  placeholder="Describe your trading strategy, target market conditions, and expected performance..."
-                  rows={3}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="timeframe">Timeframe</Label>
-                  <Select 
-                    value={strategy.timeframe} 
-                    onValueChange={(value) => setStrategy({ ...strategy, timeframe: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">Daily (0-7 DTE)</SelectItem>
-                      <SelectItem value="weekly">Weekly (7-14 DTE)</SelectItem>
-                      <SelectItem value="biweekly">Bi-weekly (14-21 DTE)</SelectItem>
-                      <SelectItem value="monthly">Monthly (21-45 DTE)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch 
-                    checked={strategy.isPremiumOnly}
-                    onCheckedChange={(checked) => setStrategy({ ...strategy, isPremiumOnly: checked })}
-                  />
-                  <Label>Premium Only Strategy</Label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Strategy Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Settings className="h-5 w-5" />
-                <span>Strategy Parameters</span>
-              </CardTitle>
-              <CardDescription>
-                Configure the technical parameters for your trading strategy
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label>Days to Expiration (DTE) Range</Label>
-                  <div className="mt-2">
-                    <Slider
-                      value={strategy.config.dteRange}
-                      onValueChange={(value) => setStrategy({
-                        ...strategy,
-                        config: { ...strategy.config, dteRange: value }
-                      })}
-                      min={1}
-                      max={45}
-                      step={1}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-sm text-gray-500 mt-1">
-                      <span>{strategy.config.dteRange[0]} days</span>
-                      <span>{strategy.config.dteRange[1]} days</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Delta Range for Strikes</Label>
-                  <div className="mt-2">
-                    <Slider
-                      value={strategy.config.deltaRange}
-                      onValueChange={(value) => setStrategy({
-                        ...strategy,
-                        config: { ...strategy.config, deltaRange: value }
-                      })}
-                      min={5}
-                      max={30}
-                      step={1}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-sm text-gray-500 mt-1">
-                      <span>{strategy.config.deltaRange[0]} delta</span>
-                      <span>{strategy.config.deltaRange[1]} delta</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label>Profit Target (%)</Label>
-                  <div className="mt-2">
-                    <Slider
-                      value={[strategy.config.profitTarget]}
-                      onValueChange={(value) => setStrategy({
-                        ...strategy,
-                        config: { ...strategy.config, profitTarget: value[0] }
-                      })}
-                      min={10}
-                      max={50}
-                      step={5}
-                      className="w-full"
-                    />
-                    <div className="text-center text-sm text-gray-500 mt-1">
-                      {strategy.config.profitTarget}%
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Stop Loss (%)</Label>
-                  <div className="mt-2">
-                    <Slider
-                      value={[strategy.config.stopLoss]}
-                      onValueChange={(value) => setStrategy({
-                        ...strategy,
-                        config: { ...strategy.config, stopLoss: value[0] }
-                      })}
-                      min={100}
-                      max={300}
-                      step={25}
-                      className="w-full"
-                    />
-                    <div className="text-center text-sm text-gray-500 mt-1">
-                      {strategy.config.stopLoss}%
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <Label>IV Threshold (%)</Label>
-                  <div className="mt-2">
-                    <Slider
-                      value={[strategy.config.ivThreshold]}
-                      onValueChange={(value) => setStrategy({
-                        ...strategy,
-                        config: { ...strategy.config, ivThreshold: value[0] }
-                      })}
-                      min={10}
-                      max={50}
-                      step={2}
-                      className="w-full"
-                    />
-                    <div className="text-center text-sm text-gray-500 mt-1">
-                      {strategy.config.ivThreshold}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Fee Structure */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <DollarSign className="h-5 w-5" />
-                <span>Fee Structure</span>
-              </CardTitle>
-              <CardDescription>
-                Set your performance fee for strategy subscribers
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div>
-                <Label>Performance Fee Percentage</Label>
-                <div className="mt-2">
-                  <Slider
-                    value={[strategy.feePercentage]}
-                    onValueChange={(value) => setStrategy({ ...strategy, feePercentage: value[0] })}
-                    min={5}
-                    max={25}
-                    step={0.5}
-                    className="w-full"
-                  />
-                  <div className="text-center text-sm text-gray-500 mt-1">
-                    {strategy.feePercentage}% fee on profits
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  You'll earn {strategy.feePercentage}% of the profits generated by users who subscribe to your strategy.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end space-x-4">
-            <Button variant="outline" type="button" onClick={() => navigate('/')}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading} className="min-w-32">
-              {loading ? 'Publishing...' : 'Publish Strategy'}
-            </Button>
-          </div>
-        </form>
       </div>
     </div>
   );
