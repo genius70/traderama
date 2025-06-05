@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, Plus, MessageSquare, Heart, Share2, TrendingUp, Target } from 'lucide-react';
+import { Users, Plus, MessageSquare, Heart, Share2, TrendingUp, Target, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/layout/Header';
@@ -122,6 +122,31 @@ const Community = () => {
       toast({
         title: "Error creating group",
         description: "Failed to create group",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreatePremiumGroup = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { 
+          productName: 'Premium Group Access',
+          amount: 5000, // $50.00 in cents
+          currency: 'usd'
+        }
+      });
+
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Error creating premium group checkout:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start premium group purchase",
         variant: "destructive",
       });
     }
@@ -250,44 +275,54 @@ const Community = () => {
                 <p className="text-gray-600">Join groups to discuss specific trading topics</p>
               </div>
               
-              <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
-                <DialogTrigger asChild>
-                  <Button className="mt-4 sm:mt-0">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Group
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create Trading Group</DialogTitle>
-                    <DialogDescription>
-                      Create a new group for traders to discuss specific topics
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Group Name</label>
-                      <Input
-                        value={newGroup.name}
-                        onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                        placeholder="Iron Condor Masters"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Description</label>
-                      <Textarea
-                        value={newGroup.description}
-                        onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-                        placeholder="A group for discussing iron condor strategies..."
-                        rows={3}
-                      />
-                    </div>
-                    <Button onClick={createGroup} className="w-full">
+              <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-0">
+                <Button 
+                  onClick={handleCreatePremiumGroup}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                >
+                  <Crown className="h-4 w-4 mr-2" />
+                  Create Premium Group - $50/mo
+                </Button>
+                
+                <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Plus className="h-4 w-4 mr-2" />
                       Create Group
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create Trading Group</DialogTitle>
+                      <DialogDescription>
+                        Create a new group for traders to discuss specific topics
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium">Group Name</label>
+                        <Input
+                          value={newGroup.name}
+                          onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
+                          placeholder="Iron Condor Masters"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Description</label>
+                        <Textarea
+                          value={newGroup.description}
+                          onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
+                          placeholder="A group for discussing iron condor strategies..."
+                          rows={3}
+                        />
+                      </div>
+                      <Button onClick={createGroup} className="w-full">
+                        Create Group
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
