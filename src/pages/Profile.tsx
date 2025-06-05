@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useParams } from 'react-router-dom';
@@ -111,12 +110,53 @@ const Profile = () => {
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
-      setSocialProfile(data);
       
-      if (data && isOwnProfile) {
-        setEditingLocation(data.location || '');
-        setEditingWhatsapp(data.whatsapp_number || '');
-        setEditingWallet(data.ethereum_wallet || '');
+      // Handle the case where data might be null or missing required fields
+      if (data) {
+        const socialProfileData: SocialProfile = {
+          bio: data.bio || '',
+          profile_image_url: data.profile_image_url || '',
+          cover_image_url: data.cover_image_url || '',
+          location: data.location || '',
+          website_url: data.website_url || '',
+          twitter_handle: data.twitter_handle || '',
+          linkedin_url: data.linkedin_url || '',
+          trading_experience: data.trading_experience || 0,
+          specialties: data.specialties || [],
+          followers_count: data.followers_count || 0,
+          following_count: data.following_count || 0,
+          total_strategies: data.total_strategies || 0,
+          total_profit: data.total_profit || 0,
+          whatsapp_number: data.whatsapp_number || '',
+          ethereum_wallet: data.ethereum_wallet || ''
+        };
+        setSocialProfile(socialProfileData);
+        
+        if (isOwnProfile) {
+          setEditingLocation(socialProfileData.location);
+          setEditingWhatsapp(socialProfileData.whatsapp_number);
+          setEditingWallet(socialProfileData.ethereum_wallet);
+        }
+      } else {
+        // Create default social profile if none exists
+        const defaultProfile: SocialProfile = {
+          bio: '',
+          profile_image_url: '',
+          cover_image_url: '',
+          location: '',
+          website_url: '',
+          twitter_handle: '',
+          linkedin_url: '',
+          trading_experience: 0,
+          specialties: [],
+          followers_count: 0,
+          following_count: 0,
+          total_strategies: 0,
+          total_profit: 0,
+          whatsapp_number: '',
+          ethereum_wallet: ''
+        };
+        setSocialProfile(defaultProfile);
       }
     } catch (error) {
       console.error('Error fetching social profile:', error);
