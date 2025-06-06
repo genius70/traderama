@@ -1,57 +1,50 @@
 
-import { useAuth } from '@/hooks/useAuth';
-import { Navigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { MapPin, Globe, Linkedin, Users, Calendar, Edit3, Save, X, Phone, Wallet } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
-import Header from '@/components/layout/Header';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Phone, Wallet, User, Mail, Globe, Linkedin, Twitter, Calendar, Edit3, Save, X } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
 interface SocialProfile {
   id: string;
-  user_id: string;
-  bio: string | null;
-  location: string | null;
-  website_url: string | null;
-  twitter_handle: string | null;
-  linkedin_url: string | null;
-  profile_image_url: string | null;
-  cover_image_url: string | null;
+  name: string;
+  email: string;
+  bio: string;
+  location: string;
+  website_url: string;
+  linkedin_url: string;
+  profile_image_url: string;
+  cover_image_url: string;
   followers_count: number;
   following_count: number;
-  total_strategies: number;
-  total_profit: number;
-  trading_experience: number | null;
-  specialties: string[] | null;
-  whatsapp_number: string | null;
-  ethereum_wallet: string | null;
+  specialties: string[];
   created_at: string;
-  updated_at: string;
+  whatsapp_number: string;
+  ethereum_wallet: string;
 }
 
 const Profile = () => {
-  const { user, loading } = useAuth();
   const { userId } = useParams();
-  const [profile, setProfile] = useState<SocialProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<SocialProfile>>({});
-  const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
+  const [profile, setProfile] = useState<SocialProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<SocialProfile>>({});
 
   const isOwnProfile = !userId || userId === user?.id;
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user, userId]);
+    fetchProfile();
+  }, [userId, user]);
 
   const fetchProfile = async () => {
     try {
@@ -59,425 +52,362 @@ const Profile = () => {
       if (!targetUserId) return;
 
       const { data, error } = await supabase
-        .from('social_profiles')
+        .from('profiles')
         .select('*')
-        .eq('user_id', targetUserId)
+        .eq('id', targetUserId)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
-        return;
-      }
-
-      if (data) {
-        // Handle the case where new fields might not exist in the database yet
-        const completeProfile: SocialProfile = {
-          ...data,
-          whatsapp_number: data.whatsapp_number || null,
-          ethereum_wallet: data.ethereum_wallet || null,
-        };
-        setProfile(completeProfile);
-        setEditForm(completeProfile);
-        
-        // Check if profile is complete with required fields
-        const isComplete = !!(completeProfile.location && completeProfile.whatsapp_number && completeProfile.ethereum_wallet);
-        setIsProfileComplete(isComplete);
-      } else {
-        // Create new profile if it doesn't exist
-        await createProfile(targetUserId);
-      }
+      if (error) throw error;
+      
+      // Handle missing properties by providing defaults
+      const profileData: SocialProfile = {
+        ...data,
+        whatsapp_number: data.whatsapp_number || '',
+        ethereum_wallet: data.ethereum_wallet || '',
+        specialties: data.specialties || [],
+        followers_count: data.followers_count || 0,
+        following_count: data.following_count || 0,
+        profile_image_url: data.profile_image_url || '',
+        cover_image_url: data.cover_image_url || '',
+        website_url: data.website_url || '',
+        linkedin_url: data.linkedin_url || '',
+        bio: data.bio || '',
+        location: data.location || ''
+      };
+      
+      setProfile(profileData);
+      setEditForm(profileData);
     } catch (error) {
-      console.error('Error in fetchProfile:', error);
+      console.error('Error fetching profile:', error);
+      toast({
+        title: "Error loading profile",
+        description: "Failed to load user profile",
+        variant: "destructive",
+      });
     } finally {
-      setProfileLoading(false);
+      setLoading(false);
     }
   };
 
-  const createProfile = async (targetUserId: string) => {
+  const handleSaveProfile = async () => {
+    if (!user || !profile) return;
+
     try {
-      const { data, error } = await supabase
-        .from('social_profiles')
-        .insert([
-          {
-            user_id: targetUserId,
-            bio: '',
-            location: null,
-            whatsapp_number: null,
-            ethereum_wallet: null,
-          }
-        ])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating profile:', error);
-        return;
-      }
-
-      if (data) {
-        const newProfile: SocialProfile = {
-          ...data,
-          whatsapp_number: data.whatsapp_number || null,
-          ethereum_wallet: data.ethereum_wallet || null,
-        };
-        setProfile(newProfile);
-        setEditForm(newProfile);
-        setIsProfileComplete(false);
-      }
-    } catch (error) {
-      console.error('Error creating profile:', error);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      if (!profile) return;
-
       const { error } = await supabase
-        .from('social_profiles')
+        .from('profiles')
         .update({
+          name: editForm.name,
           bio: editForm.bio,
           location: editForm.location,
           website_url: editForm.website_url,
-          twitter_handle: editForm.twitter_handle,
           linkedin_url: editForm.linkedin_url,
-          whatsapp_number: editForm.whatsapp_number,
-          ethereum_wallet: editForm.ethereum_wallet,
-          updated_at: new Date().toISOString(),
+          whatsapp_number: editForm.whatsapp_number || '',
+          ethereum_wallet: editForm.ethereum_wallet || '',
+          specialties: editForm.specialties
         })
-        .eq('id', profile.id);
+        .eq('id', user.id);
 
-      if (error) {
-        toast({
-          title: "Error updating profile",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
 
-      await fetchProfile();
-      setIsEditing(false);
+      // Create updated profile with proper typing
+      const updatedProfile: SocialProfile = {
+        ...profile,
+        ...editForm,
+        whatsapp_number: editForm.whatsapp_number || '',
+        ethereum_wallet: editForm.ethereum_wallet || ''
+      };
+      
+      setProfile(updatedProfile);
+      setEditing(false);
       
       toast({
-        title: "Profile updated successfully",
-        description: "Your changes have been saved.",
+        title: "Profile updated",
+        description: "Your profile has been successfully updated",
       });
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
         title: "Error updating profile",
-        description: "An unexpected error occurred.",
+        description: "Failed to update profile",
         variant: "destructive",
       });
     }
   };
 
-  if (loading || profileLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Show profile completion form if profile is incomplete and it's the user's own profile
-  if (isOwnProfile && !isProfileComplete && profile) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-red-600">Complete Your Profile</CardTitle>
-            <CardDescription>
-              Please complete these required fields before accessing the platform
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="location">Location *</Label>
-              <Input
-                id="location"
-                value={editForm.location || ''}
-                onChange={(e) => setEditForm({...editForm, location: e.target.value})}
-                placeholder="Enter your location"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="whatsapp">WhatsApp Number *</Label>
-              <Input
-                id="whatsapp"
-                value={editForm.whatsapp_number || ''}
-                onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
-                placeholder="Enter your WhatsApp number"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="ethereum">Ethereum Wallet Address *</Label>
-              <Input
-                id="ethereum"
-                value={editForm.ethereum_wallet || ''}
-                onChange={(e) => setEditForm({...editForm, ethereum_wallet: e.target.value})}
-                placeholder="Enter your Ethereum wallet address"
-                required
-              />
-            </div>
-            <Button 
-              onClick={handleSave} 
-              className="w-full"
-              disabled={!editForm.location || !editForm.whatsapp_number || !editForm.ethereum_wallet}
-            >
-              Complete Profile
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   if (!profile) {
-    return <div className="min-h-screen flex items-center justify-center">Profile not found</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Profile Not Found</CardTitle>
+            <CardDescription>The requested profile could not be found.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
   }
 
+  // Check if profile is complete (required fields)
+  const isProfileComplete = profile.location && profile.whatsapp_number && profile.ethereum_wallet;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <main className="container mx-auto p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* Profile completion warning */}
+      {isOwnProfile && !isProfileComplete && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                Please complete your profile by adding your location, WhatsApp number, and Ethereum wallet to access all features.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="container mx-auto px-6 py-8">
         {/* Cover Image */}
-        <div className="relative h-48 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg mb-6">
+        <div className="relative h-48 md:h-64 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg mb-6 overflow-hidden">
           {profile.cover_image_url && (
             <img 
               src={profile.cover_image_url} 
               alt="Cover" 
-              className="w-full h-full object-cover rounded-lg"
+              className="w-full h-full object-cover"
             />
           )}
-        </div>
-
-        {/* Profile Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 mb-8 -mt-20 relative z-10">
-          <div className="w-32 h-32 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-            {profile.profile_image_url ? (
-              <img 
-                src={profile.profile_image_url} 
-                alt="Profile" 
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              <User className="h-16 w-16 text-gray-400" />
-            )}
-          </div>
           
-          <div className="flex-1 bg-white p-4 rounded-lg shadow-sm">
-            <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{user.email?.split('@')[0]}</h1>
-                {profile.bio && <p className="text-gray-600 mt-1">{profile.bio}</p>}
-                
-                <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-500">
-                  {profile.location && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {profile.location}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    Joined {new Date(profile.created_at).toLocaleDateString()}
-                  </div>
+          {/* Profile Picture */}
+          <div className="absolute -bottom-16 left-6">
+            <Avatar className="h-32 w-32 border-4 border-white shadow-lg">
+              <AvatarImage src={profile.profile_image_url} />
+              <AvatarFallback className="text-2xl bg-white text-blue-600">
+                {profile.name?.[0] || 'U'}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+
+          {/* Edit Button */}
+          {isOwnProfile && (
+            <div className="absolute top-4 right-4">
+              {editing ? (
+                <div className="space-x-2">
+                  <Button size="sm" onClick={handleSaveProfile} className="bg-green-600 hover:bg-green-700">
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
+                    <X className="h-4 w-4 mr-1" />
+                    Cancel
+                  </Button>
                 </div>
-              </div>
-              
-              {isOwnProfile && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditing(!isEditing)}
-                >
-                  {isEditing ? <X className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
-                  {isEditing ? 'Cancel' : 'Edit'}
+              ) : (
+                <Button size="sm" onClick={() => setEditing(true)} variant="outline" className="bg-white">
+                  <Edit3 className="h-4 w-4 mr-1" />
+                  Edit Profile
                 </Button>
               )}
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Edit Form */}
-        {isEditing && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Edit Profile</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="bio">Bio</Label>
-                <Textarea
-                  id="bio"
-                  value={editForm.bio || ''}
-                  onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
-                  placeholder="Tell us about yourself..."
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="location">Location *</Label>
-                  <Input
-                    id="location"
-                    value={editForm.location || ''}
-                    onChange={(e) => setEditForm({...editForm, location: e.target.value})}
-                    placeholder="Your location"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="whatsapp">WhatsApp Number *</Label>
-                  <Input
-                    id="whatsapp"
-                    value={editForm.whatsapp_number || ''}
-                    onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
-                    placeholder="Your WhatsApp number"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="ethereum">Ethereum Wallet Address *</Label>
-                <Input
-                  id="ethereum"
-                  value={editForm.ethereum_wallet || ''}
-                  onChange={(e) => setEditForm({...editForm, ethereum_wallet: e.target.value})}
-                  placeholder="Your Ethereum wallet address"
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="website">Website</Label>
-                  <Input
-                    id="website"
-                    value={editForm.website_url || ''}
-                    onChange={(e) => setEditForm({...editForm, website_url: e.target.value})}
-                    placeholder="https://yourwebsite.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="twitter">Twitter Handle</Label>
-                  <Input
-                    id="twitter"
-                    value={editForm.twitter_handle || ''}
-                    onChange={(e) => setEditForm({...editForm, twitter_handle: e.target.value})}
-                    placeholder="@username"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="linkedin">LinkedIn URL</Label>
-                <Input
-                  id="linkedin"
-                  value={editForm.linkedin_url || ''}
-                  onChange={(e) => setEditForm({...editForm, linkedin_url: e.target.value})}
-                  placeholder="https://linkedin.com/in/username"
-                />
-              </div>
-              
-              <Button onClick={handleSave} className="w-full">
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Profile Stats and Info */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Stats Cards */}
+        {/* Profile Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-20">
+          {/* Left Column - Profile Info */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{profile.followers_count}</div>
-                  <div className="text-sm text-gray-600">Followers</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600">{profile.following_count}</div>
-                  <div className="text-sm text-gray-600">Following</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-purple-600">{profile.total_strategies}</div>
-                  <div className="text-sm text-gray-600">Strategies</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-orange-600">
-                    ${profile.total_profit.toFixed(2)}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    {editing ? (
+                      <Input
+                        value={editForm.name || ''}
+                        onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                        className="text-2xl font-bold mb-2"
+                        placeholder="Your name"
+                      />
+                    ) : (
+                      <CardTitle className="text-2xl">{profile.name}</CardTitle>
+                    )}
+                    <p className="text-gray-600">{profile.email}</p>
                   </div>
-                  <div className="text-sm text-gray-600">Total Profit</div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-sm font-semibold text-gray-700">Bio</Label>
+                  {editing ? (
+                    <Textarea
+                      value={editForm.bio || ''}
+                      onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
+                      placeholder="Tell us about yourself..."
+                      className="mt-1"
+                    />
+                  ) : (
+                    <p className="text-gray-600 mt-1">{profile.bio || 'No bio provided'}</p>
+                  )}
+                </div>
+
+                {/* Contact Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      Location
+                    </Label>
+                    {editing ? (
+                      <Input
+                        value={editForm.location || ''}
+                        onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                        placeholder="Your location"
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-gray-600 mt-1">{profile.location || 'Not specified'}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
+                      <Phone className="h-4 w-4 mr-1" />
+                      WhatsApp
+                    </Label>
+                    {editing ? (
+                      <Input
+                        value={editForm.whatsapp_number || ''}
+                        onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
+                        placeholder="Your WhatsApp number"
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-gray-600 mt-1">{profile.whatsapp_number || 'Not specified'}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
+                      <Wallet className="h-4 w-4 mr-1" />
+                      Ethereum Wallet
+                    </Label>
+                    {editing ? (
+                      <Input
+                        value={editForm.ethereum_wallet || ''}
+                        onChange={(e) => setEditForm({...editForm, ethereum_wallet: e.target.value})}
+                        placeholder="Your Ethereum wallet address"
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-gray-600 mt-1 text-sm break-all">
+                        {profile.ethereum_wallet || 'Not specified'}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
+                      <Globe className="h-4 w-4 mr-1" />
+                      Website
+                    </Label>
+                    {editing ? (
+                      <Input
+                        value={editForm.website_url || ''}
+                        onChange={(e) => setEditForm({...editForm, website_url: e.target.value})}
+                        placeholder="Your website"
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-gray-600 mt-1">
+                        {profile.website_url ? (
+                          <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            {profile.website_url}
+                          </a>
+                        ) : (
+                          'Not specified'
+                        )}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
+                      <Linkedin className="h-4 w-4 mr-1" />
+                      LinkedIn
+                    </Label>
+                    {editing ? (
+                      <Input
+                        value={editForm.linkedin_url || ''}
+                        onChange={(e) => setEditForm({...editForm, linkedin_url: e.target.value})}
+                        placeholder="Your LinkedIn profile"
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-gray-600 mt-1">
+                        {profile.linkedin_url ? (
+                          <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            LinkedIn Profile
+                          </a>
+                        ) : (
+                          'Not specified'
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Specialties */}
+                <div>
+                  <Label className="text-sm font-semibold text-gray-700">Specialties</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {profile.specialties?.map((specialty, index) => (
+                      <Badge key={index} variant="secondary">
+                        {specialty}
+                      </Badge>
+                    ))}
+                    {(!profile.specialties || profile.specialties.length === 0) && (
+                      <p className="text-gray-500 text-sm">No specialties added</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Contact Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-gray-500" />
-                <span className="text-sm">{user.email}</span>
-              </div>
-              
-              {profile.whatsapp_number && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm">{profile.whatsapp_number}</span>
+          {/* Right Column - Stats */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Social Stats
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Followers</span>
+                  <span className="font-semibold">{profile.followers_count}</span>
                 </div>
-              )}
-              
-              {profile.ethereum_wallet && (
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-mono text-xs break-all">{profile.ethereum_wallet}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Following</span>
+                  <span className="font-semibold">{profile.following_count}</span>
                 </div>
-              )}
-              
-              {profile.website_url && (
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-gray-500" />
-                  <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
-                    {profile.website_url}
-                  </a>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Joined</span>
+                  <span className="font-semibold">
+                    {new Date(profile.created_at).toLocaleDateString()}
+                  </span>
                 </div>
-              )}
-              
-              {profile.linkedin_url && (
-                <div className="flex items-center gap-2">
-                  <Linkedin className="h-4 w-4 text-gray-500" />
-                  <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
-                    LinkedIn Profile
-                  </a>
-                </div>
-              )}
-              
-              {profile.twitter_handle && (
-                <div className="flex items-center gap-2">
-                  <Twitter className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm">{profile.twitter_handle}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
