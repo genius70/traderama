@@ -198,7 +198,7 @@ const Index = () => {
               </Link>
               {user && (
                 <Link to="/create-strategy">
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto px-8 py-4 text-lg border-white text-white hover:bg-white hover:text-gray-900">
+                  <Button size="lg" className="w-full sm:w-auto px-8 py-4 text-lg bg-red-600 hover:bg-white hover:text-black text-white border-2 border-red-600 hover:border-red-600">
                     <Plus className="h-5 w-5 mr-2" />
                     Create Strategy
                   </Button>
@@ -264,7 +264,7 @@ const Index = () => {
             </div>
             {user && (
               <Link to="/create-strategy">
-                <Button className="w-full lg:w-auto">
+                <Button className="w-full lg:w-auto bg-red-600 hover:bg-white hover:text-black text-white border-2 border-red-600 hover:border-red-600">
                   <Plus className="h-4 w-4 mr-2" />
                   Create Strategy
                 </Button>
@@ -356,7 +356,7 @@ const Index = () => {
                     <p className="mb-6 text-gray-600">Be the first to create and publish an iron condor strategy!</p>
                     {user && (
                       <Link to="/create-strategy">
-                        <Button>
+                        <Button className="bg-red-600 hover:bg-white hover:text-black text-white border-2 border-red-600 hover:border-red-600">
                           <Plus className="h-4 w-4 mr-2" />
                           Create First Strategy
                         </Button>
@@ -369,7 +369,7 @@ const Index = () => {
               <div className="text-center">
                 {user ? (
                   <Link to="/create-strategy">
-                    <Button variant="outline" size="lg" className="px-8">
+                    <Button size="lg" className="px-8 bg-red-600 hover:bg-white hover:text-black text-white border-2 border-red-600 hover:border-red-600">
                       <Plus className="h-4 w-4 mr-2" />
                       Create Your Strategy
                     </Button>
