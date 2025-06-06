@@ -683,49 +683,82 @@ export type Database = {
       }
       profiles: {
         Row: {
+          bio: string | null
+          cover_image_url: string | null
           created_at: string
           email: string
+          ethereum_wallet: string | null
+          followers_count: number | null
+          following_count: number | null
           id: string
+          linkedin_url: string | null
+          location: string | null
           name: string | null
+          profile_image_url: string | null
           referral_code: string | null
           referred_by: string | null
           role: Database["public"]["Enums"]["user_role"]
+          specialties: string[] | null
           subscription_expires_at: string | null
           subscription_tier:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
           updated_at: string
           username: string | null
+          website_url: string | null
+          whatsapp_number: string | null
         }
         Insert: {
+          bio?: string | null
+          cover_image_url?: string | null
           created_at?: string
           email: string
+          ethereum_wallet?: string | null
+          followers_count?: number | null
+          following_count?: number | null
           id: string
+          linkedin_url?: string | null
+          location?: string | null
           name?: string | null
+          profile_image_url?: string | null
           referral_code?: string | null
           referred_by?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          specialties?: string[] | null
           subscription_expires_at?: string | null
           subscription_tier?:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
           updated_at?: string
           username?: string | null
+          website_url?: string | null
+          whatsapp_number?: string | null
         }
         Update: {
+          bio?: string | null
+          cover_image_url?: string | null
           created_at?: string
           email?: string
+          ethereum_wallet?: string | null
+          followers_count?: number | null
+          following_count?: number | null
           id?: string
+          linkedin_url?: string | null
+          location?: string | null
           name?: string | null
+          profile_image_url?: string | null
           referral_code?: string | null
           referred_by?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          specialties?: string[] | null
           subscription_expires_at?: string | null
           subscription_tier?:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
           updated_at?: string
           username?: string | null
+          website_url?: string | null
+          whatsapp_number?: string | null
         }
         Relationships: [
           {

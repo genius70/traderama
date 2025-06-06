@@ -15,20 +15,20 @@ import { useToast } from '@/hooks/use-toast';
 
 interface SocialProfile {
   id: string;
-  name: string;
+  name: string | null;
   email: string;
-  bio: string;
-  location: string;
-  website_url: string;
-  linkedin_url: string;
-  profile_image_url: string;
-  cover_image_url: string;
-  followers_count: number;
-  following_count: number;
-  specialties: string[];
+  bio: string | null;
+  location: string | null;
+  website_url: string | null;
+  linkedin_url: string | null;
+  profile_image_url: string | null;
+  cover_image_url: string | null;
+  followers_count: number | null;
+  following_count: number | null;
+  specialties: string[] | null;
   created_at: string;
-  whatsapp_number: string;
-  ethereum_wallet: string;
+  whatsapp_number: string | null;
+  ethereum_wallet: string | null;
 }
 
 const Profile = () => {
@@ -59,24 +59,8 @@ const Profile = () => {
 
       if (error) throw error;
       
-      // Handle missing properties by providing defaults
-      const profileData: SocialProfile = {
-        ...data,
-        whatsapp_number: data.whatsapp_number || '',
-        ethereum_wallet: data.ethereum_wallet || '',
-        specialties: data.specialties || [],
-        followers_count: data.followers_count || 0,
-        following_count: data.following_count || 0,
-        profile_image_url: data.profile_image_url || '',
-        cover_image_url: data.cover_image_url || '',
-        website_url: data.website_url || '',
-        linkedin_url: data.linkedin_url || '',
-        bio: data.bio || '',
-        location: data.location || ''
-      };
-      
-      setProfile(profileData);
-      setEditForm(profileData);
+      setProfile(data);
+      setEditForm(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast({
@@ -101,23 +85,15 @@ const Profile = () => {
           location: editForm.location,
           website_url: editForm.website_url,
           linkedin_url: editForm.linkedin_url,
-          whatsapp_number: editForm.whatsapp_number || '',
-          ethereum_wallet: editForm.ethereum_wallet || '',
+          whatsapp_number: editForm.whatsapp_number,
+          ethereum_wallet: editForm.ethereum_wallet,
           specialties: editForm.specialties
         })
         .eq('id', user.id);
 
       if (error) throw error;
 
-      // Create updated profile with proper typing
-      const updatedProfile: SocialProfile = {
-        ...profile,
-        ...editForm,
-        whatsapp_number: editForm.whatsapp_number || '',
-        ethereum_wallet: editForm.ethereum_wallet || ''
-      };
-      
-      setProfile(updatedProfile);
+      setProfile({ ...profile, ...editForm });
       setEditing(false);
       
       toast({
@@ -187,7 +163,7 @@ const Profile = () => {
           {/* Profile Picture */}
           <div className="absolute -bottom-16 left-6">
             <Avatar className="h-32 w-32 border-4 border-white shadow-lg">
-              <AvatarImage src={profile.profile_image_url} />
+              <AvatarImage src={profile.profile_image_url || ''} />
               <AvatarFallback className="text-2xl bg-white text-blue-600">
                 {profile.name?.[0] || 'U'}
               </AvatarFallback>
@@ -234,7 +210,7 @@ const Profile = () => {
                         placeholder="Your name"
                       />
                     ) : (
-                      <CardTitle className="text-2xl">{profile.name}</CardTitle>
+                      <CardTitle className="text-2xl">{profile.name || 'No name'}</CardTitle>
                     )}
                     <p className="text-gray-600">{profile.email}</p>
                   </div>
@@ -391,11 +367,11 @@ const Profile = () => {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Followers</span>
-                  <span className="font-semibold">{profile.followers_count}</span>
+                  <span className="font-semibold">{profile.followers_count || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Following</span>
-                  <span className="font-semibold">{profile.following_count}</span>
+                  <span className="font-semibold">{profile.following_count || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Joined</span>
