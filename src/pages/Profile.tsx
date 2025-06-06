@@ -1,297 +1,179 @@
-import { useState, useEffect } from 'react';
+
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useParams } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, MapPin, Globe, Twitter, Linkedin, TrendingUp, Target, Edit, UserPlus, UserMinus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { MapPin, Phone, Wallet, User, Mail, Globe, Linkedin, Twitter, Calendar, Edit3, Save, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Header from '@/components/layout/Header';
-import ProfitLossPanel from '@/components/trading/ProfitLossPanel';
-import SocialShareButton from '@/components/community/SocialShareButton';
-import InviteFriend from '@/components/community/InviteFriend';
-
-interface Profile {
-  id: string;
-  name: string;
-  email: string;
-  subscription_tier: string;
-}
 
 interface SocialProfile {
-  bio: string;
-  profile_image_url: string;
-  cover_image_url: string;
-  location: string;
-  website_url: string;
-  twitter_handle: string;
-  linkedin_url: string;
-  trading_experience: number;
-  specialties: string[];
+  id: string;
+  user_id: string;
+  bio: string | null;
+  location: string | null;
+  website_url: string | null;
+  twitter_handle: string | null;
+  linkedin_url: string | null;
+  profile_image_url: string | null;
+  cover_image_url: string | null;
   followers_count: number;
   following_count: number;
   total_strategies: number;
   total_profit: number;
-  whatsapp_number: string;
-  ethereum_wallet: string;
+  trading_experience: number | null;
+  specialties: string[] | null;
+  whatsapp_number: string | null;
+  ethereum_wallet: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 const Profile = () => {
   const { user, loading } = useAuth();
   const { userId } = useParams();
-  const { toast } = useToast();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [socialProfile, setSocialProfile] = useState<SocialProfile | null>(null);
-  const [isOwnProfile, setIsOwnProfile] = useState(false);
+  const [profile, setProfile] = useState<SocialProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [strategies, setStrategies] = useState([]);
-  const [posts, setPosts] = useState([]);
-  const [profileComplete, setProfileComplete] = useState(false);
-  const [editingLocation, setEditingLocation] = useState('');
-  const [editingWhatsapp, setEditingWhatsapp] = useState('');
-  const [editingWallet, setEditingWallet] = useState('');
+  const [editForm, setEditForm] = useState<Partial<SocialProfile>>({});
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const { toast } = useToast();
+
+  const isOwnProfile = !userId || userId === user?.id;
 
   useEffect(() => {
-    if (!user) return;
-    
-    const targetUserId = userId || user.id;
-    setIsOwnProfile(!userId || userId === user.id);
-    fetchProfile(targetUserId);
-    fetchSocialProfile(targetUserId);
-    fetchStrategies(targetUserId);
-    fetchPosts(targetUserId);
-    
-    if (userId && userId !== user.id) {
-      checkFollowStatus(userId);
+    if (user) {
+      fetchProfile();
     }
-  }, [userId, user?.id]);
+  }, [user, userId]);
 
-  useEffect(() => {
-    if (socialProfile && isOwnProfile) {
-      const isComplete = socialProfile.location && 
-                        socialProfile.whatsapp_number && 
-                        socialProfile.ethereum_wallet;
-      setProfileComplete(!!isComplete);
-    }
-  }, [socialProfile, isOwnProfile]);
-
-  const fetchProfile = async (targetUserId: string) => {
+  const fetchProfile = async () => {
     try {
+      const targetUserId = userId || user?.id;
+      if (!targetUserId) return;
+
       const { data, error } = await supabase
-        .from('profiles')
+        .from('social_profiles')
         .select('*')
-        .eq('id', targetUserId)
+        .eq('user_id', targetUserId)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      toast({
-        title: "Error loading profile",
-        description: "Failed to load user profile",
-        variant: "destructive",
-      });
-    }
-  };
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+        return;
+      }
 
-  const fetchSocialProfile = async (targetUserId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('social_profiles')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      // Handle the case where data might be null or missing required fields
       if (data) {
-        const socialProfileData: SocialProfile = {
-          bio: data.bio || '',
-          profile_image_url: data.profile_image_url || '',
-          cover_image_url: data.cover_image_url || '',
-          location: data.location || '',
-          website_url: data.website_url || '',
-          twitter_handle: data.twitter_handle || '',
-          linkedin_url: data.linkedin_url || '',
-          trading_experience: data.trading_experience || 0,
-          specialties: data.specialties || [],
-          followers_count: data.followers_count || 0,
-          following_count: data.following_count || 0,
-          total_strategies: data.total_strategies || 0,
-          total_profit: data.total_profit || 0,
-          whatsapp_number: data.whatsapp_number || '',
-          ethereum_wallet: data.ethereum_wallet || ''
+        // Handle the case where new fields might not exist in the database yet
+        const completeProfile: SocialProfile = {
+          ...data,
+          whatsapp_number: data.whatsapp_number || null,
+          ethereum_wallet: data.ethereum_wallet || null,
         };
-        setSocialProfile(socialProfileData);
+        setProfile(completeProfile);
+        setEditForm(completeProfile);
         
-        if (isOwnProfile) {
-          setEditingLocation(socialProfileData.location);
-          setEditingWhatsapp(socialProfileData.whatsapp_number);
-          setEditingWallet(socialProfileData.ethereum_wallet);
-        }
+        // Check if profile is complete with required fields
+        const isComplete = !!(completeProfile.location && completeProfile.whatsapp_number && completeProfile.ethereum_wallet);
+        setIsProfileComplete(isComplete);
       } else {
-        // Create default social profile if none exists
-        const defaultProfile: SocialProfile = {
-          bio: '',
-          profile_image_url: '',
-          cover_image_url: '',
-          location: '',
-          website_url: '',
-          twitter_handle: '',
-          linkedin_url: '',
-          trading_experience: 0,
-          specialties: [],
-          followers_count: 0,
-          following_count: 0,
-          total_strategies: 0,
-          total_profit: 0,
-          whatsapp_number: '',
-          ethereum_wallet: ''
-        };
-        setSocialProfile(defaultProfile);
+        // Create new profile if it doesn't exist
+        await createProfile(targetUserId);
       }
     } catch (error) {
-      console.error('Error fetching social profile:', error);
+      console.error('Error in fetchProfile:', error);
+    } finally {
+      setProfileLoading(false);
     }
   };
 
-  const fetchStrategies = async (targetUserId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('trading_strategies')
-        .select('*')
-        .eq('creator_id', targetUserId)
-        .eq('status', 'published');
-
-      if (error) throw error;
-      setStrategies(data || []);
-    } catch (error) {
-      console.error('Error fetching strategies:', error);
-    }
-  };
-
-  const fetchPosts = async (targetUserId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPosts(data || []);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-    }
-  };
-
-  const checkFollowStatus = async (targetUserId: string) => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('user_follows')
-        .select('id')
-        .eq('follower_id', user.id)
-        .eq('following_id', targetUserId)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      setIsFollowing(!!data);
-    } catch (error) {
-      console.error('Error checking follow status:', error);
-    }
-  };
-
-  const handleFollow = async () => {
-    if (!userId || !user) return;
-
-    try {
-      if (isFollowing) {
-        const { error } = await supabase
-          .from('user_follows')
-          .delete()
-          .eq('follower_id', user.id)
-          .eq('following_id', userId);
-
-        if (error) throw error;
-        setIsFollowing(false);
-        toast({ title: "Unfollowed successfully" });
-      } else {
-        const { error } = await supabase
-          .from('user_follows')
-          .insert({
-            follower_id: user.id,
-            following_id: userId
-          });
-
-        if (error) throw error;
-        setIsFollowing(true);
-        toast({ title: "Following successfully" });
-      }
-    } catch (error) {
-      console.error('Error updating follow status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update follow status",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const updateSocialProfile = async (updates: Partial<SocialProfile>) => {
-    if (!user) return;
-    
+  const createProfile = async (targetUserId: string) => {
     try {
       const { data, error } = await supabase
         .from('social_profiles')
-        .upsert({
-          user_id: user.id,
-          ...updates
-        });
+        .insert([
+          {
+            user_id: targetUserId,
+            bio: '',
+            location: null,
+            whatsapp_number: null,
+            ethereum_wallet: null,
+          }
+        ])
+        .select()
+        .single();
 
-      if (error) throw error;
-      setSocialProfile({ ...socialProfile, ...updates } as SocialProfile);
-      toast({ title: "Profile updated successfully" });
+      if (error) {
+        console.error('Error creating profile:', error);
+        return;
+      }
+
+      if (data) {
+        const newProfile: SocialProfile = {
+          ...data,
+          whatsapp_number: data.whatsapp_number || null,
+          ethereum_wallet: data.ethereum_wallet || null,
+        };
+        setProfile(newProfile);
+        setEditForm(newProfile);
+        setIsProfileComplete(false);
+      }
+    } catch (error) {
+      console.error('Error creating profile:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      if (!profile) return;
+
+      const { error } = await supabase
+        .from('social_profiles')
+        .update({
+          bio: editForm.bio,
+          location: editForm.location,
+          website_url: editForm.website_url,
+          twitter_handle: editForm.twitter_handle,
+          linkedin_url: editForm.linkedin_url,
+          whatsapp_number: editForm.whatsapp_number,
+          ethereum_wallet: editForm.ethereum_wallet,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id);
+
+      if (error) {
+        toast({
+          title: "Error updating profile",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await fetchProfile();
+      setIsEditing(false);
+      
+      toast({
+        title: "Profile updated successfully",
+        description: "Your changes have been saved.",
+      });
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
         title: "Error updating profile",
-        description: "Failed to update profile",
+        description: "An unexpected error occurred.",
         variant: "destructive",
       });
     }
   };
 
-  const handleCompleteProfile = async () => {
-    if (!editingLocation || !editingWhatsapp || !editingWallet) {
-      toast({
-        title: "Missing required fields",
-        description: "Please fill in all required fields to continue",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    await updateSocialProfile({
-      location: editingLocation,
-      whatsapp_number: editingWhatsapp,
-      ethereum_wallet: editingWallet
-    });
-    
-    setIsEditing(false);
-  };
-
-  if (loading) {
+  if (loading || profileLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
@@ -299,63 +181,63 @@ const Profile = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (!profile) {
-    return <div className="min-h-screen flex items-center justify-center">Loading profile...</div>;
-  }
-
-  // Show profile completion form for own profile if not complete
-  if (isOwnProfile && !profileComplete) {
+  // Show profile completion form if profile is incomplete and it's the user's own profile
+  if (isOwnProfile && !isProfileComplete && profile) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <main className="container mx-auto p-4 sm:p-6 max-w-2xl">
-          <Card>
-            <CardHeader>
-              <CardTitle>Complete Your Profile</CardTitle>
-              <CardDescription>
-                Please provide the following required information to access the platform
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-red-600">Location *</label>
-                <Input 
-                  value={editingLocation}
-                  onChange={(e) => setEditingLocation(e.target.value)}
-                  placeholder="City, Country"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-red-600">WhatsApp Number *</label>
-                <Input 
-                  value={editingWhatsapp}
-                  onChange={(e) => setEditingWhatsapp(e.target.value)}
-                  placeholder="+1234567890"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-red-600">Ethereum Wallet Address *</label>
-                <Input 
-                  value={editingWallet}
-                  onChange={(e) => setEditingWallet(e.target.value)}
-                  placeholder="0x..."
-                  required
-                />
-              </div>
-              <Button 
-                onClick={handleCompleteProfile}
-                className="w-full"
-                disabled={!editingLocation || !editingWhatsapp || !editingWallet}
-              >
-                Complete Profile
-              </Button>
-            </CardContent>
-          </Card>
-        </main>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-red-600">Complete Your Profile</CardTitle>
+            <CardDescription>
+              Please complete these required fields before accessing the platform
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="location">Location *</Label>
+              <Input
+                id="location"
+                value={editForm.location || ''}
+                onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                placeholder="Enter your location"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="whatsapp">WhatsApp Number *</Label>
+              <Input
+                id="whatsapp"
+                value={editForm.whatsapp_number || ''}
+                onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
+                placeholder="Enter your WhatsApp number"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="ethereum">Ethereum Wallet Address *</Label>
+              <Input
+                id="ethereum"
+                value={editForm.ethereum_wallet || ''}
+                onChange={(e) => setEditForm({...editForm, ethereum_wallet: e.target.value})}
+                placeholder="Enter your Ethereum wallet address"
+                required
+              />
+            </div>
+            <Button 
+              onClick={handleSave} 
+              className="w-full"
+              disabled={!editForm.location || !editForm.whatsapp_number || !editForm.ethereum_wallet}
+            >
+              Complete Profile
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
+  }
+
+  if (!profile) {
+    return <div className="min-h-screen flex items-center justify-center">Profile not found</div>;
   }
 
   return (
@@ -364,10 +246,10 @@ const Profile = () => {
       
       <main className="container mx-auto p-4 sm:p-6">
         {/* Cover Image */}
-        <div className="relative h-48 sm:h-64 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg mb-6">
-          {socialProfile?.cover_image_url && (
+        <div className="relative h-48 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg mb-6">
+          {profile.cover_image_url && (
             <img 
-              src={socialProfile.cover_image_url} 
+              src={profile.cover_image_url} 
               alt="Cover" 
               className="w-full h-full object-cover rounded-lg"
             />
@@ -375,267 +257,226 @@ const Profile = () => {
         </div>
 
         {/* Profile Header */}
-        <div className="relative -mt-20 mb-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-6">
-            <Avatar className="h-32 w-32 border-4 border-white shadow-lg">
-              <AvatarImage src={socialProfile?.profile_image_url} />
-              <AvatarFallback className="text-2xl">
-                {profile.name?.[0] || profile.email[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1 space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {profile.name || profile.email}
-                  </h1>
-                  {socialProfile?.bio && (
-                    <p className="text-gray-600 mt-1">{socialProfile.bio}</p>
-                  )}
-                </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 mb-8 -mt-20 relative z-10">
+          <div className="w-32 h-32 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+            {profile.profile_image_url ? (
+              <img 
+                src={profile.profile_image_url} 
+                alt="Profile" 
+                className="w-full h-full rounded-full object-cover"
+              />
+            ) : (
+              <User className="h-16 w-16 text-gray-400" />
+            )}
+          </div>
+          
+          <div className="flex-1 bg-white p-4 rounded-lg shadow-sm">
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">{user.email?.split('@')[0]}</h1>
+                {profile.bio && <p className="text-gray-600 mt-1">{profile.bio}</p>}
                 
-                <div className="flex space-x-2 mt-4 sm:mt-0">
-                  {isOwnProfile ? (
-                    <Button 
-                      onClick={() => setIsEditing(!isEditing)}
-                      variant={isEditing ? "default" : "outline"}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      {isEditing ? 'Save' : 'Edit Profile'}
-                    </Button>
-                  ) : (
-                    <Button onClick={handleFollow} variant={isFollowing ? "outline" : "default"}>
-                      {isFollowing ? (
-                        <>
-                          <UserMinus className="h-4 w-4 mr-2" />
-                          Unfollow
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Follow
-                        </>
-                      )}
-                    </Button>
+                <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-500">
+                  {profile.location && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      {profile.location}
+                    </div>
                   )}
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    Joined {new Date(profile.created_at).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
-
-              {/* Profile Stats */}
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-1" />
-                  <span>{socialProfile?.followers_count || 0} followers</span>
-                </div>
-                <div className="flex items-center">
-                  <Target className="h-4 w-4 mr-1" />
-                  <span>{socialProfile?.total_strategies || 0} strategies</span>
-                </div>
-                <div className="flex items-center">
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  <span>${(socialProfile?.total_profit || 0).toFixed(2)} profit</span>
-                </div>
-              </div>
-
-              {/* Profile Details */}
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                {socialProfile?.location && (
-                  <div className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    <span>{socialProfile.location}</span>
-                  </div>
-                )}
-                {socialProfile?.website_url && (
-                  <div className="flex items-center">
-                    <Globe className="h-4 w-4 mr-1" />
-                    <a href={socialProfile.website_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      Website
-                    </a>
-                  </div>
-                )}
-                {socialProfile?.twitter_handle && (
-                  <div className="flex items-center">
-                    <Twitter className="h-4 w-4 mr-1" />
-                    <a href={`https://twitter.com/${socialProfile.twitter_handle}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      @{socialProfile.twitter_handle}
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              {/* Specialties */}
-              {socialProfile?.specialties && socialProfile.specialties.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {socialProfile.specialties.map((specialty, index) => (
-                    <Badge key={index} variant="secondary">{specialty}</Badge>
-                  ))}
-                </div>
+              
+              {isOwnProfile && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  {isEditing ? <X className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
+                  {isEditing ? 'Cancel' : 'Edit'}
+                </Button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Edit Profile Form */}
-        {isEditing && isOwnProfile && (
-          <Card className="mb-6">
+        {/* Edit Form */}
+        {isEditing && (
+          <Card className="mb-8">
             <CardHeader>
               <CardTitle>Edit Profile</CardTitle>
-              <CardDescription>Update your public profile information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium">Bio</label>
-                <Textarea 
-                  defaultValue={socialProfile?.bio || ''}
-                  onBlur={(e) => updateSocialProfile({ bio: e.target.value })}
-                  placeholder="Tell us about yourself and your trading experience..."
+                <Label htmlFor="bio">Bio</Label>
+                <Textarea
+                  id="bio"
+                  value={editForm.bio || ''}
+                  onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
+                  placeholder="Tell us about yourself..."
                 />
               </div>
+              
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-red-600">Location *</label>
-                  <Input 
-                    value={editingLocation}
-                    onChange={(e) => setEditingLocation(e.target.value)}
-                    onBlur={(e) => updateSocialProfile({ location: e.target.value })}
-                    placeholder="City, Country"
-                    required
+                  <Label htmlFor="location">Location *</Label>
+                  <Input
+                    id="location"
+                    value={editForm.location || ''}
+                    onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                    placeholder="Your location"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Website</label>
-                  <Input 
-                    defaultValue={socialProfile?.website_url || ''}
-                    onBlur={(e) => updateSocialProfile({ website_url: e.target.value })}
+                  <Label htmlFor="whatsapp">WhatsApp Number *</Label>
+                  <Input
+                    id="whatsapp"
+                    value={editForm.whatsapp_number || ''}
+                    onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
+                    placeholder="Your WhatsApp number"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="ethereum">Ethereum Wallet Address *</Label>
+                <Input
+                  id="ethereum"
+                  value={editForm.ethereum_wallet || ''}
+                  onChange={(e) => setEditForm({...editForm, ethereum_wallet: e.target.value})}
+                  placeholder="Your Ethereum wallet address"
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="website">Website</Label>
+                  <Input
+                    id="website"
+                    value={editForm.website_url || ''}
+                    onChange={(e) => setEditForm({...editForm, website_url: e.target.value})}
                     placeholder="https://yourwebsite.com"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-red-600">WhatsApp Number *</label>
-                  <Input 
-                    value={editingWhatsapp}
-                    onChange={(e) => setEditingWhatsapp(e.target.value)}
-                    onBlur={(e) => updateSocialProfile({ whatsapp_number: e.target.value })}
-                    placeholder="+1234567890"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-red-600">Ethereum Wallet *</label>
-                  <Input 
-                    value={editingWallet}
-                    onChange={(e) => setEditingWallet(e.target.value)}
-                    onBlur={(e) => updateSocialProfile({ ethereum_wallet: e.target.value })}
-                    placeholder="0x..."
-                    required
+                  <Label htmlFor="twitter">Twitter Handle</Label>
+                  <Input
+                    id="twitter"
+                    value={editForm.twitter_handle || ''}
+                    onChange={(e) => setEditForm({...editForm, twitter_handle: e.target.value})}
+                    placeholder="@username"
                   />
                 </div>
               </div>
+              
+              <div>
+                <Label htmlFor="linkedin">LinkedIn URL</Label>
+                <Input
+                  id="linkedin"
+                  value={editForm.linkedin_url || ''}
+                  onChange={(e) => setEditForm({...editForm, linkedin_url: e.target.value})}
+                  placeholder="https://linkedin.com/in/username"
+                />
+              </div>
+              
+              <Button onClick={handleSave} className="w-full">
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </Button>
             </CardContent>
           </Card>
         )}
 
-        {/* Profile Content Tabs */}
-        <Tabs defaultValue="pnl" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
-            <TabsTrigger value="pnl">P&L Analytics</TabsTrigger>
-            <TabsTrigger value="strategies">Strategies</TabsTrigger>
-            <TabsTrigger value="posts">Posts</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-            {isOwnProfile && <TabsTrigger value="invite">Invite Friends</TabsTrigger>}
-          </TabsList>
-
-          <TabsContent value="pnl">
-            <ProfitLossPanel 
-              userId={profile.id} 
-              userName={profile.name || profile.email} 
-            />
-          </TabsContent>
-
-          <TabsContent value="strategies">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {strategies.map((strategy: any) => (
-                <Card key={strategy.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{strategy.title}</CardTitle>
-                    <CardDescription>{strategy.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center mb-4">
-                      <Badge variant="outline">{strategy.strategy_config?.timeframe || 'Weekly'}</Badge>
-                      <span className="text-sm text-gray-600">{strategy.fee_percentage}% fee</span>
-                    </div>
-                    <SocialShareButton 
-                      postData={{
-                        id: strategy.id,
-                        content: `Check out my trading strategy: ${strategy.title}`,
-                        author: profile.name || profile.email,
-                        type: 'strategy'
-                      }}
-                      variant="outline"
-                      size="sm"
-                    />
-                  </CardContent>
-                </Card>
-              ))}
+        {/* Profile Stats and Info */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Stats Cards */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600">{profile.followers_count}</div>
+                  <div className="text-sm text-gray-600">Followers</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">{profile.following_count}</div>
+                  <div className="text-sm text-gray-600">Following</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-600">{profile.total_strategies}</div>
+                  <div className="text-sm text-gray-600">Strategies</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    ${profile.total_profit.toFixed(2)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Profit</div>
+                </CardContent>
+              </Card>
             </div>
-          </TabsContent>
+          </div>
 
-          <TabsContent value="posts">
-            <div className="space-y-6">
-              {posts.map((post: any) => (
-                <Card key={post.id}>
-                  <CardHeader>
-                    <CardDescription>{new Date(post.created_at).toLocaleDateString()}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p>{post.content}</p>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex items-center space-x-4 text-sm text-gray-600">
-                        <span>{post.likes_count} likes</span>
-                        <span>{post.comments_count} comments</span>
-                      </div>
-                      <SocialShareButton 
-                        postData={{
-                          id: post.id,
-                          content: post.content,
-                          author: profile.name || profile.email,
-                          type: 'post',
-                          metrics: {
-                            likes: post.likes_count,
-                            comments: post.comments_count,
-                            shares: post.shares_count
-                          }
-                        }}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="activity">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Trading activity and performance</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">Activity feed coming soon...</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {isOwnProfile && (
-            <TabsContent value="invite">
-              <div className="flex justify-center">
-                <InviteFriend />
+          {/* Contact Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Contact Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-gray-500" />
+                <span className="text-sm">{user.email}</span>
               </div>
-            </TabsContent>
-          )}
-        </Tabs>
+              
+              {profile.whatsapp_number && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">{profile.whatsapp_number}</span>
+                </div>
+              )}
+              
+              {profile.ethereum_wallet && (
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-mono text-xs break-all">{profile.ethereum_wallet}</span>
+                </div>
+              )}
+              
+              {profile.website_url && (
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-gray-500" />
+                  <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                    {profile.website_url}
+                  </a>
+                </div>
+              )}
+              
+              {profile.linkedin_url && (
+                <div className="flex items-center gap-2">
+                  <Linkedin className="h-4 w-4 text-gray-500" />
+                  <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                    LinkedIn Profile
+                  </a>
+                </div>
+              )}
+              
+              {profile.twitter_handle && (
+                <div className="flex items-center gap-2">
+                  <Twitter className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">{profile.twitter_handle}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   );

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Link as LinkIcon, Unlink, Shield } from 'lucide-react';
+import { Plus, Link as LinkIcon, Unlink, Shield, ExternalLink, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface BrokerConnection {
@@ -29,11 +29,11 @@ const BrokerConnections = () => {
   });
 
   const availableBrokers = [
+    { value: 'ig', label: 'IG Trading' },
     { value: 'interactive_brokers', label: 'Interactive Brokers' },
     { value: 'trade_station', label: 'TradeStation' },
     { value: 'trade_nation', label: 'Trade Nation' },
     { value: 'tradier', label: 'Tradier' },
-    { value: 'ig', label: 'IG' },
     { value: 'binance', label: 'Binance (Crypto)' }
   ];
 
@@ -78,6 +78,10 @@ const BrokerConnections = () => {
     });
   };
 
+  const handleIGSignup = () => {
+    window.open('https://refer.ig.com/royanuriens-3', '_blank');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -90,6 +94,42 @@ const BrokerConnections = () => {
           Add Broker
         </Button>
       </div>
+
+      {/* Recommended Broker Card */}
+      <Card className="border-2 border-red-500 bg-gradient-to-br from-red-50 to-orange-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-700">
+            <Star className="h-5 w-5 mr-2 text-red-600" />
+            Our Recommended Broker
+          </CardTitle>
+          <CardDescription className="text-red-600">
+            Professional options trading with IG - Perfect for iron condor strategies
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-red-800">IG Trading Platform</h4>
+              <p className="text-sm text-red-600 mb-4">
+                Advanced options trading platform with competitive spreads and professional tools
+              </p>
+              <ul className="text-xs text-red-600 space-y-1">
+                <li>• Options trading with real-time data</li>
+                <li>• Advanced charting and analysis tools</li>
+                <li>• API integration for automated trading</li>
+                <li>• Professional risk management</li>
+              </ul>
+            </div>
+            <Button 
+              onClick={handleIGSignup}
+              className="bg-red-600 hover:bg-red-700 text-white shadow-lg transform hover:scale-105 transition-all duration-300 font-bold px-6 py-3 rounded-lg border-2 border-red-800"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open IG Account
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Add New Connection Form */}
       {showAddForm && (
@@ -117,6 +157,7 @@ const BrokerConnections = () => {
                   {availableBrokers.map((broker) => (
                     <SelectItem key={broker.value} value={broker.value}>
                       {broker.label}
+                      {broker.value === 'ig' && <Badge className="ml-2 bg-red-100 text-red-800">Recommended</Badge>}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -154,6 +195,18 @@ const BrokerConnections = () => {
                 placeholder="Your secret key"
               />
             </div>
+
+            {newConnection.broker === 'ig' && (
+              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                <h4 className="font-medium text-red-800 mb-2">IG API Integration Steps:</h4>
+                <ol className="text-sm text-red-700 space-y-1 list-decimal list-inside">
+                  <li>Open an IG trading account using our referral link above</li>
+                  <li>Apply for API access in your IG account settings</li>
+                  <li>Generate your API key and credentials</li>
+                  <li>Enter your credentials here to connect</li>
+                </ol>
+              </div>
+            )}
 
             <div className="flex space-x-2">
               <Button onClick={handleConnect}>

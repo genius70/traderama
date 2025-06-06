@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -9,6 +8,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
+import AdminAuth from "./pages/AdminAuth";
 import CreateStrategy from "./pages/CreateStrategy";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import Profile from "./pages/Profile";
@@ -40,6 +40,7 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/admin-auth" element={<AdminAuth />} />
               <Route path="/create-strategy" element={<CreateStrategy />} />
               <Route path="/admin" element={<AdminAnalytics />} />
               <Route path="/profile/:userId?" element={<Profile />} />

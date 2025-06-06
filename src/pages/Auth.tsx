@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, User, Shield } from 'lucide-react';
+import { TrendingUp, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,7 +58,8 @@ const Auth = () => {
       options: {
         data: {
           username: username,
-        }
+        },
+        emailRedirectTo: `${window.location.origin}/`,
       }
     });
 
@@ -89,7 +90,7 @@ const Auth = () => {
     setLoading(true);
     
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}/`,
     });
     
     if (error) {
@@ -108,16 +109,10 @@ const Auth = () => {
     setLoading(false);
   };
 
-  const useDefaultCredentials = (type: 'user' | 'admin') => {
-    if (type === 'user') {
-      setEmail('user@traderama.com');
-      setPassword('password123');
-      setUsername('demouser');
-    } else {
-      setEmail('royan.shaw@gmail.com');
-      setPassword('321xbetacashplus');
-      setUsername('admin');
-    }
+  const useDefaultCredentials = () => {
+    setEmail('user@traderama.com');
+    setPassword('password123');
+    setUsername('demouser');
   };
 
   return (
@@ -136,27 +131,16 @@ const Auth = () => {
         <CardContent>
           {/* Default Credentials Section */}
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-semibold mb-3 text-gray-700">Demo Accounts (Development)</h3>
-            <div className="space-y-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start"
-                onClick={() => useDefaultCredentials('user')}
-              >
-                <User className="h-4 w-4 mr-2" />
-                Demo User Account
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start"
-                onClick={() => useDefaultCredentials('admin')}
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Admin Dev Account
-              </Button>
-            </div>
+            <h3 className="text-sm font-semibold mb-3 text-gray-700">Demo Account (Development)</h3>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full justify-start"
+              onClick={useDefaultCredentials}
+            >
+              <User className="h-4 w-4 mr-2" />
+              Demo User Account
+            </Button>
           </div>
 
           <Tabs defaultValue="signin" className="w-full">
