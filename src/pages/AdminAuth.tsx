@@ -14,6 +14,7 @@ const AdminAuth = () => {
   const [loading, setLoading] = useState(false);
   const { user, signIn } = useAuth();
 
+  // Allow admin to access dashboard after login
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -21,8 +22,18 @@ const AdminAuth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await signIn(email, password);
-    setLoading(false);
+    
+    try {
+      const { error } = await signIn(email, password);
+      if (!error) {
+        // Successful login - redirect will be handled by the Navigate component above
+        console.log('Admin login successful');
+      }
+    } catch (error) {
+      console.error('Admin login error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const useAdminCredentials = () => {

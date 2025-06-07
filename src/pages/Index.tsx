@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -191,7 +190,7 @@ const Index = () => {
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/auth">
-                <Button size="lg" className="w-full sm:w-auto px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white">
+                <Button size="lg" className="w-full sm:w-auto px-8 py-4 text-lg bg-blue-600 hover:bg-red-600 text-white transition-all duration-300">
                   Start Trading Now
                   <ArrowRight className="h-5 w-5 ml-2" />
                 </Button>
@@ -397,7 +396,7 @@ const Index = () => {
             Join thousands of traders who trust Traderama for their options trading success
           </p>
           <Link to="/auth">
-            <Button size="lg" variant="secondary" className="px-8 py-4 text-lg bg-white text-blue-600 hover:bg-gray-100">
+            <Button size="lg" variant="secondary" className="px-8 py-4 text-lg bg-white text-blue-600 hover:bg-red-600 hover:text-white transition-all duration-300">
               Get Started Free
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>

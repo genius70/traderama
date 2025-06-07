@@ -30,11 +30,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Handle email confirmation
+        // Handle different auth events
         if (event === 'SIGNED_IN' && session) {
           toast({
             title: "Successfully signed in",
             description: "Welcome to Traderama!",
+          });
+          
+          // Redirect to home page after successful authentication
+          if (window.location.pathname === '/auth' || window.location.pathname === '/admin-auth') {
+            window.location.href = '/';
+          }
+        } else if (event === 'TOKEN_REFRESHED') {
+          console.log('Token refreshed successfully');
+        } else if (event === 'SIGNED_OUT') {
+          toast({
+            title: "Signed out",
+            description: "You have been signed out successfully",
           });
         }
       }
@@ -108,6 +120,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({
         title: "Signed out successfully",
       });
+      
+      // Redirect to home page after sign out
+      window.location.href = '/';
     } catch (error) {
       console.error('Sign out error:', error);
     }
