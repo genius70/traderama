@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import SpyReturnsDistribution from "@/components/strategy/SpyReturnsDistribution";
 
 interface Strategy {
   id: string;
@@ -172,6 +173,7 @@ const Index = () => {
             <div className="flex items-center justify-center space-x-3">
               <div className="p-3 bg-blue-600 rounded-xl">
                 <TrendingUp className="h-8 w-8 text-white" />
+                <SpyReturnsDistribution />
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white">
                 Traderama
