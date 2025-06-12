@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -210,6 +209,13 @@ const Auth = () => {
                     required
                   />
                 </div>
+                
+                {/* h-captcha integration */}
+                <div className="space-y-2">
+                  <Label>Security Verification</Label>
+                  <div className="h-captcha" data-sitekey="cd5ee2c2-9292-4ed8-b254-f990bb0aff82"></div>
+                </div>
+                
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Creating Account...' : 'Create Account'}
                 </Button>
