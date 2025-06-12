@@ -32,7 +32,7 @@ const InviteFriend: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const defaultMessage = "Hey! I've been using this amazing trading platform for iron condor strategies. You should check it out - it's helping me improve my trading performance significantly! 🚀📈";
+  const defaultMessage = "Hey! I've been using this amazing expert copy trading platform for iron condor strategies. You should check it out - Traderama gives me options trading strategies helping me improve my trading performance significantly! 🚀📈";
 
   useEffect(() => {
     if (user) {
