@@ -129,12 +129,13 @@ const Airdrop: React.FC = () => {
       .select("*")
       .order("created_at");
 
+    // TS2322: Defensive filter and set
     if (Array.isArray(data)) {
-      const milestones = data.filter(
+      const milestones: AirdropMilestoneRow[] = data.filter(
         (d: any): d is AirdropMilestoneRow =>
-          d &&
+          !!d &&
           typeof d === "object" &&
-          !d.error && // Not a query error object
+          !d.error &&
           (typeof d.id === "string" || typeof d.id === "number") &&
           typeof d.name === "string" &&
           typeof d.kem_bonus === "number"
