@@ -72,8 +72,7 @@ const AdminAirdropPanel = () => {
     if (!error) toast({ title: "Conversion rate saved" });
   };
 
-  // Add a type guard for milestones
-  const isMilestoneRow = (d: any): d is AirdropMilestoneRow => 
+  const isMilestoneRow = (d: any): d is AirdropMilestoneRow =>
     d &&
     (typeof d.id === "string" || typeof d.id === "number") &&
     typeof d.name === "string" &&
@@ -85,7 +84,7 @@ const AdminAirdropPanel = () => {
       .select("*")
       .order("created_at");
 
-    // Defensive: ensure array and filter
+    // Defensive: ensure array, filter out any non-milestone error rows and nulls
     if (Array.isArray(data)) {
       const filtered: AirdropMilestoneRow[] = data.filter(isMilestoneRow);
       setMilestones(filtered);
