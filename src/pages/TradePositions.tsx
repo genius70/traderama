@@ -50,6 +50,7 @@ const TradePositions: React.FC = () => {
   const navigate = useNavigate();
 
   const handleSelectContract = (contract: any) => {
+    console.log('Select button clicked with contract:', contract);
     setLegs((prevLegs) => {
       // Find first incomplete leg (matching type and empty strike)
       const idx = prevLegs.findIndex(
@@ -58,16 +59,20 @@ const TradePositions: React.FC = () => {
           (!leg.strike || leg.strike === "") &&
           (!leg.expiration || leg.expiration === "")
       );
-      if (idx === -1) return prevLegs;
-      // Autofill strike, expiration, price from contract
+      if (idx === -1) {
+        console.log("No empty slot for this contract type in legs:", contract.type);
+        return prevLegs;
+      }
+      // Autofill strike, expiration (from expiry), and price from contract
       const newLeg = {
         ...prevLegs[idx],
         strike: contract.strike || "",
-        expiration: contract.expiry || "",
+        expiration: contract.expiry || "", // Fix: map contract.expiry => leg.expiration
         price: contract.ask?.toString?.() || "",
       };
       const newLegs = [...prevLegs];
       newLegs[idx] = newLeg;
+      console.log("Legs after update:", newLegs);
       return newLegs;
     });
   };
