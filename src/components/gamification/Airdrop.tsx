@@ -129,6 +129,7 @@ const Airdrop: React.FC = () => {
       .select("*")
       .order("created_at");
 
+    // Defensive: ensure array, filter only valid milestone rows
     if (Array.isArray(data)) {
       const filtered: AirdropMilestoneRow[] = data.filter(isMilestoneRow);
       setMilestones(filtered);
