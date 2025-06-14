@@ -72,21 +72,22 @@ const AdminAirdropPanel = () => {
     if (!error) toast({ title: "Conversion rate saved" });
   };
 
+  // Add a type guard for milestones
+  const isMilestoneRow = (d: any): d is AirdropMilestoneRow => 
+    d &&
+    (typeof d.id === "string" || typeof d.id === "number") &&
+    typeof d.name === "string" &&
+    typeof d.kem_bonus === "number";
+
   const fetchMilestones = async () => {
     const { data } = await supabase
       .from("airdrop_milestones" as any)
       .select("*")
       .order("created_at");
 
-    // Defensive: ensure array, filter valid milestones only
+    // Defensive: ensure array and filter
     if (Array.isArray(data)) {
-      const filtered: AirdropMilestoneRow[] = data.filter(
-        (d: any): d is AirdropMilestoneRow =>
-          d &&
-          (typeof d.id === "string" || typeof d.id === "number") &&
-          typeof d.name === "string" &&
-          typeof d.kem_bonus === "number"
-      );
+      const filtered: AirdropMilestoneRow[] = data.filter(isMilestoneRow);
       setMilestones(filtered);
     } else {
       setMilestones([]);

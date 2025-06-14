@@ -117,6 +117,12 @@ const Airdrop: React.FC = () => {
     fetchUserMilestones();
   }, [user]);
 
+  const isMilestoneRow = (d: any): d is AirdropMilestoneRow =>
+    d &&
+    (typeof d.id === "string" || typeof d.id === "number") &&
+    typeof d.name === "string" &&
+    typeof d.kem_bonus === "number";
+
   const fetchMilestones = async () => {
     const { data } = await supabase
       .from("airdrop_milestones" as any)
@@ -124,13 +130,7 @@ const Airdrop: React.FC = () => {
       .order("created_at");
 
     if (Array.isArray(data)) {
-      const filtered: AirdropMilestoneRow[] = data.filter(
-        (d: any): d is AirdropMilestoneRow =>
-          d &&
-          (typeof d.id === "string" || typeof d.id === "number") &&
-          typeof d.name === "string" &&
-          typeof d.kem_bonus === "number"
-      );
+      const filtered: AirdropMilestoneRow[] = data.filter(isMilestoneRow);
       setMilestones(filtered);
     } else {
       setMilestones([]);
