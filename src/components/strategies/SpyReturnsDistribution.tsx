@@ -32,7 +32,10 @@ const SpyReturnsDistribution = () => {
       binEnd: min + (i + 1) * binWidth,
       count: 0,
       frequency: 0,
-      returns: []
+      returns: [],
+      // Explicitly add default binCenter and label so type checks are happy
+      binCenter: 0,
+      label: "",
     }));
     
     data.forEach(value => {
@@ -157,13 +160,17 @@ const SpyReturnsDistribution = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="binCenter"
-                  tickFormatter={(value) => `${value.toFixed(1)}%`}
+                  tickFormatter={(value) => typeof value === "number" ? `${value.toFixed(1)}%` : value}
                   label={{ value: 'Monthly Return (%)', position: 'insideBottom', offset: -5 }}
                 />
                 <YAxis label={{ value: 'Frequency (%)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip 
-                  formatter={(value, name) => [`${value.toFixed(2)}%`, 'Frequency']}
-                  labelFormatter={(value) => `Return Range: ${value.toFixed(1)}%`}
+                  formatter={(value, name) => [typeof value === "number" ? `${value.toFixed(2)}%` : value, 'Frequency']}
+                  labelFormatter={(value) =>
+                    typeof value === "number"
+                      ? `Return Range: ${value.toFixed(1)}%`
+                      : `Return Range: ${value}`
+                  }
                 />
                 <Bar dataKey="frequency" fill="#3b82f6" stroke="#1e40af" strokeWidth={1} />
                 {stdDevBands.map((band, index) => (
@@ -172,7 +179,7 @@ const SpyReturnsDistribution = () => {
                     x={band.value} 
                     stroke={band.color} 
                     strokeDasharray="5 5" 
-                    label={{ value: band.label, position: 'topRight' }}
+                    label={band.label}
                   />
                 ))}
               </BarChart>
@@ -190,13 +197,13 @@ const SpyReturnsDistribution = () => {
                   dataKey="x"
                   domain={['dataMin', 'dataMax']}
                   type="number"
-                  tickFormatter={(value) => `${value}%`}
+                  tickFormatter={(value) => typeof value === "number" ? `${value}%` : value}
                   label={{ value: 'Monthly Return (%)', position: 'insideBottom', offset: -5 }}
                 />
                 <YAxis label={{ value: 'Density', angle: -90, position: 'insideLeft' }} />
                 <Tooltip 
-                  formatter={(value, name) => [value.toFixed(4), name]}
-                  labelFormatter={(value) => `Return: ${value}%`}
+                  formatter={(value, name) => [typeof value === "number" ? value.toFixed(4) : value, name]}
+                  labelFormatter={(value) => typeof value === "number" ? `Return: ${value}%` : `Return: ${value}`}
                 />
                 <Line 
                   data={normalDistribution}
@@ -240,8 +247,8 @@ const SpyReturnsDistribution = () => {
                   domain={['dataMin - 2', 'dataMax + 2']}
                 />
                 <Tooltip 
-                  formatter={(value) => [`${value.toFixed(2)}%`, 'Monthly Return']}
-                  labelFormatter={(value) => `Month ${value}`}
+                  formatter={(value) => [typeof value === "number" ? `${value.toFixed(2)}%` : value, 'Monthly Return']}
+                  labelFormatter={(value) => typeof value === "number" ? `Month ${value}` : `Month ${value}`}
                 />
                 <Line 
                   type="monotone" 

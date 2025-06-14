@@ -304,6 +304,13 @@ const CreateStrategy = () => {
 
   const [strategyFilter, setStrategyFilter] = useState<string>("bull");
 
+  // Add STRATEGY_FILTERS constant
+  const STRATEGY_FILTERS = [
+    { label: 'Bull', value: 'bull' },
+    { label: 'Bear', value: 'bear' },
+    { label: 'Neutral', value: 'neutral' },
+  ];
+
   if (loading) {
     return <div>Loading...</div>;
   }
