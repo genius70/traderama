@@ -118,20 +118,22 @@ const Airdrop: React.FC = () => {
   }, [user]);
 
   const fetchMilestones = async () => {
-    // @ts-expect-error: Table not in typed DB
     const { data } = await supabase
       .from("airdrop_milestones" as any)
       .select("*")
       .order("created_at");
-    setMilestones(
-      Array.isArray(data)
-        ? data.filter((d: any) =>
+
+    const filtered = Array.isArray(data)
+      ? data.filter(
+          (d: any) =>
+            d &&
+            typeof d === "object" &&
             typeof d.id !== "undefined" &&
             typeof d.name === "string" &&
             typeof d.kem_bonus === "number"
-          )
-        : []
-    );
+        )
+      : [];
+    setMilestones(filtered);
   };
 
   const fetchProfile = async () => {
@@ -142,16 +144,22 @@ const Airdrop: React.FC = () => {
 
   const fetchUserMilestones = async () => {
     if (!user) return;
-    // @ts-expect-error: Table not in typed DB
     const { data } = await supabase
       .from("user_milestones" as any)
       .select("milestone_id")
       .eq("user_id", user.id);
-    setUserMilestones(
+
+    // Defensive: Only objects with a valid milestone_id (string/number) allowed
+    const filtered =
       Array.isArray(data)
-        ? (data as { milestone_id: string | number }[]).map((um) => um.milestone_id)
-        : []
-    );
+        ? data.filter(
+            (d: any) =>
+              d &&
+              typeof d === "object" &&
+              (typeof d.milestone_id === "string" || typeof d.milestone_id === "number")
+          )
+        : [];
+    setUserMilestones(filtered.map((x: any) => x.milestone_id));
   };
 
   const isAdmin = (profile?.role === "admin" || profile?.role === "super_admin");

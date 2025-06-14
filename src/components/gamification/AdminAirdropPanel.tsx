@@ -44,21 +44,23 @@ const AdminAirdropPanel = () => {
     fetchEligible();
   }, []);
 
-  // These tables are not in Supabase-generated types, we use any
   const fetchSettings = async () => {
-    // @ts-expect-error: Table not in typed DB
+    // forcibly type to any since table is not in supabase types
     const { data } = await supabase
       .from("kem_settings" as any)
       .select("*")
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (data && typeof data.kem_conversion_rate === "number") setConversionRate(data.kem_conversion_rate);
+
+    // Defensive check: only update state if data shape matches
+    if (data && typeof data === "object" && typeof data.kem_conversion_rate === "number") {
+      setConversionRate(data.kem_conversion_rate);
+    }
   };
 
   const saveRate = async () => {
     setLoading(true);
-    // @ts-expect-error: Table not in typed DB
     const { error } = await supabase
       .from("kem_settings" as any)
       .upsert({
@@ -70,25 +72,30 @@ const AdminAirdropPanel = () => {
   };
 
   const fetchMilestones = async () => {
-    // @ts-expect-error: Table not in typed DB
     const { data } = await supabase
       .from("airdrop_milestones" as any)
       .select("*")
       .order("created_at");
-    // Defensive mapping, filter for correct structure
-    setMilestones(Array.isArray(data) ? data.filter((d: any) =>
-      typeof d.id !== "undefined" &&
-      typeof d.name === "string" &&
-      typeof d.kem_bonus === "number"
-    ) : []);
+
+    // Defensive mapping, filter out objects that don't fit or are errors
+    const filtered =
+      Array.isArray(data)
+        ? data.filter(
+            (d: any) =>
+              d &&
+              typeof d === "object" &&
+              typeof d.id !== "undefined" &&
+              typeof d.name === "string" &&
+              typeof d.kem_bonus === "number"
+          )
+        : [];
+    setMilestones(filtered);
   };
 
   const fetchEligible = async () => {
     const { data } = await supabase
       .from("kem_credits")
-      .select(
-        `user_id, credits_earned, profiles (name, email)`
-      )
+      .select("user_id, credits_earned, profiles (name, email)")
       .gte("credits_earned", 100);
     setEligibleUsers(Array.isArray(data) ? data : []);
   };
@@ -117,7 +124,9 @@ const AdminAirdropPanel = () => {
           <Crown className="inline w-5 h-5 text-yellow-500 mb-1 mr-2" />
           Admin KEM Airdrops Control
         </CardTitle>
-        <CardDescription>Set conversion rate, manage milestones, and send KEM to eligible users (&gt; 100 credits)</CardDescription>
+        <CardDescription>
+          Set conversion rate, manage milestones, and send KEM to eligible users (&gt; 100 credits)
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col sm:flex-row gap-6 items-center mb-4">
