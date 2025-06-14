@@ -10,6 +10,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+// Added Tip Modal
+import TipModal from "./TipModal";
+
 interface CommunityPostCardProps {
   post: any;
   onLike?: () => void;
@@ -22,6 +25,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onC
   const [likes, setLikes] = useState<number>(post.likes_count ?? 0);
   const [likeDisabled, setLikeDisabled] = useState(false);
   const [commentOpen, setCommentOpen] = useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
 
   async function handleLike() {
     if (!user) return;
@@ -41,14 +45,14 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onC
 
   // Compose data for SocialShareButton
   const shareData = {
-    id: post.id,
-    content: post.content,
+    id: String(post.id),
+    content: String(post.content ?? ""),
     author: post.profiles?.name || post.profiles?.email || "Unknown",
-    type: "post",
+    type: "post" as const,
     metrics: {
-      likes: likes,
-      comments: post.comments_count,
-      shares: post.shares_count,
+      likes: Number(likes),
+      comments: Number(post.comments_count),
+      shares: Number(post.shares_count),
     }
   };
 
@@ -87,16 +91,23 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onC
             <MessageSquare className="h-4 w-4" />
             <span>{post.comments_count}</span>
           </button>
+          {/* Share button */}
           <SocialShareButton postData={shareData} />
+          {/* Tip button */}
+          <Button variant="outline" size="sm" onClick={() => setTipOpen(true)}>
+            💸 Tip
+          </Button>
         </div>
       </CardContent>
 
       {/* Comments modal */}
       <CommunityCommentModal
-        postId={post.id}
+        postId={String(post.id)}
         open={commentOpen}
         onOpenChange={setCommentOpen}
       />
+      {/* Tip Modal */}
+      <TipModal open={tipOpen} onOpenChange={setTipOpen} post={post} />
     </Card>
   );
 };

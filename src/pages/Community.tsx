@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/layout/Header';
 import PremiumGroupCheckoutDialog from "@/components/community/PremiumGroupCheckoutDialog";
 import CommunityPostCard from "@/components/community/CommunityPostCard";
+import PremiumGroupPostComposer from "@/components/community/PremiumGroupPostComposer";
 
 const Community = () => {
   const { user, loading } = useAuth();
@@ -293,6 +294,9 @@ const Community = () => {
               </div>
             </div>
 
+            {/* Example: Only show the PremiumGroupPostComposer if user is a premium group owner in this context */}
+            <PremiumGroupPostComposer groupId="demo-premium-group" />
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {groups.map((group: any) => (
                 <Card key={group.id} className="hover:shadow-lg transition-shadow">
@@ -317,7 +321,6 @@ const Community = () => {
                 </Card>
               ))}
             </div>
-            {/* Premium Group Payment Modal */}
             <PremiumGroupCheckoutDialog open={isPremiumDialogOpen} onOpenChange={setIsPremiumDialogOpen} />
           </TabsContent>
 

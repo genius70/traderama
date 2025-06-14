@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -34,20 +33,20 @@ export default function CommunityCommentModal({ postId, open, onOpenChange }: Co
 
   useEffect(() => {
     if (open) fetchComments();
-    // eslint-disable-next-line
   }, [open, postId]);
 
   async function fetchComments() {
     setLoading(true);
     const { data, error } = await supabase
-      .from("comments")
+      .from("post_comments")
       .select("*, profiles(name, email)")
       .eq("post_id", postId)
       .order("created_at", { ascending: false });
     if (error) {
       toast({ title: "Error fetching comments", variant: "destructive" });
+      setComments([]);
     } else {
-      setComments(data ?? []);
+      setComments(data as Comment[] ?? []);
     }
     setLoading(false);
   }
@@ -56,7 +55,7 @@ export default function CommunityCommentModal({ postId, open, onOpenChange }: Co
     if (!user || !newComment.trim()) return;
     setSubmitting(true);
     const { error } = await supabase
-      .from("comments")
+      .from("post_comments")
       .insert({
         post_id: postId,
         user_id: user.id,
