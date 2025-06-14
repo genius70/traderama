@@ -79,7 +79,7 @@ const AdminAirdropPanel = () => {
           <Crown className="inline w-5 h-5 text-yellow-500 mb-1 mr-2" />
           Admin KEM Airdrops Control
         </CardTitle>
-        <CardDescription>Set conversion rate, manage milestones, and send KEM to eligible users (> 100 credits)</CardDescription>
+        <CardDescription>Set conversion rate, manage milestones, and send KEM to eligible users (&gt; 100 credits)</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col sm:flex-row gap-6 items-center mb-4">
@@ -118,9 +118,8 @@ const AdminAirdropPanel = () => {
                 </tr>
               </thead>
               <tbody>
-                {eligibleUsers.length > 0 ? (
-                  <>
-                    {eligibleUsers.map((u) => (
+                {eligibleUsers.length > 0
+                  ? eligibleUsers.map((u) => (
                       <tr key={u.user_id}>
                         <td>{u.profiles?.name || u.profiles?.email}</td>
                         <td>{u.credits_earned}</td>
@@ -135,17 +134,15 @@ const AdminAirdropPanel = () => {
                           </Button>
                         </td>
                       </tr>
-                    ))}
-                  </>
-                ) : (
-                  <>
+                    ))
+                  : (
                     <tr>
                       <td colSpan={3} className="text-center text-gray-500">
                         No eligible users found
                       </td>
                     </tr>
-                  </>
-                )}
+                  )
+                }
               </tbody>
             </table>
           </div>
