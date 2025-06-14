@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Coins, Wallet, TrendingUp, Gift } from 'lucide-react';
+import AdminAirdropPanel from "./AdminAirdropPanel";
 
 interface KemCredits {
   credits_earned: number;
@@ -24,6 +24,9 @@ const Airdrop: React.FC = () => {
   const [availableCredits, setAvailableCredits] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
+  const [milestones, setMilestones] = useState([]);
+  const [userMilestones, setUserMilestones] = useState([]);
+  const [profile, setProfile] = useState<any | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -121,8 +124,34 @@ const Airdrop: React.FC = () => {
   const milestoneProgress = kemCredits ? (kemCredits.credits_earned % 100) : 0;
   const nextMilestone = kemCredits ? Math.ceil(kemCredits.credits_earned / 100) * 100 : 100;
 
+  useEffect(() => {
+    fetchMilestones();
+    fetchProfile();
+    fetchUserMilestones();
+  }, [user]);
+
+  const fetchMilestones = async () => {
+    const { data } = await supabase.from("airdrop_milestones").select("*").order("created_at");
+    setMilestones(data || []);
+  };
+  const fetchProfile = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    setProfile(data);
+  };
+  const fetchUserMilestones = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("user_milestones")
+      .select("milestone_id")
+      .eq("user_id", user.id);
+    setUserMilestones((data || []).map(um => um.milestone_id));
+  };
+
+  const isAdmin = (profile?.role === "admin" || profile?.role === "super_admin");
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {isAdmin && <AdminAirdropPanel />}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -227,6 +256,33 @@ const Airdrop: React.FC = () => {
               <li>• Friend accepts your invitation: 2 credits</li>
               <li>• Milestone airdrops: 5% of total credits earned</li>
             </ul>
+          </div>
+        </CardContent>
+      </Card>
+      {/* User Milestone Badge Panel */}
+      <Card className="my-4 bg-purple-50 border-purple-200">
+        <CardHeader>
+          <CardTitle>
+            <Gift className="h-5 w-5 text-purple-600 mr-1" />
+            Your Milestone Achievements
+          </CardTitle>
+          <CardDescription>
+            Earn badges and bonus KEM awards!
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {milestones.map(m => (
+              <Badge
+                key={m.id}
+                className={userMilestones.includes(m.id) ? "bg-green-600 text-white" : "bg-gray-200"}
+              >
+                {m.name}
+                {m.kem_bonus > 0 && <span className="ml-1">+{m.kem_bonus} KEM</span>}
+                {userMilestones.includes(m.id) && <span className="ml-2 text-xs">Complete</span>}
+              </Badge>
+            ))}
+            {!milestones.length && <span className="text-gray-500">No milestones yet</span>}
           </div>
         </CardContent>
       </Card>

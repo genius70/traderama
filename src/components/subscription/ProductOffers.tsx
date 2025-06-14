@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Crown, Mail, CreditCard, Building, Banknote, Check, Star, Users, Plus } from 'lucide-react';
+import ManualPaymentModal from "../payments/ManualPaymentModal";
 
 interface SubscriptionPlan {
   id: string;
@@ -18,6 +19,7 @@ interface SubscriptionPlan {
 
 const ProductOffers: React.FC = () => {
   const [loading, setLoading] = useState<string | null>(null);
+  const [manualOpen, setManualOpen] = useState<false | "AirTM" | "Wise">(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -276,18 +278,28 @@ const ProductOffers: React.FC = () => {
                     </div>
                     {loading === plan.id && <div className="ml-auto">Processing...</div>}
                   </Button>
-                  <Button variant="outline" className="w-full justify-start opacity-60" disabled>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setManualOpen("AirTM")}
+                    disabled={loading === `manual-airtm`}
+                  >
                     <Building className="h-4 w-4 mr-2" />
                     <div className="text-left">
                       <div className="font-medium">AirTM</div>
-                      <div className="text-xs text-gray-500">Coming soon</div>
+                      <div className="text-xs text-gray-500">Manual Payment (24h)</div>
                     </div>
                   </Button>
-                  <Button variant="outline" className="w-full justify-start opacity-60" disabled>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setManualOpen("Wise")}
+                    disabled={loading === `manual-wise`}
+                  >
                     <Banknote className="h-4 w-4 mr-2" />
                     <div className="text-left">
                       <div className="font-medium">Wise</div>
-                      <div className="text-xs text-gray-500">Coming soon</div>
+                      <div className="text-xs text-gray-500">Manual Payment (24h)</div>
                     </div>
                   </Button>
                 </div>
@@ -390,6 +402,8 @@ const ProductOffers: React.FC = () => {
           </CardContent>
         </Card>
       </section>
+
+      <ManualPaymentModal open={!!manualOpen} onOpenChange={() => setManualOpen(false)} provider={manualOpen || "AirTM"} />
     </div>
   );
 };

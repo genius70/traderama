@@ -1240,7 +1240,13 @@ export type Database = {
         | "tradier"
         | "easymarkets"
         | "tradenation"
-      strategy_status: "draft" | "published" | "archived" | "pending_review"
+      strategy_status:
+        | "draft"
+        | "published"
+        | "archived"
+        | "pending_review"
+        | "rejected"
+        | "changes_requested"
       subscription_tier: "free" | "premium" | "professional"
       trade_status: "pending" | "executed" | "closed" | "cancelled"
       user_role: "user" | "admin" | "super_admin"
@@ -1366,7 +1372,14 @@ export const Constants = {
         "easymarkets",
         "tradenation",
       ],
-      strategy_status: ["draft", "published", "archived", "pending_review"],
+      strategy_status: [
+        "draft",
+        "published",
+        "archived",
+        "pending_review",
+        "rejected",
+        "changes_requested",
+      ],
       subscription_tier: ["free", "premium", "professional"],
       trade_status: ["pending", "executed", "closed", "cancelled"],
       user_role: ["user", "admin", "super_admin"],

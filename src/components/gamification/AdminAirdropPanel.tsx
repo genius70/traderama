@@ -1,0 +1,138 @@
+
+import React, { useState, useEffect } from "react";
+import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Crown, Gift } from "lucide-react";
+
+const AdminAirdropPanel = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [conversionRate, setConversionRate] = useState(0.05);
+  const [milestones, setMilestones] = useState([]);
+  const [eligibleUsers, setEligibleUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchSettings();
+    fetchMilestones();
+    fetchEligible();
+  }, []);
+
+  const fetchSettings = async () => {
+    const { data } = await supabase.from("kem_settings").select("*").order("updated_at", { ascending: false }).limit(1).single();
+    if (data) setConversionRate(data.kem_conversion_rate);
+  };
+
+  const saveRate = async () => {
+    setLoading(true);
+    const { error } = await supabase.from("kem_settings").upsert({
+      kem_conversion_rate: conversionRate,
+      updated_at: new Date().toISOString(),
+    });
+    setLoading(false);
+    if (!error) toast({ title: "Conversion rate saved" });
+  };
+
+  const fetchMilestones = async () => {
+    const { data } = await supabase.from("airdrop_milestones").select("*").order("created_at");
+    setMilestones(data || []);
+  };
+
+  const fetchEligible = async () => {
+    // 1. Only users with credits_earned >= 100
+    // 2. Join with profiles to get name/email
+    const { data, error } = await supabase
+      .from("kem_credits")
+      .select(
+        `user_id, credits_earned, profiles (name, email)`
+      )
+      .gte("credits_earned", 100);
+    setEligibleUsers(data || []);
+  };
+
+  const handleAirdrop = async (recipient: any) => {
+    if (!window.confirm(`Send airdrop to ${recipient.profiles?.name || recipient.profiles?.email}?`)) return;
+    setLoading(true);
+    // Grant tokens based on rate & bonus
+    const { error } = await supabase
+      .from("airdrops")
+      .insert([{
+        user_id: recipient.user_id,
+        kem_amount: Math.floor(recipient.credits_earned * conversionRate * 100) / 100,
+        credits_used: recipient.credits_earned,
+        ethereum_wallet: null,
+        status: "admin_distributed"
+      }]);
+    setLoading(false);
+    if (!error) toast({ title: "Airdrop sent!" });
+    fetchEligible();
+  };
+
+  return (
+    <Card className="my-6 border-2 border-purple-300">
+      <CardHeader>
+        <CardTitle>
+          <Crown className="inline w-5 h-5 text-yellow-500 mb-1 mr-2" />
+          Admin KEM Airdrops Control
+        </CardTitle>
+        <CardDescription>Set conversion rate, manage milestones, and send KEM to eligible users (> 100 credits)</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col sm:flex-row gap-6 items-center mb-4">
+          <div>
+            <label className="text-sm font-semibold mb-1 block">Credits → KEM Token Rate</label>
+            <Input
+              type="number"
+              min={0.001}
+              step={0.001}
+              value={conversionRate}
+              onChange={(e) => setConversionRate(Number(e.target.value))}
+              className="w-32"
+            />
+            <Button onClick={saveRate} className="ml-2" disabled={loading}>
+              Save
+            </Button>
+          </div>
+          <div>
+            <label className="text-sm font-semibold mb-1 block">Milestones</label>
+            <div className="flex flex-col gap-1">
+              {milestones.map(m => (
+                <Badge key={m.id} className="mb-1">{m.name} ({m.kem_bonus} KEM)</Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div>
+          <h4 className="font-semibold mb-2">Eligible Users</h4>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead><tr><th>User</th><th>Credits</th><th>Action</th></tr></thead>
+              <tbody>
+                {eligibleUsers.map(u => (
+                  <tr key={u.user_id}>
+                    <td>{u.profiles?.name || u.profiles?.email}</td>
+                    <td>{u.credits_earned}</td>
+                    <td>
+                      <Button size="sm" variant="secondary" onClick={() => handleAirdrop(u)} disabled={loading}>Airdrop</Button>
+                    </td>
+                  </tr>
+                ))}
+                {!eligibleUsers.length && (
+                  <tr>
+                    <td colSpan={3} className="text-center text-gray-500">No eligible users found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+export default AdminAirdropPanel;

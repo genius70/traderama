@@ -9,13 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, Plus, MessageSquare, Heart, Share2, TrendingUp, Target, Crown } from 'lucide-react';
+import { Users, Plus, MessageSquare, Heart, Share2, TrendingUp, Target, Crown, Building, Banknote } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/layout/Header';
 import PremiumGroupCheckoutDialog from "@/components/community/PremiumGroupCheckoutDialog";
 import CommunityPostCard from "@/components/community/CommunityPostCard";
 import PremiumGroupPostComposer from "@/components/community/PremiumGroupPostComposer";
+import ManualPaymentModal from "@/components/payments/ManualPaymentModal";
 
 const Community = () => {
   const { user, loading } = useAuth();
@@ -26,6 +27,7 @@ const Community = () => {
   const [newGroup, setNewGroup] = useState({ name: '', description: '' });
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState<false | "AirTM" | "Wise">(false);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -252,6 +254,18 @@ const Community = () => {
                   Create Premium Group - $50/mo
                 </Button>
                 
+                {/* AIRTM manual button */}
+                <Button variant="outline" onClick={() => setManualOpen("AirTM")}>
+                  <Building className="h-4 w-4 mr-2" />
+                  Pay with AirTM (Manual)
+                </Button>
+                
+                {/* Wise manual button */}
+                <Button variant="outline" onClick={() => setManualOpen("Wise")}>
+                  <Banknote className="h-4 w-4 mr-2" />
+                  Pay with Wise (Manual)
+                </Button>
+
                 <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline">
@@ -380,6 +394,7 @@ const Community = () => {
           </TabsContent>
         </Tabs>
       </main>
+      <ManualPaymentModal open={!!manualOpen} onOpenChange={() => setManualOpen(false)} provider={manualOpen || "AirTM"} />
     </div>
   );
 };
