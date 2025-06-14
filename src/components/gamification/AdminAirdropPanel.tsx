@@ -52,7 +52,7 @@ const AdminAirdropPanel = () => {
       .maybeSingle();
 
     if (
-      data !== null &&
+      data &&
       typeof data === "object" &&
       typeof data.kem_conversion_rate === "number"
     ) {
@@ -78,12 +78,11 @@ const AdminAirdropPanel = () => {
       .select("*")
       .order("created_at");
 
+    // Defensive: ensure array, filter valid milestones only
     if (Array.isArray(data)) {
-      // Only include objects matching AirdropMilestoneRow
       const filtered: AirdropMilestoneRow[] = data.filter(
         (d: any): d is AirdropMilestoneRow =>
           d &&
-          typeof d === "object" &&
           (typeof d.id === "string" || typeof d.id === "number") &&
           typeof d.name === "string" &&
           typeof d.kem_bonus === "number"

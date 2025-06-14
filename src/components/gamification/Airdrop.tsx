@@ -124,11 +124,9 @@ const Airdrop: React.FC = () => {
       .order("created_at");
 
     if (Array.isArray(data)) {
-      // Only let objects that truly match AirdropMilestoneRow pass
       const filtered: AirdropMilestoneRow[] = data.filter(
         (d: any): d is AirdropMilestoneRow =>
           d &&
-          typeof d === "object" &&
           (typeof d.id === "string" || typeof d.id === "number") &&
           typeof d.name === "string" &&
           typeof d.kem_bonus === "number"
