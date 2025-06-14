@@ -1,10 +1,10 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import IronCondorBuilder from "@/components/trading/IronCondorBuilder";
 import TradingOptionsSelector from "@/components/trading/TradingOptionsSelector";
 import TradingTemplate from "@/components/trading/TradingTemplate";
+import OptionsChainPanel from "@/components/trading/OptionsChainPanel";
 import { TrendingUp, ArrowLeft, ArrowRight } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
@@ -187,6 +187,12 @@ const TradePositions: React.FC = () => {
                   strategyName={selectedOption?.name || "Strategy"}
                   legs={legs}
                   onLegsChange={setLegs}
+                />
+                <OptionsChainPanel
+                  symbol={selectedOption?.symbol || "SPY"}
+                  onSelectContract={(contract) => {
+                    // Optionally handle contract selection, e.g. fill in a leg
+                  }}
                 />
                 <div className="flex gap-4 mt-4 justify-end">
                   <Button variant="secondary" onClick={() => setPage("strategy")}>
