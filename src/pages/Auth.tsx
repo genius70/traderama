@@ -234,10 +234,11 @@ const Auth = () => {
                     </button>
                   </div>
                 </div>
-                {/* h-captcha integration */}
+                {/* h-captcha (present but does NOT block sign up while not verified) */}
                 <div className="space-y-2">
                   <Label>Security Verification</Label>
                   <div className="h-captcha" data-sitekey="cd5ee2c2-9292-4ed8-b254-f990bb0aff82"></div>
+                  {/* Actual verification skipped for now */}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Creating Account...' : 'Create Account'}
