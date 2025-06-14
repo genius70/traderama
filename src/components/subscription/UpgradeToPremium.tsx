@@ -7,12 +7,14 @@ import { Check, Crown, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus'; // NEW HOOK
 
 const UpgradeToPremium = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [selectedProvider, setSelectedProvider] = useState('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { isPremium, subscriptionTier, expiresAt, loading: loadingPremium } = usePremiumStatus();
 
   const plans = {
     monthly: { price: 30, period: 'month', savings: 0 },
@@ -44,10 +46,9 @@ const UpgradeToPremium = () => {
         title: "Redirecting to payment...",
         description: `Processing upgrade via ${paymentProviders[selectedProvider as keyof typeof paymentProviders]}`,
       });
-      
+
       // Simulate payment processing
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
       toast({
         title: "Upgrade successful!",
         description: "Welcome to Premium! Your account has been upgraded.",
@@ -68,28 +69,33 @@ const UpgradeToPremium = () => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white">
+        <Button
+          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+          disabled={isPremium || loadingPremium}
+        >
           <Crown className="h-4 w-4 mr-2" />
-          Upgrade to Premium
+          {loadingPremium ? "Checking..." : isPremium ? "Premium Active" : "Upgrade to Premium"}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center text-2xl">
             <Crown className="h-6 w-6 mr-2 text-yellow-500" />
-            Upgrade to Premium
+            {isPremium ? "Your Premium Membership" : "Upgrade to Premium"}
           </DialogTitle>
           <DialogDescription>
-            Unlock advanced trading features and premium analytics
+            {isPremium
+              ? `Your plan: ${subscriptionTier ?? "Premium"}${expiresAt ? " (expires " + new Date(expiresAt).toLocaleDateString() + ")" : ""}`
+              : "Unlock advanced trading features and premium analytics"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Plan Selection */}
+          {/* Plan Selection — disabled if already premium */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card 
-              className={`cursor-pointer transition-all ${selectedPlan === 'monthly' ? 'ring-2 ring-blue-500' : ''}`}
-              onClick={() => setSelectedPlan('monthly')}
+            <Card
+              className={`cursor-pointer transition-all ${selectedPlan === 'monthly' ? 'ring-2 ring-blue-500' : ''} ${isPremium ? "opacity-50 pointer-events-none" : ""}`}
+              onClick={() => !isPremium && setSelectedPlan('monthly')}
             >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
@@ -102,9 +108,9 @@ const UpgradeToPremium = () => {
               </CardHeader>
             </Card>
 
-            <Card 
-              className={`cursor-pointer transition-all ${selectedPlan === 'annual' ? 'ring-2 ring-blue-500' : ''}`}
-              onClick={() => setSelectedPlan('annual')}
+            <Card
+              className={`cursor-pointer transition-all ${selectedPlan === 'annual' ? 'ring-2 ring-blue-500' : ''} ${isPremium ? "opacity-50 pointer-events-none" : ""}`}
+              onClick={() => !isPremium && setSelectedPlan('annual')}
             >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
@@ -123,7 +129,7 @@ const UpgradeToPremium = () => {
           {/* Payment Provider Selection */}
           <div>
             <label className="text-sm font-medium mb-2 block">Payment Method</label>
-            <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+            <Select value={selectedProvider} onValueChange={setSelectedProvider} disabled={isPremium}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -149,24 +155,29 @@ const UpgradeToPremium = () => {
           </div>
 
           {/* Upgrade Button */}
-          <Button 
-            onClick={handleUpgrade} 
-            disabled={isProcessing}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-            size="lg"
-          >
-            {isProcessing ? (
-              <>
-                <Zap className="h-4 w-4 mr-2 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Crown className="h-4 w-4 mr-2" />
-                Upgrade for ${currentPlan.price}/{currentPlan.period}
-              </>
-            )}
-          </Button>
+          {!isPremium && (
+            <Button
+              onClick={handleUpgrade}
+              disabled={isProcessing}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              size="lg"
+            >
+              {isProcessing ? (
+                <>
+                  <Zap className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Crown className="h-4 w-4 mr-2" />
+                  Upgrade for ${currentPlan.price}/{currentPlan.period}
+                </>
+              )}
+            </Button>
+          )}
+          {isPremium && (
+            <div className="w-full text-center text-green-600 text-lg font-semibold">You are a Premium Member!</div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
