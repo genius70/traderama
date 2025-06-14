@@ -79,8 +79,9 @@ const AdminAirdropPanel = () => {
       .select("*")
       .order("created_at");
 
-    // Sanity filter: only objects matching AirdropMilestoneRow go through
+    // Add defensive: check null and result array
     if (Array.isArray(data)) {
+      // Filter only objects that match AirdropMilestoneRow type
       const filtered: AirdropMilestoneRow[] = data.filter(
         (d: any): d is AirdropMilestoneRow =>
           d &&
@@ -211,3 +212,4 @@ const AdminAirdropPanel = () => {
 };
 
 export default AdminAirdropPanel;
+
