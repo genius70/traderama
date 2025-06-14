@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -119,11 +118,20 @@ const Airdrop: React.FC = () => {
   }, [user]);
 
   const fetchMilestones = async () => {
+    // @ts-expect-error: Table not in typed DB
     const { data } = await supabase
-      .from('airdrop_milestones')
+      .from("airdrop_milestones" as any)
       .select("*")
       .order("created_at");
-    setMilestones(Array.isArray(data) ? data : []);
+    setMilestones(
+      Array.isArray(data)
+        ? data.filter((d: any) =>
+            typeof d.id !== "undefined" &&
+            typeof d.name === "string" &&
+            typeof d.kem_bonus === "number"
+          )
+        : []
+    );
   };
 
   const fetchProfile = async () => {
@@ -134,8 +142,9 @@ const Airdrop: React.FC = () => {
 
   const fetchUserMilestones = async () => {
     if (!user) return;
+    // @ts-expect-error: Table not in typed DB
     const { data } = await supabase
-      .from('user_milestones')
+      .from("user_milestones" as any)
       .select("milestone_id")
       .eq("user_id", user.id);
     setUserMilestones(

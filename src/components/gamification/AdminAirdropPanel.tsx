@@ -9,10 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Crown } from "lucide-react";
 
-// Manual types for table rows
+// Manual types for external/legacy tables
 type KemSettings = {
   kem_conversion_rate: number;
   updated_at: string;
+  [key: string]: any;
 };
 type AirdropMilestoneRow = {
   id: string | number;
@@ -43,9 +44,11 @@ const AdminAirdropPanel = () => {
     fetchEligible();
   }, []);
 
+  // These tables are not in Supabase-generated types, we use any
   const fetchSettings = async () => {
+    // @ts-expect-error: Table not in typed DB
     const { data } = await supabase
-      .from("kem_settings")
+      .from("kem_settings" as any)
       .select("*")
       .order("updated_at", { ascending: false })
       .limit(1)
@@ -55,9 +58,9 @@ const AdminAirdropPanel = () => {
 
   const saveRate = async () => {
     setLoading(true);
-    // CURRENT: kem_settings doesn't seem present in types, so use any
+    // @ts-expect-error: Table not in typed DB
     const { error } = await supabase
-      .from("kem_settings")
+      .from("kem_settings" as any)
       .upsert({
         kem_conversion_rate: conversionRate,
         updated_at: new Date().toISOString(),
@@ -67,11 +70,17 @@ const AdminAirdropPanel = () => {
   };
 
   const fetchMilestones = async () => {
+    // @ts-expect-error: Table not in typed DB
     const { data } = await supabase
-      .from("airdrop_milestones")
+      .from("airdrop_milestones" as any)
       .select("*")
       .order("created_at");
-    setMilestones(Array.isArray(data) ? data : []);
+    // Defensive mapping, filter for correct structure
+    setMilestones(Array.isArray(data) ? data.filter((d: any) =>
+      typeof d.id !== "undefined" &&
+      typeof d.name === "string" &&
+      typeof d.kem_bonus === "number"
+    ) : []);
   };
 
   const fetchEligible = async () => {
@@ -182,5 +191,3 @@ const AdminAirdropPanel = () => {
 };
 
 export default AdminAirdropPanel;
-
-// This file is now simplified and orchestrates only, UI split to new subcomponents if grows further.
