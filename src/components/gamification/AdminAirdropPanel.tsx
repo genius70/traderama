@@ -118,7 +118,7 @@ const AdminAirdropPanel = () => {
                 </tr>
               </thead>
               <tbody>
-                {eligibleUsers.length ? (
+                {eligibleUsers.length > 0 ? (
                   eligibleUsers.map((u) => (
                     <tr key={u.user_id}>
                       <td>{u.profiles?.name || u.profiles?.email}</td>
