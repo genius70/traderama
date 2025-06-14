@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Community from "./pages/Community";
 import AirdropPage from "./pages/AirdropPage";
 import ProductOffers from "./pages/ProductOffers";
+import TradePositions from "./pages/TradePositions";
 import NotFound from "./pages/NotFound";
 
 // Create QueryClient instance with proper configuration
@@ -48,6 +49,7 @@ const App = () => {
               <Route path="/community" element={<Community />} />
               <Route path="/airdrop" element={<AirdropPage />} />
               <Route path="/product-offers" element={<ProductOffers />} />
+              <Route path="/trade-positions" element={<TradePositions />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
