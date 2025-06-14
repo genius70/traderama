@@ -6,19 +6,47 @@ import IronCondorBuilder from "@/components/trading/IronCondorBuilder";
 import TradingOptionsSelector from "@/components/trading/TradingOptionsSelector";
 import TradingTemplate from "@/components/trading/TradingTemplate";
 import { TrendingUp, ArrowLeft, ArrowRight } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { useNavigate } from "react-router-dom";
 
-const initialLegs = [
+// Fixing type for TradingLeg so type is "Call" | "Put" and buySell is "Buy" | "Sell"
+type TradingLeg = {
+  strike: string;
+  type: "Call" | "Put";
+  expiration: string;
+  buySell: "Buy" | "Sell";
+  size: number;
+  price: string;
+};
+
+const initialLegs: TradingLeg[] = [
   { strike: "", type: "Call", expiration: "", buySell: "Sell", size: 1, price: "" },
   { strike: "", type: "Call", expiration: "", buySell: "Buy", size: 1, price: "" },
   { strike: "", type: "Put", expiration: "", buySell: "Sell", size: 1, price: "" },
   { strike: "", type: "Put", expiration: "", buySell: "Buy", size: 1, price: "" },
 ];
 
+// Mock data for tables
+const openPositions = [
+  { id: 1, strategy: "Iron Condor", symbol: "SPY", contracts: 1, entry: 2.3, mark: 2.7, pnl: +40, status: "Open" },
+];
+const closedPositions = [
+  { id: 2, strategy: "Bull Call Spread", symbol: "AAPL", contracts: 2, entry: 4.5, exit: 5.1, pnl: +120, status: "Closed" },
+];
+const tradingLogs = [
+  { id: 101, time: "2024-06-13 11:00", action: "Opened Iron Condor", details: "SPY 1 contract" }
+];
+const pnls = [
+  { symbol: "SPY", totalPnl: 120 },
+  { symbol: "AAPL", totalPnl: 80 },
+];
+
 const TradePositions: React.FC = () => {
   const [page, setPage] = useState<"strategy" | "builder" | "confirmation">("strategy");
   const [selectedOption, setSelectedOption] = useState<any>(null);
-  const [legs, setLegs] = useState(initialLegs);
+  const [legs, setLegs] = useState<TradingLeg[]>(initialLegs);
+  const [tab, setTab] = useState("open");
   const navigate = useNavigate();
 
   return (
@@ -40,6 +68,108 @@ const TradePositions: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <Tabs value={tab} onValueChange={setTab} className="mb-8">
+              <TabsList className="mb-4 w-full flex flex-wrap">
+                <TabsTrigger value="open">Open Positions</TabsTrigger>
+                <TabsTrigger value="closed">Closed Positions</TabsTrigger>
+                <TabsTrigger value="logs">Trading Logs</TabsTrigger>
+                <TabsTrigger value="pnl">P&amp;L</TabsTrigger>
+              </TabsList>
+              <TabsContent value="open">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Strategy</TableHead>
+                      <TableHead>Symbol</TableHead>
+                      <TableHead>Contracts</TableHead>
+                      <TableHead>Entry</TableHead>
+                      <TableHead>Mark</TableHead>
+                      <TableHead>P&amp;L</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {openPositions.map(pos => (
+                      <TableRow key={pos.id}>
+                        <TableCell>{pos.strategy}</TableCell>
+                        <TableCell>{pos.symbol}</TableCell>
+                        <TableCell>{pos.contracts}</TableCell>
+                        <TableCell>{pos.entry}</TableCell>
+                        <TableCell>{pos.mark}</TableCell>
+                        <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>{pos.pnl}</TableCell>
+                        <TableCell>{pos.status}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+              <TabsContent value="closed">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Strategy</TableHead>
+                      <TableHead>Symbol</TableHead>
+                      <TableHead>Contracts</TableHead>
+                      <TableHead>Entry</TableHead>
+                      <TableHead>Exit</TableHead>
+                      <TableHead>P&amp;L</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {closedPositions.map(pos => (
+                      <TableRow key={pos.id}>
+                        <TableCell>{pos.strategy}</TableCell>
+                        <TableCell>{pos.symbol}</TableCell>
+                        <TableCell>{pos.contracts}</TableCell>
+                        <TableCell>{pos.entry}</TableCell>
+                        <TableCell>{pos.exit}</TableCell>
+                        <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>{pos.pnl}</TableCell>
+                        <TableCell>{pos.status}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+              <TabsContent value="logs">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tradingLogs.map(log => (
+                      <TableRow key={log.id}>
+                        <TableCell>{log.time}</TableCell>
+                        <TableCell>{log.action}</TableCell>
+                        <TableCell>{log.details}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+              <TabsContent value="pnl">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Symbol</TableHead>
+                      <TableHead>Total P&amp;L</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pnls.map((pnl, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{pnl.symbol}</TableCell>
+                        <TableCell className={pnl.totalPnl >= 0 ? "text-green-700" : "text-red-600"}>{pnl.totalPnl}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+            </Tabs>
             {page === "strategy" && (
               <div className="space-y-6">
                 <TradingOptionsSelector

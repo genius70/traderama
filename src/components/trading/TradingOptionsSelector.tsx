@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -214,21 +213,44 @@ const tradingOptions: TradingOption[] = [
 
 interface TradingOptionsSelectorProps {
   onSelectOption: (option: TradingOption) => void;
+  filter?: string; // ADDED
 }
 
-const TradingOptionsSelector: React.FC<TradingOptionsSelectorProps> = ({ onSelectOption }) => {
+const TradingOptionsSelector: React.FC<TradingOptionsSelectorProps> = ({ onSelectOption, filter }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const visibleOptions = 4;
 
+  // Filter strategies based on filter prop (bull, bear, neutral). By default show all.
+  const getFilteredOptions = () => {
+    if (!filter) return tradingOptions;
+    switch (filter) {
+      case "bull":
+        return tradingOptions.filter(opt => opt.type === "Bullish");
+      case "bear":
+        return tradingOptions.filter(opt => opt.type === "Bearish");
+      case "neutral":
+        return tradingOptions.filter(opt => opt.type === "Neutral");
+      default:
+        return tradingOptions;
+    }
+  };
+
+  const filteredOptions = getFilteredOptions();
+
+  // Reset index if filter changes and would create an out-of-bounds view
+  React.useEffect(() => {
+    setCurrentIndex(0);
+  }, [filter]);
+
   const nextOptions = () => {
-    setCurrentIndex((prev) => 
-      prev + visibleOptions >= tradingOptions.length ? 0 : prev + visibleOptions
+    setCurrentIndex((prev) =>
+      prev + visibleOptions >= filteredOptions.length ? 0 : prev + visibleOptions
     );
   };
 
   const prevOptions = () => {
-    setCurrentIndex((prev) => 
-      prev - visibleOptions < 0 ? Math.max(0, tradingOptions.length - visibleOptions) : prev - visibleOptions
+    setCurrentIndex((prev) =>
+      prev - visibleOptions < 0 ? Math.max(0, filteredOptions.length - visibleOptions) : prev - visibleOptions
     );
   };
 
@@ -251,9 +273,8 @@ const TradingOptionsSelector: React.FC<TradingOptionsSelectorProps> = ({ onSelec
           <Button variant="outline" size="icon" onClick={prevOptions}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {tradingOptions.slice(currentIndex, currentIndex + visibleOptions).map((option) => (
+            {filteredOptions.slice(currentIndex, currentIndex + visibleOptions).map((option) => (
               <Button
                 key={option.id}
                 variant="outline"
@@ -267,7 +288,6 @@ const TradingOptionsSelector: React.FC<TradingOptionsSelectorProps> = ({ onSelec
               </Button>
             ))}
           </div>
-          
           <Button variant="outline" size="icon" onClick={nextOptions}>
             <ChevronRight className="h-4 w-4" />
           </Button>

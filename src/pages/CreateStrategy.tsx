@@ -37,7 +37,7 @@ interface StrategyConfig {
 }
 
 // Updated TradingOptionsSelector (4 per page, 2 rows)
-const TradingOptionsSelector = ({ onSelectOption }) => {
+const TradingOptionsSelector = ({ onSelectOption, filter }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedStrategy, setSelectedStrategy] = useState(null);
 
@@ -302,6 +302,8 @@ const CreateStrategy = () => {
     legs: []
   });
 
+  const [strategyFilter, setStrategyFilter] = useState<string>("bull");
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -457,8 +459,27 @@ const CreateStrategy = () => {
 
             {/* Trading Options */}
             <div className="space-y-6">
-              <TradingOptionsSelector onSelectOption={handleTradingOptionSelect} />
-
+              {/* Add horizontal filter tabs */}
+              <div className="flex gap-3 mb-2 overflow-x-auto hide-scrollbar">
+                {STRATEGY_FILTERS.map(filter =>
+                  <button
+                    key={filter.value}
+                    onClick={() => setStrategyFilter(filter.value)}
+                    className={`px-4 py-2 rounded-full font-medium border
+                      ${strategyFilter === filter.value
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-600 border-gray-300 hover:bg-blue-50"}
+                    `}
+                  >
+                    {filter.label}
+                  </button>
+                )}
+              </div>
+              {/* Pass filter to TradingOptionsSelector */}
+              <TradingOptionsSelector 
+                filter={strategyFilter}
+                onSelectOption={handleTradingOptionSelect} 
+              />
               {selectedTradingOption && (
                 <TradingTemplate 
                   strategyName={selectedTradingOption.name}
