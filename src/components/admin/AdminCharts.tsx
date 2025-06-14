@@ -43,9 +43,10 @@ export default function AdminCharts() {
             <LineChart data={userGrowthData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis />
+              <YAxis yAxisId={0} />
+              <YAxis yAxisId={1} orientation="right" />
               <Tooltip />
-              <Line type="monotone" dataKey="users" stroke="#4f46e5" strokeWidth={2} name="Users" />
+              <Line type="monotone" dataKey="users" stroke="#4f46e5" strokeWidth={2} name="Users" yAxisId={0} />
               <Line type="monotone" dataKey="iv" stroke="#f43f5e" yAxisId={1} dot={{ r: 4 }} name="IV (Implied Volatility)" />
             </LineChart>
           </ResponsiveContainer>
@@ -73,3 +74,4 @@ export default function AdminCharts() {
     </div>
   );
 }
+
