@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
@@ -86,6 +85,37 @@ const Dashboard = () => {
               <Link to="/product-offers">
                 <Button variant="outline" className="w-full border-green-200">View Plans</Button>
               </Link>
+            </CardContent>
+          </Card>
+
+          {/* IG Brokers Connect Card */}
+          <Card className="hover:shadow-md transition-shadow border-red-400 bg-gradient-to-br from-red-50 to-orange-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                {/* Using Star icon to match IG broker recommended styling */}
+                <span className="mr-2 inline-flex">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-red-600"><path d="M12 17.3L18.2 21l-1.7-7.2L22 9.3l-7.3-.6L12 2 9.3 8.7 2 9.3l5.5 4.5L5.8 21z" fill="currentColor"/></svg>
+                </span>
+                Connect to IG Broker
+              </CardTitle>
+              <CardDescription>
+                Professional options trading platform—unbeatable for iron condors.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <a
+                href="https://refer.ig.com/royanuriens-3"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <Button
+                  className="w-full bg-red-600 border-red-800 text-white hover:bg-red-700"
+                  type="button"
+                >
+                  Open IG Account
+                </Button>
+              </a>
             </CardContent>
           </Card>
 
