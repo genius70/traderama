@@ -5,19 +5,6 @@ import { Button } from "@/components/ui/button";
 import OptionsChainTable from "./OptionsChainTable";
 import type { ContractRow } from "./types";
 
-interface ContractRow {
-  strike: string;
-  type: "Call" | "Put";
-  expiry: string;
-  bid: number;
-  ask: number;
-  volume: number;
-  openInterest: number;
-  iv: number; // implied volatility
-  pmp: number; // probability of max profit (mocked)
-  pop: number; // probability of profit (mocked)
-}
-
 interface OptionsChainPanelProps {
   symbol: string;
   onSelectContract?: (contract: ContractRow) => void;

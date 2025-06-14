@@ -131,20 +131,26 @@ const Airdrop: React.FC = () => {
   }, [user]);
 
   const fetchMilestones = async () => {
-    const { data } = await supabase.from("airdrop_milestones").select("*").order("created_at");
+    const { data } = await supabase
+      .from<AirdropMilestoneRow>("airdrop_milestones" as any)
+      .select("*")
+      .order("created_at");
     setMilestones(data || []);
   };
+
   const fetchProfile = async () => {
     if (!user) return;
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
     setProfile(data);
   };
+
   const fetchUserMilestones = async () => {
     if (!user) return;
-    const { data } = await supabase.from("user_milestones")
+    const { data } = await supabase
+      .from<UserMilestoneRow>("user_milestones" as any)
       .select("milestone_id")
       .eq("user_id", user.id);
-    setUserMilestones((data || []).map(um => um.milestone_id));
+    setUserMilestones((data || []).map((um: UserMilestoneRow) => um.milestone_id));
   };
 
   const isAdmin = (profile?.role === "admin" || profile?.role === "super_admin");
