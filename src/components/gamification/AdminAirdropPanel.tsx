@@ -111,20 +111,35 @@ const AdminAirdropPanel = () => {
           <h4 className="font-semibold mb-2">Eligible Users</h4>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead><tr><th>User</th><th>Credits</th><th>Action</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Credits</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
               <tbody>
-                {eligibleUsers.map(u => (
+                {eligibleUsers.map((u) => (
                   <tr key={u.user_id}>
                     <td>{u.profiles?.name || u.profiles?.email}</td>
                     <td>{u.credits_earned}</td>
                     <td>
-                      <Button size="sm" variant="secondary" onClick={() => handleAirdrop(u)} disabled={loading}>Airdrop</Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleAirdrop(u)}
+                        disabled={loading}
+                      >
+                        Airdrop
+                      </Button>
                     </td>
                   </tr>
                 ))}
                 {!eligibleUsers.length && (
                   <tr>
-                    <td colSpan={3} className="text-center text-gray-500">No eligible users found</td>
+                    <td colSpan={3} className="text-center text-gray-500">
+                      No eligible users found
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -135,4 +150,5 @@ const AdminAirdropPanel = () => {
     </Card>
   );
 };
+
 export default AdminAirdropPanel;
