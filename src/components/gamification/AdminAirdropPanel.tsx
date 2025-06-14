@@ -45,7 +45,6 @@ const AdminAirdropPanel = () => {
   }, []);
 
   const fetchSettings = async () => {
-    // forcibly type to any since table is not in supabase types
     const { data } = await supabase
       .from("kem_settings" as any)
       .select("*")
@@ -53,8 +52,11 @@ const AdminAirdropPanel = () => {
       .limit(1)
       .maybeSingle();
 
-    // Defensive check: only update state if data shape matches
-    if (data && typeof data === "object" && typeof data.kem_conversion_rate === "number") {
+    if (
+      data !== null &&
+      typeof data === "object" &&
+      typeof data.kem_conversion_rate === "number"
+    ) {
       setConversionRate(data.kem_conversion_rate);
     }
   };
@@ -77,19 +79,20 @@ const AdminAirdropPanel = () => {
       .select("*")
       .order("created_at");
 
-    // Defensive mapping, filter out objects that don't fit or are errors
-    const filtered =
-      Array.isArray(data)
-        ? data.filter(
-            (d: any) =>
-              d &&
-              typeof d === "object" &&
-              typeof d.id !== "undefined" &&
-              typeof d.name === "string" &&
-              typeof d.kem_bonus === "number"
-          )
-        : [];
-    setMilestones(filtered);
+    // Sanity filter: only objects matching AirdropMilestoneRow go through
+    if (Array.isArray(data)) {
+      const filtered: AirdropMilestoneRow[] = data.filter(
+        (d: any): d is AirdropMilestoneRow =>
+          d &&
+          typeof d === "object" &&
+          (typeof d.id === "string" || typeof d.id === "number") &&
+          typeof d.name === "string" &&
+          typeof d.kem_bonus === "number"
+      );
+      setMilestones(filtered);
+    } else {
+      setMilestones([]);
+    }
   };
 
   const fetchEligible = async () => {
@@ -101,17 +104,22 @@ const AdminAirdropPanel = () => {
   };
 
   const handleAirdrop = async (recipient: EligibleUserRow) => {
-    if (!window.confirm(`Send airdrop to ${recipient.profiles?.name || recipient.profiles?.email}?`)) return;
+    if (
+      !window.confirm(
+        `Send airdrop to ${recipient.profiles?.name || recipient.profiles?.email}?`
+      )
+    )
+      return;
     setLoading(true);
-    await supabase
-      .from("airdrops")
-      .insert([{
+    await supabase.from("airdrops").insert([
+      {
         user_id: recipient.user_id,
         kem_amount: Math.floor(recipient.credits_earned * conversionRate * 100) / 100,
         credits_used: recipient.credits_earned,
         ethereum_wallet: null,
-        status: "admin_distributed"
-      }]);
+        status: "admin_distributed",
+      },
+    ]);
     setLoading(false);
     toast({ title: "Airdrop sent!" });
     fetchEligible();
@@ -131,7 +139,9 @@ const AdminAirdropPanel = () => {
       <CardContent>
         <div className="flex flex-col sm:flex-row gap-6 items-center mb-4">
           <div>
-            <label className="text-sm font-semibold mb-1 block">Credits → KEM Token Rate</label>
+            <label className="text-sm font-semibold mb-1 block">
+              Credits → KEM Token Rate
+            </label>
             <Input
               type="number"
               min={0.001}
@@ -147,8 +157,10 @@ const AdminAirdropPanel = () => {
           <div>
             <label className="text-sm font-semibold mb-1 block">Milestones</label>
             <div className="flex flex-col gap-1">
-              {milestones.map(m => (
-                <Badge key={m.id} className="mb-1">{m.name} ({m.kem_bonus} KEM)</Badge>
+              {milestones.map((m) => (
+                <Badge key={m.id} className="mb-1">
+                  {m.name} ({m.kem_bonus} KEM)
+                </Badge>
               ))}
             </div>
           </div>
@@ -165,31 +177,30 @@ const AdminAirdropPanel = () => {
                 </tr>
               </thead>
               <tbody>
-                {eligibleUsers.length > 0
-                  ? eligibleUsers.map((u) => (
-                      <tr key={u.user_id}>
-                        <td>{u.profiles?.name || u.profiles?.email}</td>
-                        <td>{u.credits_earned}</td>
-                        <td>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleAirdrop(u)}
-                            disabled={loading}
-                          >
-                            Airdrop
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  : (
-                    <tr>
-                      <td colSpan={3} className="text-center text-gray-500">
-                        No eligible users found
+                {eligibleUsers.length > 0 ? (
+                  eligibleUsers.map((u) => (
+                    <tr key={u.user_id}>
+                      <td>{u.profiles?.name || u.profiles?.email}</td>
+                      <td>{u.credits_earned}</td>
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleAirdrop(u)}
+                          disabled={loading}
+                        >
+                          Airdrop
+                        </Button>
                       </td>
                     </tr>
-                  )
-                }
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="text-center text-gray-500">
+                      No eligible users found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

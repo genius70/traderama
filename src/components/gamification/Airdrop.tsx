@@ -123,17 +123,19 @@ const Airdrop: React.FC = () => {
       .select("*")
       .order("created_at");
 
-    const filtered = Array.isArray(data)
-      ? data.filter(
-          (d: any) =>
-            d &&
-            typeof d === "object" &&
-            typeof d.id !== "undefined" &&
-            typeof d.name === "string" &&
-            typeof d.kem_bonus === "number"
-        )
-      : [];
-    setMilestones(filtered);
+    if (Array.isArray(data)) {
+      const filtered: AirdropMilestoneRow[] = data.filter(
+        (d: any): d is AirdropMilestoneRow =>
+          d &&
+          typeof d === "object" &&
+          (typeof d.id === "string" || typeof d.id === "number") &&
+          typeof d.name === "string" &&
+          typeof d.kem_bonus === "number"
+      );
+      setMilestones(filtered);
+    } else {
+      setMilestones([]);
+    }
   };
 
   const fetchProfile = async () => {
