@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -14,6 +13,8 @@ import { Users, Plus, MessageSquare, Heart, Share2, TrendingUp, Target, Crown } 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/layout/Header';
+import PremiumGroupCheckoutDialog from "@/components/community/PremiumGroupCheckoutDialog";
+import CommunityPostCard from "@/components/community/CommunityPostCard";
 
 const Community = () => {
   const { user, loading } = useAuth();
@@ -23,6 +24,7 @@ const Community = () => {
   const [newPost, setNewPost] = useState('');
   const [newGroup, setNewGroup] = useState({ name: '', description: '' });
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -229,41 +231,7 @@ const Community = () => {
             {/* Posts Feed */}
             <div className="space-y-6">
               {posts.map((post: any) => (
-                <Card key={post.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback>
-                          {post.profiles?.name?.[0] || post.profiles?.email?.[0]?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-semibold">{post.profiles?.name || post.profiles?.email}</p>
-                        <p className="text-sm text-gray-500">{new Date(post.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-800 mb-4">{post.content}</p>
-                    <div className="flex items-center space-x-6 text-sm text-gray-600">
-                      <button 
-                        onClick={() => likePost(post.id)}
-                        className="flex items-center space-x-1 hover:text-red-500 transition-colors"
-                      >
-                        <Heart className="h-4 w-4" />
-                        <span>{post.likes_count}</span>
-                      </button>
-                      <button className="flex items-center space-x-1 hover:text-blue-500 transition-colors">
-                        <MessageSquare className="h-4 w-4" />
-                        <span>{post.comments_count}</span>
-                      </button>
-                      <button className="flex items-center space-x-1 hover:text-green-500 transition-colors">
-                        <Share2 className="h-4 w-4" />
-                        <span>Share</span>
-                      </button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <CommunityPostCard key={post.id} post={post} onLike={fetchPosts} onCommentAdded={fetchPosts} />
               ))}
             </div>
           </TabsContent>
@@ -277,7 +245,7 @@ const Community = () => {
               
               <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-0">
                 <Button 
-                  onClick={handleCreatePremiumGroup}
+                  onClick={() => setIsPremiumDialogOpen(true)}
                   className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                 >
                   <Crown className="h-4 w-4 mr-2" />
@@ -349,6 +317,8 @@ const Community = () => {
                 </Card>
               ))}
             </div>
+            {/* Premium Group Payment Modal */}
+            <PremiumGroupCheckoutDialog open={isPremiumDialogOpen} onOpenChange={setIsPremiumDialogOpen} />
           </TabsContent>
 
           <TabsContent value="discover">
