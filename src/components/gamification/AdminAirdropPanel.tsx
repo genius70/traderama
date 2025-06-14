@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,9 +78,8 @@ const AdminAirdropPanel = () => {
       .select("*")
       .order("created_at");
 
-    // Add defensive: check null and result array
     if (Array.isArray(data)) {
-      // Filter only objects that match AirdropMilestoneRow type
+      // Only include objects matching AirdropMilestoneRow
       const filtered: AirdropMilestoneRow[] = data.filter(
         (d: any): d is AirdropMilestoneRow =>
           d &&
@@ -212,4 +210,3 @@ const AdminAirdropPanel = () => {
 };
 
 export default AdminAirdropPanel;
-
