@@ -119,28 +119,32 @@ const AdminAirdropPanel = () => {
               </thead>
               <tbody>
                 {eligibleUsers.length > 0 ? (
-                  eligibleUsers.map((u) => (
-                    <tr key={u.user_id}>
-                      <td>{u.profiles?.name || u.profiles?.email}</td>
-                      <td>{u.credits_earned}</td>
-                      <td>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleAirdrop(u)}
-                          disabled={loading}
-                        >
-                          Airdrop
-                        </Button>
+                  <>
+                    {eligibleUsers.map((u) => (
+                      <tr key={u.user_id}>
+                        <td>{u.profiles?.name || u.profiles?.email}</td>
+                        <td>{u.credits_earned}</td>
+                        <td>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleAirdrop(u)}
+                            disabled={loading}
+                          >
+                            Airdrop
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <tr>
+                      <td colSpan={3} className="text-center text-gray-500">
+                        No eligible users found
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={3} className="text-center text-gray-500">
-                      No eligible users found
-                    </td>
-                  </tr>
+                  </>
                 )}
               </tbody>
             </table>
