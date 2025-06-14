@@ -17,6 +17,18 @@ interface KemCredits {
   total_airdrops_received: number;
 }
 
+// Add manual types for missing tables used in Supabase queries:
+type AirdropMilestoneRow = {
+  id: string | number;
+  name: string;
+  kem_bonus: number;
+  created_at?: string;
+};
+type UserMilestoneRow = {
+  milestone_id: string | number;
+  user_id: string;
+};
+
 const Airdrop: React.FC = () => {
   const [ethereumWallet, setEthereumWallet] = useState('');
   const [kemCredits, setKemCredits] = useState<KemCredits | null>(null);
@@ -132,10 +144,10 @@ const Airdrop: React.FC = () => {
 
   const fetchMilestones = async () => {
     const { data } = await supabase
-      .from<AirdropMilestoneRow>("airdrop_milestones" as any)
+      .from<any, AirdropMilestoneRow>("airdrop_milestones")
       .select("*")
       .order("created_at");
-    setMilestones(data || []);
+    setMilestones((data as AirdropMilestoneRow[]) || []);
   };
 
   const fetchProfile = async () => {
@@ -147,10 +159,10 @@ const Airdrop: React.FC = () => {
   const fetchUserMilestones = async () => {
     if (!user) return;
     const { data } = await supabase
-      .from<UserMilestoneRow>("user_milestones" as any)
+      .from<any, UserMilestoneRow>("user_milestones")
       .select("milestone_id")
       .eq("user_id", user.id);
-    setUserMilestones((data || []).map((um: UserMilestoneRow) => um.milestone_id));
+    setUserMilestones((data as UserMilestoneRow[] || []).map((um) => um.milestone_id));
   };
 
   const isAdmin = (profile?.role === "admin" || profile?.role === "super_admin");

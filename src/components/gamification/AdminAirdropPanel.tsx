@@ -14,14 +14,12 @@ type KemSettingsRow = {
   kem_conversion_rate: number;
   updated_at: string;
 };
-
 type AirdropMilestoneRow = {
   id: string | number;
   name: string;
   kem_bonus: number;
   created_at?: string;
 };
-
 type EligibleUserRow = {
   user_id: string;
   credits_earned: number;
@@ -46,21 +44,20 @@ const AdminAirdropPanel = () => {
   }, []);
 
   const fetchSettings = async () => {
-    // Use generic type and string table name for missing type
-    const { data } = await supabase
-      .from<KemSettingsRow>("kem_settings" as any)
+    const { data, error } = await supabase
+      .from<any, KemSettingsRow>("kem_settings")
       .select("*")
       .order("updated_at", { ascending: false })
       .limit(1)
-      .maybeSingle(); // Use maybeSingle for optional row
+      .maybeSingle();
 
-    if (data) setConversionRate(data.kem_conversion_rate);
+    if (data && data.kem_conversion_rate) setConversionRate(data.kem_conversion_rate);
   };
 
   const saveRate = async () => {
     setLoading(true);
     const { error } = await supabase
-      .from("kem_settings" as any)
+      .from<any, KemSettingsRow>("kem_settings")
       .upsert({
         kem_conversion_rate: conversionRate,
         updated_at: new Date().toISOString(),
@@ -70,16 +67,14 @@ const AdminAirdropPanel = () => {
   };
 
   const fetchMilestones = async () => {
-    const { data } = await supabase
-      .from<AirdropMilestoneRow>("airdrop_milestones" as any)
+    const { data, error } = await supabase
+      .from<any, AirdropMilestoneRow>("airdrop_milestones")
       .select("*")
       .order("created_at");
-    setMilestones(data || []);
+    setMilestones((data as AirdropMilestoneRow[]) || []);
   };
 
   const fetchEligible = async () => {
-    // Only users with credits_earned >= 100
-    // Join with profiles to get name/email
     const { data } = await supabase
       .from("kem_credits")
       .select(
