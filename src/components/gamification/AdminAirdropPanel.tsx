@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -119,23 +118,24 @@ const AdminAirdropPanel = () => {
                 </tr>
               </thead>
               <tbody>
-                {eligibleUsers.map((u) => (
-                  <tr key={u.user_id}>
-                    <td>{u.profiles?.name || u.profiles?.email}</td>
-                    <td>{u.credits_earned}</td>
-                    <td>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleAirdrop(u)}
-                        disabled={loading}
-                      >
-                        Airdrop
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-                {!eligibleUsers.length && (
+                {eligibleUsers.length ? (
+                  eligibleUsers.map((u) => (
+                    <tr key={u.user_id}>
+                      <td>{u.profiles?.name || u.profiles?.email}</td>
+                      <td>{u.credits_earned}</td>
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleAirdrop(u)}
+                          disabled={loading}
+                        >
+                          Airdrop
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
                     <td colSpan={3} className="text-center text-gray-500">
                       No eligible users found
