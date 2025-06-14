@@ -49,6 +49,29 @@ const TradePositions: React.FC = () => {
   const [tab, setTab] = useState("open");
   const navigate = useNavigate();
 
+  const handleSelectContract = (contract: any) => {
+    setLegs((prevLegs) => {
+      // Find first incomplete leg (matching type and empty strike)
+      const idx = prevLegs.findIndex(
+        (leg) =>
+          leg.type === contract.type &&
+          (!leg.strike || leg.strike === "") &&
+          (!leg.expiration || leg.expiration === "")
+      );
+      if (idx === -1) return prevLegs;
+      // Autofill strike, expiration, price from contract
+      const newLeg = {
+        ...prevLegs[idx],
+        strike: contract.strike || "",
+        expiration: contract.expiry || "",
+        price: contract.ask?.toString?.() || "",
+      };
+      const newLegs = [...prevLegs];
+      newLegs[idx] = newLeg;
+      return newLegs;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-100 py-8">
       <div className="container mx-auto px-4 sm:px-8">
@@ -190,9 +213,7 @@ const TradePositions: React.FC = () => {
                 />
                 <OptionsChainPanel
                   symbol={selectedOption?.symbol || "SPY"}
-                  onSelectContract={(contract) => {
-                    // Optionally handle contract selection, e.g. fill in a leg
-                  }}
+                  onSelectContract={handleSelectContract}
                 />
                 <div className="flex gap-4 mt-4 justify-end">
                   <Button variant="secondary" onClick={() => setPage("strategy")}>

@@ -67,9 +67,10 @@ const OptionsChainPanel: React.FC<OptionsChainPanelProps> = ({
       script.src =
         "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
       script.async = true;
+      // Fix: Embed widget with correct symbol depending on brokerage (IG) using TradingView
       script.innerHTML = JSON.stringify({
         autosize: true,
-        symbol: `OANDA:${symbol}USD`,
+        symbol: symbol.startsWith("OANDA:") || symbol.endsWith(":USD") ? symbol : `OANDA:${symbol}USD`,
         interval: "15",
         timezone: "Etc/UTC",
         theme: "light",
