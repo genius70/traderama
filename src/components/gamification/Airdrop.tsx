@@ -129,10 +129,17 @@ const Airdrop: React.FC = () => {
       .select("*")
       .order("created_at");
 
-    // Defensive: ensure array, filter only valid milestone rows
     if (Array.isArray(data)) {
-      const filtered: AirdropMilestoneRow[] = data.filter(isMilestoneRow);
-      setMilestones(filtered);
+      const milestones = data.filter(
+        (d: any): d is AirdropMilestoneRow =>
+          d &&
+          typeof d === "object" &&
+          !d.error && // Not a query error object
+          (typeof d.id === "string" || typeof d.id === "number") &&
+          typeof d.name === "string" &&
+          typeof d.kem_bonus === "number"
+      );
+      setMilestones(milestones);
     } else {
       setMilestones([]);
     }
@@ -151,7 +158,6 @@ const Airdrop: React.FC = () => {
       .select("milestone_id")
       .eq("user_id", user.id);
 
-    // Defensive: Only objects with a valid milestone_id (string/number) allowed
     const filtered =
       Array.isArray(data)
         ? data.filter(

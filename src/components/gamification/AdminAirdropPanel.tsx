@@ -51,9 +51,8 @@ const AdminAirdropPanel = () => {
       .limit(1)
       .maybeSingle();
 
-    // Defensive null check for data before accessing
     if (
-      data &&
+      data !== null &&
       typeof data === "object" &&
       typeof data.kem_conversion_rate === "number"
     ) {
@@ -85,16 +84,17 @@ const AdminAirdropPanel = () => {
       .select("*")
       .order("created_at");
 
-    // Defensive: ensure array, filter only valid milestone rows
     if (Array.isArray(data)) {
-      const filtered: AirdropMilestoneRow[] = data.filter((d: any): d is AirdropMilestoneRow =>
-        d &&
-        typeof d === "object" &&
-        (typeof d.id === "string" || typeof d.id === "number") &&
-        typeof d.name === "string" &&
-        typeof d.kem_bonus === "number"
+      const milestones = data.filter(
+        (d: any): d is AirdropMilestoneRow =>
+          d &&
+          typeof d === "object" &&
+          !d.error && // Not a query error object
+          (typeof d.id === "string" || typeof d.id === "number") &&
+          typeof d.name === "string" &&
+          typeof d.kem_bonus === "number"
       );
-      setMilestones(filtered);
+      setMilestones(milestones);
     } else {
       setMilestones([]);
     }
