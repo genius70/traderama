@@ -130,27 +130,25 @@ const Community = () => {
     }
   };
 
-  const handleCreatePremiumGroup = async () => {
+  const handlePremiumGroupStripeCheckout = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { 
-          productName: 'Premium Group Access',
-          amount: 5000, // $50.00 in cents
-          currency: 'usd'
+      // $50/mo premium group
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          plan: "premium-groups",
         }
       });
-
-      if (error) throw error;
-      
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error('Error creating premium group checkout:', error);
+      if (error || !data?.url) throw new Error(error?.message || "Could not start premium group checkout");
+      window.open(data.url, "_blank");
       toast({
-        title: "Error",
-        description: "Failed to start premium group purchase",
-        variant: "destructive",
+        title: "Stripe checkout",
+        description: "Complete your premium group payment in the new tab.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Payment Error",
+        description: err.message,
+        variant: "destructive"
       });
     }
   };
@@ -245,8 +243,9 @@ const Community = () => {
               </div>
               
               <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-0">
+                {/* Updated "Create Premium Group" button */}
                 <Button 
-                  onClick={() => setIsPremiumDialogOpen(true)}
+                  onClick={handlePremiumGroupStripeCheckout}
                   className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                 >
                   <Crown className="h-4 w-4 mr-2" />
@@ -321,7 +320,10 @@ const Community = () => {
                 </Card>
               ))}
             </div>
-            <PremiumGroupCheckoutDialog open={isPremiumDialogOpen} onOpenChange={setIsPremiumDialogOpen} />
+            <PremiumGroupCheckoutDialog 
+              open={isPremiumDialogOpen} 
+              onOpenChange={setIsPremiumDialogOpen}
+            />
           </TabsContent>
 
           <TabsContent value="discover">

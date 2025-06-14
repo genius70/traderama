@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -178,6 +177,39 @@ const ProductOffers: React.FC = () => {
     }
   };
 
+  // Helper for Stripe Checkout for subscriptions
+  const handleStripeCheckout = async (planId: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to subscribe.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLoading(planId);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          plan: planId,
+        },
+      });
+      if (error || !data?.url) throw new Error(error?.message || "Payment initiation failed");
+      window.open(data.url, "_blank");
+      toast({
+        title: "Stripe checkout",
+        description: "Complete your payment in the new tab.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Payment Error",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
+    setLoading(null);
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">
       <div className="text-center">
@@ -231,27 +263,33 @@ const ProductOffers: React.FC = () => {
 
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-gray-700">Payment Methods:</p>
-                  {paymentMethods.map((method) => {
-                    const Icon = method.icon;
-                    return (
-                      <Button
-                        key={method.id}
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => handleSubscription(plan.id, method.id)}
-                        disabled={loading === `${plan.id}-${method.id}`}
-                      >
-                        <Icon className="h-4 w-4 mr-2" />
-                        <div className="text-left">
-                          <div className="font-medium">{method.name}</div>
-                          <div className="text-xs text-gray-500">{method.description}</div>
-                        </div>
-                        {loading === `${plan.id}-${method.id}` && (
-                          <div className="ml-auto">Processing...</div>
-                        )}
-                      </Button>
-                    );
-                  })}
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => handleStripeCheckout(plan.id)}
+                    disabled={loading === plan.id}
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    <div className="text-left">
+                      <div className="font-medium">Stripe</div>
+                      <div className="text-xs text-gray-500">Credit/Debit Cards</div>
+                    </div>
+                    {loading === plan.id && <div className="ml-auto">Processing...</div>}
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start opacity-60" disabled>
+                    <Building className="h-4 w-4 mr-2" />
+                    <div className="text-left">
+                      <div className="font-medium">AirTM</div>
+                      <div className="text-xs text-gray-500">Coming soon</div>
+                    </div>
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start opacity-60" disabled>
+                    <Banknote className="h-4 w-4 mr-2" />
+                    <div className="text-left">
+                      <div className="font-medium">Wise</div>
+                      <div className="text-xs text-gray-500">Coming soon</div>
+                    </div>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
