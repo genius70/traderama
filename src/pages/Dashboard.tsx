@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { useState } from 'react';
@@ -40,10 +39,9 @@ const Dashboard = () => {
     setShowIGConnect(true);
   };
 
-  const handleIGConnect = async (credentials: any) => {
-    // This will be integrated with IG Broker API
-    console.log('Connecting to IG Broker with credentials:', credentials);
-    // TODO: Implement actual IG Broker API integration
+  const handleIGConnectSuccess = () => {
+    // Refresh connection status or show success message
+    console.log('IG Broker connected successfully');
   };
 
   const handleCloseIGConnect = () => {
@@ -285,7 +283,7 @@ const Dashboard = () => {
       {showIGConnect && (
         <IGBrokerConnect
           onClose={handleCloseIGConnect}
-          onConnect={handleIGConnect}
+          onConnect={handleIGConnectSuccess}
         />
       )}
     </div>

@@ -3,13 +3,12 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Link as LinkIcon, X } from 'lucide-react';
+import { useIGBroker } from '@/hooks/useIGBroker';
 
 const formSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -22,14 +21,13 @@ type FormData = z.infer<typeof formSchema>;
 
 interface IGBrokerConnectProps {
   onClose: () => void;
-  onConnect: (credentials: FormData) => Promise<void>;
+  onConnect?: () => void;
 }
 
 const IGBrokerConnect = ({ onClose, onConnect }: IGBrokerConnectProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const { toast } = useToast();
+  const { connectToBroker, isConnecting } = useIGBroker();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -42,22 +40,11 @@ const IGBrokerConnect = ({ onClose, onConnect }: IGBrokerConnectProps) => {
   });
 
   const onSubmit = async (data: FormData) => {
-    setIsConnecting(true);
-    try {
-      await onConnect(data);
-      toast({
-        title: "Connection Successful",
-        description: "Your IG Broker account has been connected successfully.",
-      });
+    const result = await connectToBroker(data);
+    
+    if (result.success) {
+      onConnect?.();
       onClose();
-    } catch (error) {
-      toast({
-        title: "Connection Failed",
-        description: "Failed to connect to IG Broker. Please check your credentials and try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsConnecting(false);
     }
   };
 

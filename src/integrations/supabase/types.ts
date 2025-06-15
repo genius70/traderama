@@ -246,6 +246,45 @@ export type Database = {
           },
         ]
       }
+      ig_broker_connections: {
+        Row: {
+          account_id: string
+          api_key_encrypted: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          last_connected_at: string | null
+          password_encrypted: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          account_id: string
+          api_key_encrypted: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_connected_at?: string | null
+          password_encrypted: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          account_id?: string
+          api_key_encrypted?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_connected_at?: string | null
+          password_encrypted?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       iron_condor_trades: {
         Row: {
           broker_connection_id: string | null
