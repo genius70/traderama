@@ -51,7 +51,7 @@ const AdminAirdropPanel = () => {
       .limit(1)
       .maybeSingle();
 
-    // Fix for TS18047: Check for null
+    // TS18047: Check that data is non-null before using
     if (
       data !== null &&
       typeof data === "object" &&
@@ -86,7 +86,7 @@ const AdminAirdropPanel = () => {
       .select("*")
       .order("created_at");
 
-    // Fix for TS2322: Defensive filter (and exclude error objects)
+    // TS2322: Filter out all non-row objects (exclude errors, undefined, null)
     if (Array.isArray(data)) {
       const milestones: AirdropMilestoneRow[] = data.filter(
         (d: any): d is AirdropMilestoneRow =>
