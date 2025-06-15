@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { TrendingUp, ArrowLeft, ArrowRight } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { useNavigate } from "react-router-dom";
+import Header from "@/components/layout/Header";
 import type { TradingLeg, ContractRow } from "@/components/trading/types";
 
 // --- Extracted Tabs block ---
@@ -213,81 +213,84 @@ const TradePositions: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-100 py-8">
-      <div className="container mx-auto px-4 sm:px-8">
-        <div className="mb-6 flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-2xl font-bold flex items-center gap-2 ml-2">
-            <TrendingUp className="h-6 w-6 text-blue-600" />
-            Trade Positions
-          </h1>
-        </div>
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>
-              Options Trading: {page === "strategy" ? "Select Strategy" : page === "builder" ? "Configure Trade" : "Review Submission"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PositionsTabs
-              tab={tab}
-              setTab={setTab}
-              openPositions={openPositions}
-              closedPositions={closedPositions}
-              tradingLogs={tradingLogs}
-              pnls={pnls}
-            />
-            {page === "strategy" && (
-              <div className="space-y-6">
-                <TradingOptionsSelector
-                  onSelectOption={(option) => {
-                    setSelectedOption(option);
-                    setLegs(option.template.legs);
-                    setPage("builder");
-                  }}
-                />
-              </div>
-            )}
-            {page === "builder" && (
-              <div className="space-y-6">
-                <TradingTemplate
-                  strategyName={selectedOption?.name || "Strategy"}
-                  legs={legs}
-                  onLegsChange={setLegs}
-                />
-                <OptionsChainPanel
-                  symbol={selectedOption?.symbol || "SPY"}
-                  onSelectContract={handleSelectContract}
-                />
-                <div className="flex gap-4 mt-4 justify-end">
-                  <Button variant="secondary" onClick={() => setPage("strategy")}>
-                    <ArrowLeft className="h-4 w-4 mr-1" /> Back
-                  </Button>
-                  <Button onClick={() => setPage("confirmation")}>
-                    Next <ArrowRight className="h-4 w-4 ml-1" />
-                  </Button>
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-100 py-8">
+        <div className="container mx-auto px-4 sm:px-8">
+          <div className="mb-6 flex items-center">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold flex items-center gap-2 ml-2">
+              <TrendingUp className="h-6 w-6 text-blue-600" />
+              Trade Positions
+            </h1>
+          </div>
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>
+                Options Trading: {page === "strategy" ? "Select Strategy" : page === "builder" ? "Configure Trade" : "Review Submission"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PositionsTabs
+                tab={tab}
+                setTab={setTab}
+                openPositions={openPositions}
+                closedPositions={closedPositions}
+                tradingLogs={tradingLogs}
+                pnls={pnls}
+              />
+              {page === "strategy" && (
+                <div className="space-y-6">
+                  <TradingOptionsSelector
+                    onSelectOption={(option) => {
+                      setSelectedOption(option);
+                      setLegs(option.template.legs);
+                      setPage("builder");
+                    }}
+                  />
                 </div>
-              </div>
-            )}
-            {page === "confirmation" && (
-              <div className="space-y-8">
-                <OrderSummary legs={legs} />
-                <div className="flex gap-4 justify-end">
-                  <Button variant="secondary" onClick={() => setPage("builder")}>
-                    <ArrowLeft className="h-4 w-4 mr-1" /> Edit
-                  </Button>
-                  <Button className="bg-blue-600 text-white hover:bg-blue-700 transition-colors" onClick={() => alert("Trade submitted! (Live trading backend integration needed)")}>
-                    Submit Trade
-                  </Button>
+              )}
+              {page === "builder" && (
+                <div className="space-y-6">
+                  <TradingTemplate
+                    strategyName={selectedOption?.name || "Strategy"}
+                    legs={legs}
+                    onLegsChange={setLegs}
+                  />
+                  <OptionsChainPanel
+                    symbol={selectedOption?.symbol || "SPY"}
+                    onSelectContract={handleSelectContract}
+                  />
+                  <div className="flex gap-4 mt-4 justify-end">
+                    <Button variant="secondary" onClick={() => setPage("strategy")}>
+                      <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                    </Button>
+                    <Button onClick={() => setPage("confirmation")}>
+                      Next <ArrowRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <div className="text-center text-muted-foreground text-xs">
-          * This platform supports multi-leg options strategies, including Iron Condors, Spreads, Straddles, and more. For live trading, connect your broker account in settings.
+              )}
+              {page === "confirmation" && (
+                <div className="space-y-8">
+                  <OrderSummary legs={legs} />
+                  <div className="flex gap-4 justify-end">
+                    <Button variant="secondary" onClick={() => setPage("builder")}>
+                      <ArrowLeft className="h-4 w-4 mr-1" /> Edit
+                    </Button>
+                    <Button className="bg-blue-600 text-white hover:bg-blue-700 transition-colors" onClick={() => alert("Trade submitted! (Live trading backend integration needed)")}>
+                      Submit Trade
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <div className="text-center text-muted-foreground text-xs">
+            * This platform supports multi-leg options strategies, including Iron Condors, Spreads, Straddles, and more. For live trading, connect your broker account in settings.
+          </div>
         </div>
       </div>
     </div>

@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Gift } from 'lucide-react';
+import { Gift, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import CreditsOverview from './airdrop/CreditsOverview';
 import MilestoneProgress from './airdrop/MilestoneProgress';
 import AirdropClaimForm from './airdrop/AirdropClaimForm';
@@ -39,6 +40,7 @@ const Airdrop: React.FC = () => {
   const [milestones, setMilestones] = useState<AirdropMilestoneRow[]>([]);
   const [userMilestones, setUserMilestones] = useState<(string | number)[]>([]);
   const [profile, setProfile] = useState<any | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) fetchKemCredits();
@@ -198,6 +200,17 @@ const Airdrop: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {/* Back button */}
+      <div className="mb-6 flex items-center">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-2xl font-bold flex items-center gap-2 ml-2">
+          <Gift className="h-6 w-6 text-purple-600" />
+          KEM Token Airdrop
+        </h1>
+      </div>
+
       {/* Show new admin airdrop template for admins only */}
       {isAdmin && <AirdropDistributionTemplate />}
 
