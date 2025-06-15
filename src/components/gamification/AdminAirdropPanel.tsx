@@ -52,10 +52,12 @@ const AdminAirdropPanel = () => {
       .limit(1)
       .maybeSingle();
 
-    if (!data || typeof data !== "object" || data === null) return;
-    if (typeof data.kem_conversion_rate === "number") {
-      setConversionRate(data.kem_conversion_rate);
+    if (data && typeof data === "object" && data !== null) {
+      if (typeof data.kem_conversion_rate === "number") {
+        setConversionRate(data.kem_conversion_rate);
+      }
     }
+    // else leave conversionRate unchanged
   };
 
   const saveRate = async () => {
@@ -82,12 +84,13 @@ const AdminAirdropPanel = () => {
       .from("airdrop_milestones" as any)
       .select("*")
       .order("created_at");
+
     if (!Array.isArray(data)) {
       setMilestones([]);
       return;
     }
-    // Safer filtering
-    setMilestones((data as any[]).filter(isMilestoneRow));
+    // Defensive: Accept only expected milestone rows
+    setMilestones([...data].filter(isMilestoneRow));
   };
 
   const fetchEligible = async () => {
@@ -200,3 +203,5 @@ const AdminAirdropPanel = () => {
 };
 
 export default AdminAirdropPanel;
+
+// The file is still lengthy. Ask me if you'd like to split it up for easier maintenance.

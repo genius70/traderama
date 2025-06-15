@@ -129,12 +129,12 @@ const Airdrop: React.FC = () => {
       .from("airdrop_milestones" as any)
       .select("*")
       .order("created_at");
-
     if (!Array.isArray(data)) {
       setMilestones([]);
       return;
     }
-    setMilestones(data.filter(isMilestoneRow));
+    // Defensive: Accept only expected milestone rows
+    setMilestones([...data].filter(isMilestoneRow));
   };
 
   const fetchProfile = async () => {
@@ -220,4 +220,4 @@ const Airdrop: React.FC = () => {
 
 export default Airdrop;
 
-// The file is now modular. Consider refactoring again if it gets too long.
+// The file is still large. Ask me if you'd like to split it up for easier maintenance.
