@@ -119,6 +119,7 @@ const Airdrop: React.FC = () => {
 
   const isMilestoneRow = (d: any): d is AirdropMilestoneRow =>
     d &&
+    !d.error &&
     (typeof d.id === "string" || typeof d.id === "number") &&
     typeof d.name === "string" &&
     typeof d.kem_bonus === "number";
@@ -129,21 +130,11 @@ const Airdrop: React.FC = () => {
       .select("*")
       .order("created_at");
 
-    // TS2322: Filter out all non-row objects (exclude errors, undefined, null)
-    if (Array.isArray(data)) {
-      const milestones: AirdropMilestoneRow[] = data.filter(
-        (d: any): d is AirdropMilestoneRow =>
-          !!d &&
-          typeof d === "object" &&
-          !d.error &&
-          (typeof d.id === "string" || typeof d.id === "number") &&
-          typeof d.name === "string" &&
-          typeof d.kem_bonus === "number"
-      );
-      setMilestones(milestones);
-    } else {
+    if (!Array.isArray(data)) {
       setMilestones([]);
+      return;
     }
+    setMilestones(data.filter(isMilestoneRow));
   };
 
   const fetchProfile = async () => {

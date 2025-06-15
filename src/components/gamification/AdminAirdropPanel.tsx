@@ -52,11 +52,8 @@ const AdminAirdropPanel = () => {
       .maybeSingle();
 
     // TS18047: Check that data is non-null before using
-    if (
-      data !== null &&
-      typeof data === "object" &&
-      typeof data.kem_conversion_rate === "number"
-    ) {
+    if (!data || typeof data !== "object") return;
+    if (typeof data.kem_conversion_rate === "number") {
       setConversionRate(data.kem_conversion_rate);
     }
     // else leave conversionRate unchanged
@@ -76,6 +73,7 @@ const AdminAirdropPanel = () => {
 
   const isMilestoneRow = (d: any): d is AirdropMilestoneRow =>
     d &&
+    !d.error &&
     (typeof d.id === "string" || typeof d.id === "number") &&
     typeof d.name === "string" &&
     typeof d.kem_bonus === "number";
@@ -86,21 +84,12 @@ const AdminAirdropPanel = () => {
       .select("*")
       .order("created_at");
 
-    // TS2322: Filter out all non-row objects (exclude errors, undefined, null)
-    if (Array.isArray(data)) {
-      const milestones: AirdropMilestoneRow[] = data.filter(
-        (d: any): d is AirdropMilestoneRow =>
-          !!d &&
-          typeof d === "object" &&
-          !d.error &&
-          (typeof d.id === "string" || typeof d.id === "number") &&
-          typeof d.name === "string" &&
-          typeof d.kem_bonus === "number"
-      );
-      setMilestones(milestones);
-    } else {
+    // TS2322: Defensive filter (accept only expected milestone rows)
+    if (!Array.isArray(data)) {
       setMilestones([]);
+      return;
     }
+    setMilestones(data.filter(isMilestoneRow));
   };
 
   const fetchEligible = async () => {
