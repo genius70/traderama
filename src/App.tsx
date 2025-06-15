@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -18,6 +17,8 @@ import Community from "./pages/Community";
 import AirdropPage from "./pages/AirdropPage";
 import ProductOffers from "./pages/ProductOffers";
 import TradePositions from "./pages/TradePositions";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
 import NotFound from "./pages/NotFound";
 
 // Create QueryClient instance with proper configuration
@@ -51,6 +52,8 @@ const App: React.FC = () => {
               <Route path="/airdrop" element={<AirdropPage />} />
               <Route path="/product-offers" element={<ProductOffers />} />
               <Route path="/trade-positions" element={<TradePositions />} />
+              <Route path="/success" element={<PaymentSuccess />} />
+              <Route path="/cancel" element={<PaymentCancel />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
