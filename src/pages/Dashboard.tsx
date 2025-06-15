@@ -1,3 +1,4 @@
+
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
@@ -11,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Users, TrendingUp, Target, Plus, UserPlus, Gift, Mail, CreditCard } from 'lucide-react';
+import { Users, TrendingUp, Target, Plus, UserPlus, Gift, Mail, CreditCard, Link as LinkIcon } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -27,6 +28,15 @@ const Dashboard = () => {
   const isAdmin = user?.email === 'royan.shaw@gmail.com';
   // Mock subscription tier - in real app this would come from profiles table
   const isPremiumUser = false; // This would be fetched from user profile
+
+  const handleIGSignup = () => {
+    window.open('https://refer.ig.com/royanuriens-3', '_blank');
+  };
+
+  const handleConnectBroker = () => {
+    // This will be integrated with IG Broker API
+    console.log('Connect to IG Broker API');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -92,7 +102,6 @@ const Dashboard = () => {
           <Card className="hover:shadow-md transition-shadow border-red-400 bg-gradient-to-br from-red-50 to-orange-50">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center">
-                {/* Using Star icon to match IG broker recommended styling */}
                 <span className="mr-2 inline-flex">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-red-600"><path d="M12 17.3L18.2 21l-1.7-7.2L22 9.3l-7.3-.6L12 2 9.3 8.7 2 9.3l5.5 4.5L5.8 21z" fill="currentColor"/></svg>
                 </span>
@@ -102,20 +111,25 @@ const Dashboard = () => {
                 Professional options trading platform—unbeatable for iron condors.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <a
-                href="https://refer.ig.com/royanuriens-3"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
+            <CardContent className="space-y-2">
+              <Button
+                onClick={handleConnectBroker}
+                className="w-full bg-blue-700 text-white hover:bg-red-600 transition-colors font-medium"
+                type="button"
               >
-                <Button
-                  className="w-full bg-red-600 border-red-800 text-white hover:bg-red-700"
-                  type="button"
-                >
-                  Open IG Account
-                </Button>
-              </a>
+                <LinkIcon className="h-4 w-4 mr-2" />
+                Connect Broker Account
+              </Button>
+              <Button
+                onClick={handleIGSignup}
+                className="w-full bg-red-600 border-red-800 text-white hover:bg-blue-600 transition-colors"
+                type="button"
+              >
+                <span className="mr-2 inline-flex">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </span>
+                Open IG Account
+              </Button>
             </CardContent>
           </Card>
 
