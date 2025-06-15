@@ -1,10 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Gift } from 'lucide-react';
-import AdminAirdropPanel from "./AdminAirdropPanel";
 import CreditsOverview from './airdrop/CreditsOverview';
 import MilestoneProgress from './airdrop/MilestoneProgress';
 import AirdropClaimForm from './airdrop/AirdropClaimForm';

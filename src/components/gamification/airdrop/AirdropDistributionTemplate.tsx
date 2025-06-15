@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { UserPlus, Send } from "lucide-react";
+import { UserPlus, Send, Upload } from "lucide-react";
+import Papa from "papaparse";
 
 // Step 1: UI state types
 type DistributionEntry = {
@@ -22,9 +22,10 @@ const AirdropDistributionTemplate: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [entries, setEntries] = useState<DistributionEntry[]>([
-    { email: "", wallet: "", kemAmount: 0 }
+    { email: "", wallet: "", kemAmount: 0, status: "pending" }
   ]);
   const [processing, setProcessing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Only admins and super_admins may view this!
   const [profile, setProfile] = useState<any | null>(null);
@@ -42,45 +43,90 @@ const AirdropDistributionTemplate: React.FC = () => {
   const isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
   if (!isAdmin) return null;
 
-  // Step 2: Distribution logic (stub)
-  const handleDistribute = async () => {
-    setProcessing(true);
+  const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const parsedEntries: DistributionEntry[] = results.data
+            .map((row: any) => ({
+              email: row.email || "",
+              wallet: row.wallet || "",
+              kemAmount: Number(row.kemAmount) || 0,
+              status: "pending",
+            }))
+            .filter(entry => entry.wallet && entry.kemAmount > 0);
 
-    // Simulate distribution for now: implement real logic as needed!
-    const updated = await Promise.all(
-      entries.map(async (entry) => {
-        // Optional: Validate wallet address, etc.
-        if (!entry.wallet || !/^0x[a-fA-F0-9]{40}$/.test(entry.wallet)) {
-          return { ...entry, status: "error", errorMsg: "Invalid wallet address" };
-        }
-        if (entry.kemAmount <= 0) {
-          return { ...entry, status: "error", errorMsg: "KEM amount must be > 0" };
-        }
-        // TODO: Implement actual token transfer logic here
-        // Simulate async result
-        await new Promise((r) => setTimeout(r, 500));
-        return { ...entry, status: "sent" };
-      })
-    );
-    setEntries(updated);
-    setProcessing(false);
-
-    // Any errors?
-    if (updated.some((e) => e.status === "error")) {
-      toast({ title: "Some distributions failed", variant: "destructive" });
-    } else {
-      toast({ title: "Airdrop distributed!" });
+          if (parsedEntries.length > 0) {
+            setEntries(parsedEntries);
+            toast({ title: "CSV Imported", description: `${parsedEntries.length} entries loaded.` });
+          } else {
+            toast({ title: "CSV Import Failed", description: "No valid entries found in the CSV file. Ensure columns 'wallet' and 'kemAmount' are present.", variant: "destructive" });
+          }
+        },
+        error: (error: any) => {
+          toast({ title: "CSV Parsing Error", description: error.message, variant: "destructive" });
+        },
+      });
+      // Reset file input
+      if(event.target) event.target.value = '';
     }
   };
 
-  // Step 3: Entry management
+  const handleDistribute = async () => {
+    setProcessing(true);
+
+    const validatedEntries: DistributionEntry[] = entries.map(entry => {
+        if (!entry.wallet || !/^0x[a-fA-F0-9]{40}$/.test(entry.wallet)) {
+            return { ...entry, status: "error", errorMsg: "Invalid wallet address" };
+        }
+        if (entry.kemAmount <= 0) {
+            return { ...entry, status: "error", errorMsg: "KEM amount must be > 0" };
+        }
+        return { ...entry, status: "pending", errorMsg: undefined };
+    });
+
+    setEntries(validatedEntries);
+
+    const entriesToSubmit = validatedEntries.filter(e => e.status === 'pending');
+
+    if (entriesToSubmit.length === 0) {
+        toast({ title: "No valid entries to submit", description: "Please fix the errors before distributing.", variant: "destructive" });
+        setProcessing(false);
+        return;
+    }
+
+    const airdropRecords = entriesToSubmit.map(entry => ({
+        ethereum_wallet: entry.wallet,
+        kem_amount: entry.kemAmount,
+        credits_used: 0, // Manual airdrop
+        status: 'pending'
+    }));
+
+    const { error } = await supabase.from('airdrops').insert(airdropRecords);
+
+    if (error) {
+        toast({ title: "Error saving airdrop requests", description: error.message, variant: "destructive" });
+        const errorEntries = validatedEntries.map(e => entriesToSubmit.some(s => s.wallet === e.wallet) ? {...e, status: 'error' as const, errorMsg: 'DB write failed'} : e);
+        setEntries(errorEntries);
+    } else {
+        toast({ title: "Airdrop distribution queued!", description: `${entriesToSubmit.length} requests have been recorded.` });
+        const sentEntries = validatedEntries.map(e => entriesToSubmit.some(s => s.wallet === e.wallet) ? {...e, status: 'sent' as const} : e);
+        setEntries(sentEntries);
+    }
+
+    setProcessing(false);
+  };
+
   const handleEntryChange = (idx: number, field: keyof DistributionEntry, value: string | number) => {
     setEntries((prev) =>
       prev.map((e, i) => (i === idx ? { ...e, [field]: value } : e))
     );
   };
 
-  const handleAddRow = () => setEntries([...entries, { email: "", wallet: "", kemAmount: 0 }]);
+  const handleAddRow = () => setEntries([...entries, { email: "", wallet: "", kemAmount: 0, status: 'pending' }]);
   const handleRemoveRow = (idx: number) =>
     setEntries((prev) => prev.filter((_, i) => i !== idx));
 
@@ -92,7 +138,7 @@ const AirdropDistributionTemplate: React.FC = () => {
           KEM Airdrop Distribution (Admin Only)
         </CardTitle>
         <CardDescription>
-          <span>Enter wallet addresses and amounts to distribute KEM tokens.</span>
+          <span>Enter wallet addresses and amounts to distribute KEM tokens, or import from a CSV file.</span>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -126,7 +172,7 @@ const AirdropDistributionTemplate: React.FC = () => {
                       onChange={(e) => handleEntryChange(idx, "wallet", e.target.value)}
                     />
                   </td>
-                  <td className="p-2 w-24">
+                  <td className="p-2 w-32">
                     <Input
                       type="number"
                       min={0}
@@ -150,10 +196,10 @@ const AirdropDistributionTemplate: React.FC = () => {
                   <td className="p-2">
                     {entry.status === "sent" && (
                       <Badge variant="default" className="bg-green-200 text-green-700">
-                        Sent
+                        Queued
                       </Badge>
                     )}
-                    {entry.status === "pending" && <span>Pending...</span>}
+                    {entry.status === "pending" && <Badge variant="outline">Pending</Badge>}
                     {entry.status === "error" && (
                       <Badge variant="destructive">{entry.errorMsg || "Error"}</Badge>
                     )}
@@ -167,10 +213,21 @@ const AirdropDistributionTemplate: React.FC = () => {
           <Button onClick={handleAddRow} variant="outline" disabled={processing}>
             Add Recipient
           </Button>
+          <Button onClick={() => fileInputRef.current?.click()} variant="outline" disabled={processing}>
+            <Upload className="mr-2 w-4 h-4" />
+            Import CSV
+          </Button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept=".csv"
+            onChange={handleCsvUpload}
+          />
           <Button
             onClick={handleDistribute}
             className="ml-auto"
-            disabled={processing}
+            disabled={processing || entries.length === 0}
           >
             <Send className="mr-2 w-4 h-4" />
             Distribute Airdrop
