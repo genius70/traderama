@@ -9,6 +9,27 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      airdrop_milestones: {
+        Row: {
+          created_at: string
+          id: string
+          kem_bonus: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kem_bonus?: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kem_bonus?: number
+          name?: string
+        }
+        Relationships: []
+      }
       airdrops: {
         Row: {
           created_at: string | null
@@ -1172,6 +1193,42 @@ export type Database = {
           {
             foreignKeyName: "user_follows_following_id_fkey"
             columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_milestones: {
+        Row: {
+          achieved_at: string
+          id: string
+          milestone_id: string
+          user_id: string
+        }
+        Insert: {
+          achieved_at?: string
+          id?: string
+          milestone_id: string
+          user_id: string
+        }
+        Update: {
+          achieved_at?: string
+          id?: string
+          milestone_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_milestones_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "airdrop_milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_milestones_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

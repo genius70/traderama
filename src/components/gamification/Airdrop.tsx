@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -117,16 +118,9 @@ const Airdrop: React.FC = () => {
     fetchUserMilestones();
   }, [user]);
 
-  const isMilestoneRow = (d: any): d is AirdropMilestoneRow =>
-    d &&
-    !d.error &&
-    (typeof d.id === "string" || typeof d.id === "number") &&
-    typeof d.name === "string" &&
-    typeof d.kem_bonus === "number";
-
   const fetchMilestones = async () => {
     const { data, error } = await supabase
-      .from("airdrop_milestones" as any)
+      .from("airdrop_milestones")
       .select("*")
       .order("created_at");
 
@@ -144,8 +138,16 @@ const Airdrop: React.FC = () => {
       setMilestones([]);
       return;
     }
-    // Defensive: Accept only expected milestone rows
-    setMilestones([...data].filter(isMilestoneRow));
+    
+    // Transform the data to match our expected type
+    const validMilestones = data.map(milestone => ({
+      id: milestone.id,
+      name: milestone.name,
+      kem_bonus: milestone.kem_bonus,
+      created_at: milestone.created_at
+    }));
+    
+    setMilestones(validMilestones);
   };
 
   const fetchProfile = async () => {
@@ -156,21 +158,27 @@ const Airdrop: React.FC = () => {
 
   const fetchUserMilestones = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("user_milestones" as any)
+    const { data, error } = await supabase
+      .from("user_milestones")
       .select("milestone_id")
       .eq("user_id", user.id);
 
-    const filtered =
-      Array.isArray(data)
-        ? data.filter(
-            (d: any) =>
-              d &&
-              typeof d === "object" &&
-              (typeof d.milestone_id === "string" || typeof d.milestone_id === "number")
-          )
-        : [];
-    setUserMilestones(filtered.map((x: any) => x.milestone_id));
+    if (error) {
+      console.error("Error fetching user milestones:", error);
+      setUserMilestones([]);
+      return;
+    }
+
+    if (!Array.isArray(data)) {
+      setUserMilestones([]);
+      return;
+    }
+
+    const milestoneIds = data
+      .filter(item => item && typeof item.milestone_id !== 'undefined')
+      .map(item => item.milestone_id);
+    
+    setUserMilestones(milestoneIds);
   };
 
   const isAdmin = (profile?.role === "admin" || profile?.role === "super_admin");
@@ -232,5 +240,3 @@ const Airdrop: React.FC = () => {
 };
 
 export default Airdrop;
-
-// The file is still large. Ask me if you'd like to split it up for easier maintenance.
