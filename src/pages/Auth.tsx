@@ -22,7 +22,8 @@ const Auth = () => {
   const { user, signIn, signUp } = useAuth();
   const { toast } = useToast();
 
-  if (user) {
+  // Allow Dev account to access /auth even when logged in
+  if (user && user.email !== "dev@traderama.com") {
     return <Navigate to="/" replace />;
   }
 

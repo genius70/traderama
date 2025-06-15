@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Crown } from "lucide-react";
+import MilestonesList from "./airdrop/MilestonesList";
 
 // Manual types for external/legacy tables
 type KemSettings = {
@@ -51,12 +52,10 @@ const AdminAirdropPanel = () => {
       .limit(1)
       .maybeSingle();
 
-    // TS18047: Check that data is non-null before using
-    if (!data || typeof data !== "object") return;
+    if (!data || typeof data !== "object" || data === null) return;
     if (typeof data.kem_conversion_rate === "number") {
       setConversionRate(data.kem_conversion_rate);
     }
-    // else leave conversionRate unchanged
   };
 
   const saveRate = async () => {
@@ -83,13 +82,12 @@ const AdminAirdropPanel = () => {
       .from("airdrop_milestones" as any)
       .select("*")
       .order("created_at");
-
-    // TS2322: Defensive filter (accept only expected milestone rows)
     if (!Array.isArray(data)) {
       setMilestones([]);
       return;
     }
-    setMilestones(data.filter(isMilestoneRow));
+    // Safer filtering
+    setMilestones((data as any[]).filter(isMilestoneRow));
   };
 
   const fetchEligible = async () => {
@@ -153,13 +151,7 @@ const AdminAirdropPanel = () => {
           </div>
           <div>
             <label className="text-sm font-semibold mb-1 block">Milestones</label>
-            <div className="flex flex-col gap-1">
-              {milestones.map((m) => (
-                <Badge key={m.id} className="mb-1">
-                  {m.name} ({m.kem_bonus} KEM)
-                </Badge>
-              ))}
-            </div>
+            <MilestonesList milestones={milestones} />
           </div>
         </div>
         <div>
