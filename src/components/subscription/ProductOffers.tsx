@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Crown, Mail, CreditCard, Building, Banknote, Check, Star, Users, Plus } from 'lucide-react';
-import ManualPaymentModal from "../payments/ManualPaymentModal";
+import PremiumGroupCheckoutDialog from '@/components/community/PremiumGroupCheckoutDialog';
 
 interface SubscriptionPlan {
   id: string;
@@ -20,7 +20,7 @@ interface SubscriptionPlan {
 
 const ProductOffers: React.FC = () => {
   const [loading, setLoading] = useState<string | null>(null);
-  const [manualOpen, setManualOpen] = useState<false | "AirTM" | "Wise">(false);
+  const [premiumGroupDialogOpen, setPremiumGroupDialogOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -75,15 +75,6 @@ const ProductOffers: React.FC = () => {
     { id: 'airtm', name: 'AirTM', icon: Building, description: 'Digital Wallet' },
     { id: 'wise', name: 'Wise', icon: Banknote, description: 'Bank Transfer' }
   ];
-
-  // Remove old handleSubscription, only show real payment flows
-
-  const handleCreateGroup = () => {
-    toast({
-      title: "Create Premium Group",
-      description: "Group creation feature coming soon!",
-    });
-  };
 
   const handleNotificationService = async (paymentMethod: string) => {
     if (!user) {
@@ -145,10 +136,52 @@ const ProductOffers: React.FC = () => {
         },
       });
       if (error || !data?.url) throw new Error(error?.message || "Payment initiation failed");
-      window.open(data.url, "_blank"); // This opens Stripe checkout!
+      window.open(data.url, "_blank");
       toast({
         title: "Stripe checkout",
         description: "Complete your payment in the new tab.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Payment Error",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
+    setLoading(null);
+  };
+
+  // Helper for AirTM payments
+  const handleAirTMPayment = (planId: string, amount: number) => {
+    setLoading(`airtm-${planId}`);
+    try {
+      // AirTM payment URL with proper parameters
+      const airtmUrl = `https://www.airtm.com/send-money?amount=${amount}&currency=USD&recipient=traderama@airtm.com&memo=Premium%20Plan%20${planId}%20User%20${user?.id || 'unknown'}`;
+      window.open(airtmUrl, "_blank");
+      toast({
+        title: "AirTM Payment",
+        description: "Complete your payment on AirTM. Your subscription will be activated within 24 hours.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Payment Error",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
+    setLoading(null);
+  };
+
+  // Helper for Wise payments
+  const handleWisePayment = (planId: string, amount: number) => {
+    setLoading(`wise-${planId}`);
+    try {
+      // Wise payment URL - using their send money feature
+      const wiseUrl = `https://wise.com/send?source=USD&target=USD&amount=${amount}&recipient=traderama@wise.com&reference=Premium%20Plan%20${planId}%20User%20${user?.id || 'unknown'}`;
+      window.open(wiseUrl, "_blank");
+      toast({
+        title: "Wise Payment",
+        description: "Complete your payment on Wise. Your subscription will be activated within 24 hours.",
       });
     } catch (err: any) {
       toast({
@@ -204,7 +237,7 @@ const ProductOffers: React.FC = () => {
                 {plan.id === 'premium-groups' && (
                   <Button
                     className="w-full mb-4"
-                    onClick={handleCreateGroup}
+                    onClick={() => setPremiumGroupDialogOpen(true)}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Create Premium Group
@@ -213,7 +246,8 @@ const ProductOffers: React.FC = () => {
 
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-gray-700">Payment Methods:</p>
-                  {/* Stripe - real payment only */}
+                  
+                  {/* Stripe - real payment */}
                   <Button
                     variant="outline"
                     className="w-full justify-start"
@@ -227,30 +261,35 @@ const ProductOffers: React.FC = () => {
                     </div>
                     {loading === plan.id && <div className="ml-auto">Processing...</div>}
                   </Button>
-                  {/* Manual payment providers - opens info/modal */}
+
+                  {/* AirTM - direct payment URL */}
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"
-                    onClick={() => setManualOpen("AirTM")}
-                    disabled={loading === `manual-airtm`}
+                    onClick={() => handleAirTMPayment(plan.id, plan.price)}
+                    disabled={loading === `airtm-${plan.id}`}
                   >
                     <Building className="h-4 w-4 mr-2" />
                     <div className="text-left">
                       <div className="font-medium">AirTM</div>
-                      <div className="text-xs text-gray-500">Manual Payment (24h)</div>
+                      <div className="text-xs text-gray-500">Instant Payment</div>
                     </div>
+                    {loading === `airtm-${plan.id}` && <div className="ml-auto">Processing...</div>}
                   </Button>
+
+                  {/* Wise - direct payment URL */}
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"
-                    onClick={() => setManualOpen("Wise")}
-                    disabled={loading === `manual-wise`}
+                    onClick={() => handleWisePayment(plan.id, plan.price)}
+                    disabled={loading === `wise-${plan.id}`}
                   >
                     <Banknote className="h-4 w-4 mr-2" />
                     <div className="text-left">
                       <div className="font-medium">Wise</div>
-                      <div className="text-xs text-gray-500">Manual Payment (24h)</div>
+                      <div className="text-xs text-gray-500">Bank Transfer</div>
                     </div>
+                    {loading === `wise-${plan.id}` && <div className="ml-auto">Processing...</div>}
                   </Button>
                 </div>
               </CardContent>
@@ -353,10 +392,12 @@ const ProductOffers: React.FC = () => {
         </Card>
       </section>
 
-      <ManualPaymentModal open={!!manualOpen} onOpenChange={() => setManualOpen(false)} provider={manualOpen || "AirTM"} />
+      <PremiumGroupCheckoutDialog 
+        open={premiumGroupDialogOpen} 
+        onOpenChange={setPremiumGroupDialogOpen} 
+      />
     </div>
   );
 };
 
 export default ProductOffers;
-

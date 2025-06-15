@@ -7,13 +7,16 @@ import { Check, Crown, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { usePremiumStatus } from '@/hooks/usePremiumStatus'; // NEW HOOK
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 
 const UpgradeToPremium = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [selectedProvider, setSelectedProvider] = useState('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
   const { isPremium, subscriptionTier, expiresAt, loading: loadingPremium } = usePremiumStatus();
 
   const plans = {
@@ -39,24 +42,54 @@ const UpgradeToPremium = () => {
   ];
 
   const handleUpgrade = async () => {
-    setIsProcessing(true);
-    try {
-      // Here you would integrate with the selected payment provider
+    if (!user) {
       toast({
-        title: "Redirecting to payment...",
-        description: `Processing upgrade via ${paymentProviders[selectedProvider as keyof typeof paymentProviders]}`,
+        title: "Authentication Required",
+        description: "Please sign in to upgrade.",
+        variant: "destructive",
       });
+      return;
+    }
 
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      toast({
-        title: "Upgrade successful!",
-        description: "Welcome to Premium! Your account has been upgraded.",
-      });
-    } catch (error) {
+    setIsProcessing(true);
+    const currentPlan = plans[selectedPlan as keyof typeof plans];
+
+    try {
+      if (selectedProvider === 'stripe') {
+        // Use Stripe checkout
+        const { data, error } = await supabase.functions.invoke("create-checkout", {
+          body: {
+            plan: selectedPlan === 'monthly' ? 'premium' : 'premium-annual',
+            amount: currentPlan.price * 100, // Convert to cents
+          },
+        });
+        if (error || !data?.url) throw new Error(error?.message || "Payment initiation failed");
+        window.open(data.url, "_blank");
+        toast({
+          title: "Stripe checkout",
+          description: "Complete your payment in the new tab.",
+        });
+      } else if (selectedProvider === 'airtm') {
+        // AirTM payment URL
+        const airtmUrl = `https://www.airtm.com/send-money?amount=${currentPlan.price}&currency=USD&recipient=traderama@airtm.com&memo=Premium%20Upgrade%20${selectedPlan}%20User%20${user.id}`;
+        window.open(airtmUrl, "_blank");
+        toast({
+          title: "AirTM Payment",
+          description: "Complete your payment on AirTM. Your subscription will be activated within 24 hours.",
+        });
+      } else if (selectedProvider === 'wise') {
+        // Wise payment URL
+        const wiseUrl = `https://wise.com/send?source=USD&target=USD&amount=${currentPlan.price}&recipient=traderama@wise.com&reference=Premium%20Upgrade%20${selectedPlan}%20User%20${user.id}`;
+        window.open(wiseUrl, "_blank");
+        toast({
+          title: "Wise Payment",
+          description: "Complete your payment on Wise. Your subscription will be activated within 24 hours.",
+        });
+      }
+    } catch (error: any) {
       toast({
         title: "Upgrade failed",
-        description: "Please try again or contact support.",
+        description: error.message || "Please try again or contact support.",
         variant: "destructive",
       });
     } finally {
