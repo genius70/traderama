@@ -40,7 +40,15 @@ const IGBrokerConnect = ({ onClose, onConnect }: IGBrokerConnectProps) => {
   });
 
   const onSubmit = async (data: FormData) => {
-    const result = await connectToBroker(data);
+    // The form validation ensures all fields are present and non-empty
+    const credentials = {
+      username: data.username,
+      password: data.password,
+      apiKey: data.apiKey,
+      accountId: data.accountId,
+    };
+    
+    const result = await connectToBroker(credentials);
     
     if (result.success) {
       onConnect?.();
