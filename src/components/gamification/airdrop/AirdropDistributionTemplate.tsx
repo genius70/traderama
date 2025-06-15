@@ -55,7 +55,7 @@ const AirdropDistributionTemplate: React.FC = () => {
               email: row.email || "",
               wallet: row.wallet || "",
               kemAmount: Number(row.kemAmount) || 0,
-              status: "pending",
+              status: "pending" as const,
             }))
             .filter(entry => entry.wallet && entry.kemAmount > 0);
 

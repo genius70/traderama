@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -126,10 +125,21 @@ const Airdrop: React.FC = () => {
     typeof d.kem_bonus === "number";
 
   const fetchMilestones = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("airdrop_milestones" as any)
       .select("*")
       .order("created_at");
+
+    if (error) {
+      toast({
+        title: "Error fetching milestones",
+        description: error.message,
+        variant: "destructive",
+      });
+      setMilestones([]);
+      return;
+    }
+
     if (!Array.isArray(data)) {
       setMilestones([]);
       return;
