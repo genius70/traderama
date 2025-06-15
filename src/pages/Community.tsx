@@ -1,33 +1,83 @@
-import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
+import Header from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, Plus, MessageSquare, Heart, Share2, TrendingUp, Target, Crown, Building, Banknote } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import Header from '@/components/layout/Header';
-import PremiumGroupCheckoutDialog from "@/components/community/PremiumGroupCheckoutDialog";
-import CommunityPostCard from "@/components/community/CommunityPostCard";
-import PremiumGroupPostComposer from "@/components/community/PremiumGroupPostComposer";
-import ManualPaymentModal from "@/components/payments/ManualPaymentModal";
+import { Users, MessageSquare, TrendingUp, Crown, Plus, Star } from 'lucide-react';
+import { useState } from 'react';
+import CommunityPostCard from '@/components/community/CommunityPostCard';
+import CommunityCommentModal from '@/components/community/CommunityCommentModal';
+import TipModal from '@/components/community/TipModal';
+import InviteFriend from '@/components/community/InviteFriend';
+import SocialShareButton from '@/components/community/SocialShareButton';
+import PremiumGroupPostComposer from '@/components/community/PremiumGroupPostComposer';
 
 const Community = () => {
   const { user, loading } = useAuth();
-  const { toast } = useToast();
-  const [posts, setPosts] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [newPost, setNewPost] = useState('');
-  const [newGroup, setNewGroup] = useState({ name: '', description: '' });
-  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
-  const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false);
-  const [manualOpen, setManualOpen] = useState<false | "AirTM" | "Wise">(false);
+
+  const [posts, setPosts] = useState([
+    {
+      id: 1,
+      author: 'Royan Shaw',
+      content: 'Excited to share my latest iron condor strategy! Check it out and let me know what you think. #ironcondor #options',
+      likes: 120,
+      comments: 35,
+      isPremium: false,
+      timestamp: '2 hours ago'
+    },
+    {
+      id: 2,
+      author: 'Alice Johnson',
+      content: 'Just hit a 30% return on my last trade using a simple covered call strategy. Sometimes the basics are the best! #coveredcall #trading',
+      likes: 85,
+      comments: 22,
+      isPremium: false,
+      timestamp: '5 hours ago'
+    },
+    {
+      id: 3,
+      author: 'TraderPro',
+      content: 'Analyzing market trends for the upcoming week. Expecting volatility in tech stocks due to earnings reports. #marketanalysis #stocks',
+      likes: 210,
+      comments: 68,
+      isPremium: true,
+      timestamp: '1 day ago'
+    },
+    {
+      id: 4,
+      author: 'OptionsQueen',
+      content: 'Anyone else trading strangles this week? Looking for insights and tips! #strangles #options',
+      likes: 150,
+      comments: 45,
+      isPremium: true,
+      timestamp: '1 day ago'
+    },
+  ]);
+
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [tipModalOpen, setTipModalOpen] = useState(false);
+
+  const openCommentModal = (post) => {
+    setSelectedPost(post);
+    setCommentModalOpen(true);
+  };
+
+  const closeCommentModal = () => {
+    setSelectedPost(null);
+    setCommentModalOpen(false);
+  };
+
+  const openTipModal = (post) => {
+    setSelectedPost(post);
+    setTipModalOpen(true);
+  };
+
+  const closeTipModal = () => {
+    setSelectedPost(null);
+    setTipModalOpen(false);
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -37,364 +87,140 @@ const Community = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  useEffect(() => {
-    fetchPosts();
-    fetchGroups();
-  }, []);
-
-  const fetchPosts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          profiles (name, email)
-        `)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPosts(data || []);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-    }
-  };
-
-  const fetchGroups = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('trading_groups')
-        .select(`
-          *,
-          profiles (name, email)
-        `)
-        .eq('group_type', 'public')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setGroups(data || []);
-    } catch (error) {
-      console.error('Error fetching groups:', error);
-    }
-  };
-
-  const createPost = async () => {
-    if (!newPost.trim()) return;
-
-    try {
-      const { error } = await supabase
-        .from('posts')
-        .insert({
-          user_id: user.id,
-          content: newPost,
-          post_type: 'text'
-        });
-
-      if (error) throw error;
-      setNewPost('');
-      fetchPosts();
-      toast({ title: "Post created successfully" });
-    } catch (error) {
-      console.error('Error creating post:', error);
-      toast({
-        title: "Error creating post",
-        description: "Failed to create post",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const createGroup = async () => {
-    if (!newGroup.name.trim()) return;
-
-    try {
-      const { error } = await supabase
-        .from('trading_groups')
-        .insert({
-          name: newGroup.name,
-          description: newGroup.description,
-          creator_id: user.id,
-          group_type: 'public'
-        });
-
-      if (error) throw error;
-      setNewGroup({ name: '', description: '' });
-      setIsCreateGroupOpen(false);
-      fetchGroups();
-      toast({ title: "Group created successfully" });
-    } catch (error) {
-      console.error('Error creating group:', error);
-      toast({
-        title: "Error creating group",
-        description: "Failed to create group",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handlePremiumGroupStripeCheckout = async () => {
-    try {
-      // $50/mo premium group
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: {
-          plan: "premium-groups",
-        }
-      });
-      if (error || !data?.url) throw new Error(error?.message || "Could not start premium group checkout");
-      window.open(data.url, "_blank");
-      toast({
-        title: "Stripe checkout",
-        description: "Complete your premium group payment in the new tab.",
-      });
-    } catch (err: any) {
-      toast({
-        title: "Payment Error",
-        description: err.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const likePost = async (postId: string) => {
-    try {
-      const { error } = await supabase
-        .from('post_likes')
-        .insert({
-          post_id: postId,
-          user_id: user.id
-        });
-
-      if (error) throw error;
-      fetchPosts();
-    } catch (error) {
-      console.error('Error liking post:', error);
-    }
-  };
-
-  const joinGroup = async (groupId: string) => {
-    try {
-      const { error } = await supabase
-        .from('group_memberships')
-        .insert({
-          group_id: groupId,
-          user_id: user.id
-        });
-
-      if (error) throw error;
-      toast({ title: "Joined group successfully" });
-    } catch (error) {
-      console.error('Error joining group:', error);
-      toast({
-        title: "Error joining group",
-        description: "Failed to join group",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <main className="container mx-auto p-4 sm:p-6">
+        {/* Community Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Trading Community</h1>
-          <p className="text-gray-600">Connect with fellow traders, share ideas, and learn together</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            Trader Community
+          </h1>
+          <p className="text-gray-600">Share your strategies, insights, and connect with fellow traders</p>
         </div>
 
-        <Tabs defaultValue="feed" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
-            <TabsTrigger value="feed">Community Feed</TabsTrigger>
-            <TabsTrigger value="groups">Trading Groups</TabsTrigger>
-            <TabsTrigger value="discover">Discover</TabsTrigger>
-          </TabsList>
+        {/* Community Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <Users className="h-5 w-5 mr-2 text-blue-600" />
+                Active Traders
+              </CardTitle>
+              <CardDescription>Connect with fellow traders</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-800">4,589</div>
+              <p className="text-sm text-gray-500">In the last 24 hours</p>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="feed" className="space-y-6">
-            {/* Create Post */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Share Your Thoughts</CardTitle>
-                <CardDescription>Share trading ideas, market analysis, or insights</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea
-                  value={newPost}
-                  onChange={(e) => setNewPost(e.target.value)}
-                  placeholder="What's on your mind about the markets today?"
-                  rows={3}
-                />
-                <Button onClick={createPost} disabled={!newPost.trim()}>
-                  Share Post
-                </Button>
-              </CardContent>
-            </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <MessageSquare className="h-5 w-5 mr-2 text-green-600" />
+                Posts Today
+              </CardTitle>
+              <CardDescription>New discussions and insights</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-800">326</div>
+              <p className="text-sm text-gray-500">Shared today</p>
+            </CardContent>
+          </Card>
 
-            {/* Posts Feed */}
-            <div className="space-y-6">
-              {posts.map((post: any) => (
-                <CommunityPostCard key={post.id} post={post} onLike={fetchPosts} onCommentAdded={fetchPosts} />
-              ))}
-            </div>
-          </TabsContent>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2 text-purple-600" />
+                Trending Strategies
+              </CardTitle>
+              <CardDescription>Top performing strategies</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-800">Iron Condor</div>
+              <p className="text-sm text-gray-500">Most discussed</p>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="groups" className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">Trading Groups</h2>
-                <p className="text-gray-600">Join groups to discuss specific trading topics</p>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-0">
-                {/* Updated "Create Premium Group" button */}
-                <Button 
-                  onClick={handlePremiumGroupStripeCheckout}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                >
-                  <Crown className="h-4 w-4 mr-2" />
-                  Create Premium Group - $50/mo
-                </Button>
-                
-                {/* AIRTM manual button */}
-                <Button variant="outline" onClick={() => setManualOpen("AirTM")}>
-                  <Building className="h-4 w-4 mr-2" />
-                  Pay with AirTM (Manual)
-                </Button>
-                
-                {/* Wise manual button */}
-                <Button variant="outline" onClick={() => setManualOpen("Wise")}>
-                  <Banknote className="h-4 w-4 mr-2" />
-                  Pay with Wise (Manual)
-                </Button>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center">
+                <Crown className="h-5 w-5 mr-2 text-yellow-600" />
+                Premium Members
+              </CardTitle>
+              <CardDescription>Exclusive content and insights</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-800">872</div>
+              <p className="text-sm text-gray-500">Active subscribers</p>
+            </CardContent>
+          </Card>
+        </div>
 
-                <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Group
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create Trading Group</DialogTitle>
-                      <DialogDescription>
-                        Create a new group for traders to discuss specific topics
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium">Group Name</label>
-                        <Input
-                          value={newGroup.name}
-                          onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                          placeholder="Iron Condor Masters"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Description</label>
-                        <Textarea
-                          value={newGroup.description}
-                          onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-                          placeholder="A group for discussing iron condor strategies..."
-                          rows={3}
-                        />
-                      </div>
-                      <Button onClick={createGroup} className="w-full">
-                        Create Group
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
+        {/* Community Feed */}
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Community Feed</h2>
 
-            {/* Example: Only show the PremiumGroupPostComposer if user is a premium group owner in this context */}
-            <PremiumGroupPostComposer groupId="demo-premium-group" />
+          {/* Post Composer */}
+          <PremiumGroupPostComposer />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {groups.map((group: any) => (
-                <Card key={group.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{group.name}</CardTitle>
-                    <CardDescription>{group.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Users className="h-4 w-4" />
-                        <span>{group.members_count} members</span>
-                      </div>
-                      <Button size="sm" onClick={() => joinGroup(group.id)}>
-                        Join
-                      </Button>
-                    </div>
-                    <div className="mt-3">
-                      <Badge variant="outline">Public Group</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            <PremiumGroupCheckoutDialog 
-              open={isPremiumDialogOpen} 
-              onOpenChange={setIsPremiumDialogOpen}
-            />
-          </TabsContent>
+          {/* Community Posts */}
+          <div className="space-y-4">
+            {posts.map(post => (
+              <CommunityPostCard
+                key={post.id}
+                post={post}
+                onComment={() => openCommentModal(post)}
+                onTip={() => openTipModal(post)}
+              />
+            ))}
+          </div>
+        </section>
 
-          <TabsContent value="discover">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <TrendingUp className="h-5 w-5" />
-                    <span>Trending Topics</span>
-                  </CardTitle>
-                  <CardDescription>Popular discussions in the community</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">#IronCondorStrategy</span>
-                      <Badge variant="secondary">125 posts</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">#SPYTrades</span>
-                      <Badge variant="secondary">89 posts</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">#OptionsTrading</span>
-                      <Badge variant="secondary">67 posts</Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Invite Friends Section */}
+        <section className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Invite Friends</CardTitle>
+              <CardDescription>Share the Trader Community with your friends and earn rewards</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InviteFriend />
+            </CardContent>
+          </Card>
+        </section>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Target className="h-5 w-5" />
-                    <span>Top Performers</span>
-                  </CardTitle>
-                  <CardDescription>Most successful strategy creators this month</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>RS</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">Royan Shaw</p>
-                        <p className="text-xs text-gray-500">+15.2% this month</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
+        {/* Social Sharing Section */}
+        <section>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Share the Community</CardTitle>
+              <CardDescription>Spread the word and help grow our community</CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-around">
+              <SocialShareButton platform="facebook" url={window.location.href} text="Check out the Trader Community!" />
+              <SocialShareButton platform="twitter" url={window.location.href} text="Join the Trader Community for insights and strategies!" />
+              <SocialShareButton platform="linkedin" url={window.location.href} text="Explore trading strategies and connect with experts in the Trader Community." />
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Comment Modal */}
+        <CommunityCommentModal
+          isOpen={commentModalOpen}
+          onClose={closeCommentModal}
+          post={selectedPost}
+        />
+
+        {/* Tip Modal */}
+        <TipModal
+          isOpen={tipModalOpen}
+          onClose={closeTipModal}
+          post={selectedPost}
+        />
       </main>
-      <ManualPaymentModal open={!!manualOpen} onOpenChange={() => setManualOpen(false)} provider={manualOpen || "AirTM"} />
     </div>
   );
 };
