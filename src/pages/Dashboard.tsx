@@ -1,5 +1,7 @@
+
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
+import { useState } from 'react';
 import Header from '@/components/layout/Header';
 import TradingChart from '@/components/trading/TradingChart';
 import IronCondorBuilder from '@/components/trading/IronCondorBuilder';
