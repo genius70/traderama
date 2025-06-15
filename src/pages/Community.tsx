@@ -1,3 +1,4 @@
+
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
@@ -19,57 +20,62 @@ const Community = () => {
   const [posts, setPosts] = useState([
     {
       id: 1,
-      author: 'Royan Shaw',
+      profiles: { name: 'Royan Shaw', email: 'royan.shaw@gmail.com' },
       content: 'Excited to share my latest iron condor strategy! Check it out and let me know what you think. #ironcondor #options',
-      likes: 120,
-      comments: 35,
-      isPremium: false,
-      timestamp: '2 hours ago'
+      likes_count: 120,
+      comments_count: 35,
+      shares_count: 5,
+      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      isPremium: false
     },
     {
       id: 2,
-      author: 'Alice Johnson',
+      profiles: { name: 'Alice Johnson', email: 'alice.johnson@gmail.com' },
       content: 'Just hit a 30% return on my last trade using a simple covered call strategy. Sometimes the basics are the best! #coveredcall #trading',
-      likes: 85,
-      comments: 22,
-      isPremium: false,
-      timestamp: '5 hours ago'
+      likes_count: 85,
+      comments_count: 22,
+      shares_count: 3,
+      created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+      isPremium: false
     },
     {
       id: 3,
-      author: 'TraderPro',
+      profiles: { name: 'TraderPro', email: 'traderpro@gmail.com' },
       content: 'Analyzing market trends for the upcoming week. Expecting volatility in tech stocks due to earnings reports. #marketanalysis #stocks',
-      likes: 210,
-      comments: 68,
-      isPremium: true,
-      timestamp: '1 day ago'
+      likes_count: 210,
+      comments_count: 68,
+      shares_count: 15,
+      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      isPremium: true
     },
     {
       id: 4,
-      author: 'OptionsQueen',
+      profiles: { name: 'OptionsQueen', email: 'optionsqueen@gmail.com' },
       content: 'Anyone else trading strangles this week? Looking for insights and tips! #strangles #options',
-      likes: 150,
-      comments: 45,
-      isPremium: true,
-      timestamp: '1 day ago'
+      likes_count: 150,
+      comments_count: 45,
+      shares_count: 8,
+      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      isPremium: true
     },
   ]);
 
-  const [selectedPost, setSelectedPost] = useState(null);
+  const [selectedPostId, setSelectedPostId] = useState<string>('');
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [tipModalOpen, setTipModalOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<any>(null);
 
-  const openCommentModal = (post) => {
-    setSelectedPost(post);
+  const openCommentModal = (postId: string) => {
+    setSelectedPostId(postId);
     setCommentModalOpen(true);
   };
 
   const closeCommentModal = () => {
-    setSelectedPost(null);
+    setSelectedPostId('');
     setCommentModalOpen(false);
   };
 
-  const openTipModal = (post) => {
+  const openTipModal = (post: any) => {
     setSelectedPost(post);
     setTipModalOpen(true);
   };
@@ -163,8 +169,8 @@ const Community = () => {
         <section className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Community Feed</h2>
 
-          {/* Post Composer */}
-          <PremiumGroupPostComposer />
+          {/* Post Composer - Using a placeholder groupId for now */}
+          <PremiumGroupPostComposer groupId="community-general" />
 
           {/* Community Posts */}
           <div className="space-y-4">
@@ -172,8 +178,6 @@ const Community = () => {
               <CommunityPostCard
                 key={post.id}
                 post={post}
-                onComment={() => openCommentModal(post)}
-                onTip={() => openTipModal(post)}
               />
             ))}
           </div>
@@ -200,24 +204,39 @@ const Community = () => {
               <CardDescription>Spread the word and help grow our community</CardDescription>
             </CardHeader>
             <CardContent className="flex justify-around">
-              <SocialShareButton platform="facebook" url={window.location.href} text="Check out the Trader Community!" />
-              <SocialShareButton platform="twitter" url={window.location.href} text="Join the Trader Community for insights and strategies!" />
-              <SocialShareButton platform="linkedin" url={window.location.href} text="Explore trading strategies and connect with experts in the Trader Community." />
+              <SocialShareButton postData={{
+                id: 'community',
+                content: 'Check out the Trader Community!',
+                author: 'Traderama',
+                type: 'post'
+              }} />
+              <SocialShareButton postData={{
+                id: 'community-twitter',
+                content: 'Join the Trader Community for insights and strategies!',
+                author: 'Traderama',
+                type: 'post'
+              }} />
+              <SocialShareButton postData={{
+                id: 'community-linkedin',
+                content: 'Explore trading strategies and connect with experts in the Trader Community.',
+                author: 'Traderama',
+                type: 'post'
+              }} />
             </CardContent>
           </Card>
         </section>
 
         {/* Comment Modal */}
         <CommunityCommentModal
-          isOpen={commentModalOpen}
-          onClose={closeCommentModal}
-          post={selectedPost}
+          postId={selectedPostId}
+          open={commentModalOpen}
+          onOpenChange={setCommentModalOpen}
         />
 
         {/* Tip Modal */}
         <TipModal
-          isOpen={tipModalOpen}
-          onClose={closeTipModal}
+          open={tipModalOpen}
+          onOpenChange={setTipModalOpen}
           post={selectedPost}
         />
       </main>
