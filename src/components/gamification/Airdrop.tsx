@@ -134,18 +134,26 @@ const Airdrop: React.FC = () => {
       return;
     }
 
-    if (!Array.isArray(data)) {
+    if (!data || !Array.isArray(data)) {
       setMilestones([]);
       return;
     }
     
-    // Transform the data to match our expected type
-    const validMilestones = data.map(milestone => ({
-      id: milestone.id,
-      name: milestone.name,
-      kem_bonus: milestone.kem_bonus,
-      created_at: milestone.created_at
-    }));
+    // Transform the data to match our expected type with proper type checking
+    const validMilestones = data
+      .filter((milestone): milestone is any => 
+        milestone && 
+        typeof milestone === 'object' && 
+        'id' in milestone && 
+        'name' in milestone && 
+        'kem_bonus' in milestone
+      )
+      .map(milestone => ({
+        id: milestone.id,
+        name: milestone.name,
+        kem_bonus: milestone.kem_bonus,
+        created_at: milestone.created_at
+      }));
     
     setMilestones(validMilestones);
   };
@@ -169,13 +177,18 @@ const Airdrop: React.FC = () => {
       return;
     }
 
-    if (!Array.isArray(data)) {
+    if (!data || !Array.isArray(data)) {
       setUserMilestones([]);
       return;
     }
 
     const milestoneIds = data
-      .filter(item => item && typeof item.milestone_id !== 'undefined')
+      .filter((item): item is any => 
+        item && 
+        typeof item === 'object' && 
+        'milestone_id' in item && 
+        typeof item.milestone_id !== 'undefined'
+      )
       .map(item => item.milestone_id);
     
     setUserMilestones(milestoneIds);
