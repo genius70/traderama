@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,62 +76,9 @@ const ProductOffers: React.FC = () => {
     { id: 'wise', name: 'Wise', icon: Banknote, description: 'Bank Transfer' }
   ];
 
-  const handleSubscription = async (planId: string, paymentMethod: string) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to subscribe.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(`${planId}-${paymentMethod}`);
-
-    try {
-      const plan = subscriptionPlans.find(p => p.id === planId);
-      if (!plan) throw new Error('Plan not found');
-
-      const { error } = await supabase
-        .from('subscriptions')
-        .insert([{
-          user_id: user.id,
-          plan_type: planId,
-          payment_method: paymentMethod,
-          amount: plan.price,
-          currency: 'USD',
-          status: 'active',
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        }]);
-
-      if (error) throw error;
-
-      // Update user's subscription tier in profiles
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ subscription_tier: 'premium' })
-        .eq('id', user.id);
-
-      if (profileError) throw profileError;
-
-      toast({
-        title: "Subscription Activated!",
-        description: `Your ${plan.name} subscription is now active.`,
-      });
-
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(null);
-    }
-  };
+  // Remove old handleSubscription, only show real payment flows
 
   const handleCreateGroup = () => {
-    // Navigate to group creation or show modal
     toast({
       title: "Create Premium Group",
       description: "Group creation feature coming soon!",
@@ -197,7 +145,7 @@ const ProductOffers: React.FC = () => {
         },
       });
       if (error || !data?.url) throw new Error(error?.message || "Payment initiation failed");
-      window.open(data.url, "_blank");
+      window.open(data.url, "_blank"); // This opens Stripe checkout!
       toast({
         title: "Stripe checkout",
         description: "Complete your payment in the new tab.",
@@ -265,6 +213,7 @@ const ProductOffers: React.FC = () => {
 
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-gray-700">Payment Methods:</p>
+                  {/* Stripe - real payment only */}
                   <Button
                     variant="outline"
                     className="w-full justify-start"
@@ -278,6 +227,7 @@ const ProductOffers: React.FC = () => {
                     </div>
                     {loading === plan.id && <div className="ml-auto">Processing...</div>}
                   </Button>
+                  {/* Manual payment providers - opens info/modal */}
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"
@@ -409,3 +359,4 @@ const ProductOffers: React.FC = () => {
 };
 
 export default ProductOffers;
+
