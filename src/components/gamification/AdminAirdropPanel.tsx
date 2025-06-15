@@ -51,14 +51,15 @@ const AdminAirdropPanel = () => {
       .limit(1)
       .maybeSingle();
 
-    // TS18047: Fix - Check for null
+    // Fix for TS18047: Check for null
     if (
-      data !== null &&
+      data &&
       typeof data === "object" &&
       typeof data.kem_conversion_rate === "number"
     ) {
       setConversionRate(data.kem_conversion_rate);
     }
+    // else leave conversionRate unchanged
   };
 
   const saveRate = async () => {
@@ -85,7 +86,7 @@ const AdminAirdropPanel = () => {
       .select("*")
       .order("created_at");
 
-    // TS2322: Defensive filter and set
+    // Fix for TS2322: Defensive filter
     if (Array.isArray(data)) {
       const milestones: AirdropMilestoneRow[] = data.filter(
         (d: any): d is AirdropMilestoneRow =>
