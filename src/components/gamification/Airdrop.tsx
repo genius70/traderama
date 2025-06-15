@@ -129,7 +129,7 @@ const Airdrop: React.FC = () => {
       .select("*")
       .order("created_at");
 
-    // Fix for TS2322: Defensive filter with type guard
+    // Fix for TS2322: Defensive filter with type guard and exclude select errors
     if (Array.isArray(data)) {
       const milestones: AirdropMilestoneRow[] = data.filter(
         (d: any): d is AirdropMilestoneRow =>
