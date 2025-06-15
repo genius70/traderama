@@ -10,6 +10,7 @@ import MilestoneProgress from './airdrop/MilestoneProgress';
 import AirdropClaimForm from './airdrop/AirdropClaimForm';
 import UserMilestoneBadges from './airdrop/UserMilestoneBadges';
 import HowToEarnSection from './airdrop/HowToEarnSection';
+import AirdropDistributionTemplate from "./airdrop/AirdropDistributionTemplate";
 
 // Manual types
 type KemCredits = {
@@ -166,7 +167,9 @@ const Airdrop: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {isAdmin && <AdminAirdropPanel />}
+      {/* Show new admin airdrop template for admins only */}
+      {isAdmin && <AirdropDistributionTemplate />}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
