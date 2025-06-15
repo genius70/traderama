@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
@@ -13,9 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { Users, TrendingUp, Target, Plus, UserPlus, Gift, Mail, CreditCard, Link as LinkIcon } from 'lucide-react';
+import IGBrokerConnect from '@/components/brokers/IGBrokerConnect';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
+  const [showIGConnect, setShowIGConnect] = useState(false);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -34,8 +35,17 @@ const Dashboard = () => {
   };
 
   const handleConnectBroker = () => {
+    setShowIGConnect(true);
+  };
+
+  const handleIGConnect = async (credentials: any) => {
     // This will be integrated with IG Broker API
-    console.log('Connect to IG Broker API');
+    console.log('Connecting to IG Broker with credentials:', credentials);
+    // TODO: Implement actual IG Broker API integration
+  };
+
+  const handleCloseIGConnect = () => {
+    setShowIGConnect(false);
   };
 
   return (
@@ -268,6 +278,14 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* IG Broker Connect Modal */}
+      {showIGConnect && (
+        <IGBrokerConnect
+          onClose={handleCloseIGConnect}
+          onConnect={handleIGConnect}
+        />
+      )}
     </div>
   );
 };
