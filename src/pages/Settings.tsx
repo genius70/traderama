@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -14,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/layout/Header';
 import WalletSettings from '@/components/wallet/WalletSettings';
 import BrokerConnections from '@/components/brokers/BrokerConnections';
+import PlatformWallet from '@/components/wallet/PlatformWallet';
 
 const Settings = () => {
   const { user, loading, signOut } = useAuth();
@@ -158,10 +158,21 @@ const Settings = () => {
             </CardContent>
           </Card>
 
+          {/* Platform Wallet */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Platform Wallet</CardTitle>
+              <CardDescription>Manage your platform credits and transfers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PlatformWallet />
+            </CardContent>
+          </Card>
+
           {/* Wallet Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>Wallet & Payments</CardTitle>
+              <CardTitle>Trading Wallet</CardTitle>
               <CardDescription>Manage your trading funds and payment methods</CardDescription>
             </CardHeader>
             <CardContent>
