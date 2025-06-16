@@ -13,16 +13,28 @@ const TradingViewWidget = memo(() => {
       {
         "symbols": [
           [
-            "Apple",
-            "AAPL|1D"
+            "S&P 500",
+            "SPX|1D"
           ],
           [
-            "Google",
-            "GOOGL|1D"
+            "SPDR S&P 500",
+            "SPY|1D"
           ],
           [
-            "Microsoft",
-            "MSFT|1D"
+            "Invesco QQQ",
+            "QQQ|1D"
+          ],
+          [
+            "iShares Russell 2000",
+            "IWM|1D"
+          ],
+          [
+            "Vanguard Total Stock Market",
+            "VTI|1D"
+          ],
+          [
+            "SPDR Dow Jones",
+            "DIA|1D"
           ]
         ],
         "chartOnly": false,
@@ -68,8 +80,8 @@ const TradingViewWidget = memo(() => {
     <div className="tradingview-widget-container" ref={container}>
       <div className="tradingview-widget-container__widget"></div>
       <div className="tradingview-widget-copyright">
-        <a href="https://www.fanorama.pro/" rel="noopener nofollow" target="_blank">
-          <span className="blue-text">Wanna Earn Income from Your Social Profiles? Click Here!</span>
+        <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+          <span className="blue-text">Track all markets on TradingView</span>
         </a>
       </div>
     </div>
@@ -93,7 +105,7 @@ const MarketTrends: React.FC = () => {
       "isTransparent": false,
       "showSymbolLogo": false,
       "showFloatingTooltip": true,
-      "width": "100%",
+      "width": "400",
       "height": "550",
       "plotLineColorGrowing": "rgba(41, 98, 255, 1)",
       "plotLineColorFalling": "rgba(41, 98, 255, 1)",
@@ -231,17 +243,17 @@ const MarketTrends: React.FC = () => {
               <div className="tradingview-widget-container__widget"></div>
               <div className="tradingview-widget-copyright">
                 <a 
-                  href="https://www.fanorama.pro/" 
+                  href="https://www.tradingview.com/" 
                   rel="noopener nofollow" 
                   target="_blank"
                 >
-                  <span className="blue-text">Sponsor: Make More Money at Fanorama.pro</span>
+                  <span className="blue-text">Track all markets on TradingView</span>
                 </a>
               </div>
             </div>
           </div>
           <div className="bg-white rounded-lg shadow-lg p-4">
-            <h2 className="text-xl font-semibold mb-4">Top Stocks</h2>
+            <h2 className="text-xl font-semibold mb-4">ETF Indices</h2>
             <div style={{ height: '550px' }}>
               <TradingViewWidget />
             </div>
