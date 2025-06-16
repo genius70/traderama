@@ -32,7 +32,7 @@ const InviteFriend: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const defaultMessage = "Hey! I've been using this amazing expert copy trading platform for iron condor strategies. You should check it out - Traderama gives me options trading strategies helping me improve my trading performance significantly! 🚀📈";
+  const defaultMessage = "Hey! I recently join this amazing Expert Copy Trading Platform for Iron Condor Options Trading Strategies. Send your first 10 invites and earn $50 credited to your wallet. You should check it out. 🚀📈";
 
   useEffect(() => {
     if (user) {
