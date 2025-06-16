@@ -80,8 +80,8 @@ const TradingViewWidget = memo(() => {
     <div className="tradingview-widget-container" ref={container}>
       <div className="tradingview-widget-container__widget"></div>
       <div className="tradingview-widget-copyright">
-        <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
-          <span className="blue-text">Track all markets on TradingView</span>
+        <a href="https://www.fanorama.pro/" rel="noopener nofollow" target="_blank">
+          <span className="blue-text">Make Even More Money From Your Social Profiles</span>
         </a>
       </div>
     </div>
@@ -243,11 +243,11 @@ const MarketTrends: React.FC = () => {
               <div className="tradingview-widget-container__widget"></div>
               <div className="tradingview-widget-copyright">
                 <a 
-                  href="https://www.tradingview.com/" 
+                  href="https://www.kemswap.com/" 
                   rel="noopener nofollow" 
                   target="_blank"
                 >
-                  <span className="blue-text">Track all markets on TradingView</span>
+                  <span className="blue-text">Convert Your KEMCOIN Tokens at the Best Rate</span>
                 </a>
               </div>
             </div>
