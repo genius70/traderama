@@ -145,6 +145,8 @@ const MarketTrends: React.FC = () => {
   }, []);
 
   return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
     <div className="tradingview-widget-container" ref={widgetRef}>
       <div className="tradingview-widget-container__widget"></div>
       <div className="tradingview-widget-copyright">
@@ -157,6 +159,7 @@ const MarketTrends: React.FC = () => {
         </a>
       </div>
     </div>
+  </div>
   );
 };
 
