@@ -93,7 +93,7 @@ const MarketTrends: React.FC = () => {
       "isTransparent": false,
       "showSymbolLogo": false,
       "showFloatingTooltip": true,
-      "width": "400",
+      "width": "100%",
       "height": "550",
       "plotLineColorGrowing": "rgba(41, 98, 255, 1)",
       "plotLineColorFalling": "rgba(41, 98, 255, 1)",
