@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-
+import Header from '@/components/layouts/Header';
 const MarketTrends: React.FC = () => {
   const widgetRef = useRef<HTMLDivElement>(null);
 
