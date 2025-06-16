@@ -17,7 +17,7 @@ const MarketTrends: React.FC = () => {
       "isTransparent": false,
       "showSymbolLogo": false,
       "showFloatingTooltip": true,
-      "width": "400",
+      "width": "100%",
       "height": "550",
       "plotLineColorGrowing": "rgba(41, 98, 255, 1)",
       "plotLineColorFalling": "rgba(41, 98, 255, 1)",
@@ -153,7 +153,7 @@ const MarketTrends: React.FC = () => {
           rel="noopener nofollow" 
           target="_blank"
         >
-          <span className="blue-text">Track all markets on TradingView</span>
+          <span className="blue-text">Track all markets on Traderama</span>
         </a>
       </div>
     </div>
