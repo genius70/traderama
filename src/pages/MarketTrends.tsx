@@ -1,5 +1,81 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import Header from '@/components/layout/Header';
+
+const TradingViewWidget = memo(() => {
+  const container = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js";
+    script.type = "text/javascript";
+    script.async = true;
+    script.innerHTML = `
+      {
+        "symbols": [
+          [
+            "Apple",
+            "AAPL|1D"
+          ],
+          [
+            "Google",
+            "GOOGL|1D"
+          ],
+          [
+            "Microsoft",
+            "MSFT|1D"
+          ]
+        ],
+        "chartOnly": false,
+        "width": "100%",
+        "height": "100%",
+        "locale": "en",
+        "colorTheme": "light",
+        "autosize": true,
+        "showVolume": false,
+        "showMA": false,
+        "hideDateRanges": false,
+        "hideMarketStatus": false,
+        "hideSymbolLogo": false,
+        "scalePosition": "right",
+        "scaleMode": "Normal",
+        "fontFamily": "-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif",
+        "fontSize": "10",
+        "noTimeScale": false,
+        "valuesTracking": "1",
+        "changeMode": "price-and-percent",
+        "chartType": "area",
+        "maLineColor": "#2962FF",
+        "maLineWidth": 1,
+        "maLength": 9,
+        "headerFontSize": "medium",
+        "lineWidth": 2,
+        "lineType": 0,
+        "dateRanges": [
+          "1d|1",
+          "1m|30",
+          "3m|60",
+          "12m|1D",
+          "60m|1W",
+          "all|1M"
+        ]
+      }`;
+    if (container.current) {
+      container.current.appendChild(script);
+    }
+  }, []);
+
+  return (
+    <div className="tradingview-widget-container" ref={container}>
+      <div className="tradingview-widget-container__widget"></div>
+      <div className="tradingview-widget-copyright">
+        <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+          <span className="blue-text">Track all Markets Indice to Perfect Your Trades</span>
+        </a>
+      </div>
+    </div>
+  );
+});
+
 const MarketTrends: React.FC = () => {
   const widgetRef = useRef<HTMLDivElement>(null);
 
@@ -17,7 +93,7 @@ const MarketTrends: React.FC = () => {
       "isTransparent": false,
       "showSymbolLogo": false,
       "showFloatingTooltip": true,
-      "width": "100%",
+      "width": "400",
       "height": "550",
       "plotLineColorGrowing": "rgba(41, 98, 255, 1)",
       "plotLineColorFalling": "rgba(41, 98, 255, 1)",
@@ -147,19 +223,32 @@ const MarketTrends: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-    <div className="tradingview-widget-container" ref={widgetRef}>
-      <div className="tradingview-widget-container__widget"></div>
-      <div className="tradingview-widget-copyright">
-        <a 
-          href="https://www.tradingview.com/" 
-          rel="noopener nofollow" 
-          target="_blank"
-        >
-          <span className="blue-text">Track all markets on Traderama</span>
-        </a>
+      <div className="container mx-auto p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow-lg p-4">
+            <h2 className="text-xl font-semibold mb-4">Market Overview</h2>
+            <div className="tradingview-widget-container" ref={widgetRef}>
+              <div className="tradingview-widget-container__widget"></div>
+              <div className="tradingview-widget-copyright">
+                <a 
+                  href="https://www.fanorama.pro/" 
+                  rel="noopener nofollow" 
+                  target="_blank"
+                >
+                  <span className="blue-text">Sponsor: Make More Money at Fanorama.pro</span>
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-lg p-4">
+            <h2 className="text-xl font-semibold mb-4">Top Stocks</h2>
+            <div style={{ height: '550px' }}>
+              <TradingViewWidget />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
   );
 };
 
