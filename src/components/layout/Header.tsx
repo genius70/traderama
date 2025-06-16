@@ -23,7 +23,14 @@ const Header = () => {
 
   const NavigationItems = ({ mobile = false, onItemClick = () => {} }) => (
     <div className={`${mobile ? 'flex flex-col space-y-4' : 'hidden md:flex items-center space-x-6'}`}>
-      <Link 
+     <Link 
+        to="/market-trends" 
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
+        onClick={onItemClick}
+      > 
+       Markets
+    </Link>
+    <Link 
         to="/dashboard" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
         onClick={onItemClick}
