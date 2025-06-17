@@ -1,7 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react';
-import Header from '@/components/layout/Header';
+import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, Menu } from 'lucide-react';
+
+// Header Component
+const Header = () => {
+  return (
+    <header className="bg-white shadow-sm border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center">
+            <BarChart3 className="h-8 w-8 text-blue-600 mr-3" />
+            <h1 className="text-xl font-bold text-gray-900">Market Analytics</h1>
+          </div>
+          <nav className="hidden md:flex space-x-8">
+            <a href="#" className="text-blue-600 font-medium">Dashboard</a>
+            <a href="#" className="text-gray-500 hover:text-gray-700">Analytics</a>
+            <a href="#" className="text-gray-500 hover:text-gray-700">Portfolio</a>
+            <a href="#" className="text-gray-500 hover:text-gray-700">Research</a>
+          </nav>
+          <div className="md:hidden">
+            <Menu className="h-6 w-6 text-gray-500" />
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
 
 // ETF data configuration - Comprehensive list for trade research
 const ETF_SYMBOLS = [
@@ -56,6 +80,8 @@ const ETF_SYMBOLS = [
 
 // Time period options for analysis
 const TIME_PERIODS = [
+  { key: '1D', label: '1 Day', days: 1 },
+  { key: '7D', label: '7 Days', days: 7 },
   { key: '1M', label: '1 Month', days: 30 },
   { key: '3M', label: '3 Months', days: 90 },
   { key: '6M', label: '6 Months', days: 180 },
@@ -100,7 +126,13 @@ const generateHistoricalData = (symbol, days = 30) => {
   
   for (let i = days; i >= 0; i--) {
     const date = new Date();
-    date.setDate(date.getDate() - i);
+    
+    // For 1 day, use hours instead of days
+    if (days === 1) {
+      date.setHours(date.getHours() - i);
+    } else {
+      date.setDate(date.getDate() - i);
+    }
     
     // Add trend and random walk
     const dailyChange = (Math.random() - 0.5) * volatility * currentPrice;
@@ -113,8 +145,12 @@ const generateHistoricalData = (symbol, days = 30) => {
       currentPrice *= (0.9 + Math.random() * 0.2); // ±10% event
     }
     
+    const dateKey = days === 1 
+      ? date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+      : date.toISOString().split('T')[0];
+    
     data.push({
-      date: date.toISOString().split('T')[0],
+      date: dateKey,
       price: parseFloat(currentPrice.toFixed(2)),
       volume: Math.floor(Math.random() * 5000000) + 500000,
       // Add technical indicators for analysis
@@ -247,7 +283,7 @@ const ChartComponent = ({ symbol, data }) => {
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
               fontSize: '12px'
             }}
-            formatter={(value) => [`${value}`, 'Price']}
+            formatter={(value) => [`$${value}`, 'Price']}
             labelFormatter={(label) => `Date: ${label}`}
           />
           <Area
@@ -328,7 +364,7 @@ const MarketTrends = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <Header />
       
-      <div className="w-full px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
           <div className="w-full sm:w-auto">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">ETF Market Overview</h2>
@@ -448,57 +484,6 @@ const MarketTrends = () => {
           </code>
           <p className="text-blue-700 text-xs mt-2">
             Sign up at alphavantage.co for free API access (500 calls/day) • Use TIME_SERIES_DAILY for historical data
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
-          {ETF_SYMBOLS.map(etf => (
-            <ETFCard
-              key={etf.symbol}
-              etf={etf}
-              data={etfData[etf.symbol]}
-              onSelect={setSelectedSymbol}
-              isSelected={selectedSymbol === etf.symbol}
-            />
-          ))}
-        </div>
-
-        {/* Selected ETF Chart */}
-        <div className="w-full bg-white rounded-xl shadow-lg p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 w-full">
-            <div className="w-full sm:w-auto">
-              <h3 className="text-xl font-bold text-gray-900">
-                {ETF_SYMBOLS.find(etf => etf.symbol === selectedSymbol)?.name || selectedSymbol}
-              </h3>
-              <p className="text-gray-600">30-Day Price Chart</p>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 w-full sm:w-auto justify-start sm:justify-end">
-              <DollarSign className="w-4 h-4" />
-              <span>Price Movement</span>
-            </div>
-          </div>
-          
-          <div className="w-full">
-            <ChartComponent 
-              symbol={selectedSymbol} 
-              data={chartData[selectedSymbol]} 
-            />
-          </div>
-        </div>
-
-        {/* API Integration Instructions */}
-        <div className="mt-8 w-full bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
-          <h4 className="font-bold text-blue-900 mb-2">🔧 Alpha Vantage Integration</h4>
-          <p className="text-blue-800 text-sm mb-2">
-            To use real data, replace the mock API function with actual Alpha Vantage calls:
-          </p>
-          <code className="bg-blue-100 px-2 py-1 rounded text-xs text-blue-900 block w-full overflow-x-auto">
-            https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=API_KEY
-          </code>
-          <p className="text-blue-700 text-xs mt-2">
-            SPONSORED BY: <a href="https://www.Fanorama.pro">Fanorama.pro :</a>Sign up for More Money More Fun
           </p>
         </div>
       </div>
