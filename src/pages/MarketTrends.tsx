@@ -67,7 +67,7 @@ const TIME_PERIODS = [
 // Mock API function (replace with actual Alpha Vantage API calls)
 const fetchETFData = async (symbol) => {
   // Simulated data - replace with actual Alpha Vantage API call
-  const API_KEY = 'QAM8QOC4TRBWYON6;
+  const API_KEY = 'QAM8QOC4TRBWYON6';
   const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`;
   
   await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
@@ -498,7 +498,7 @@ const MarketTrends = () => {
             https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=API_KEY
           </code>
           <p className="text-blue-700 text-xs mt-2">
-            SPONSORED BY: <a href"https://www.Fanorama.pro">Fanorama.pro :</a>Sign up for More Money More Fun
+            SPONSORED BY: <a href="https://www.Fanorama.pro">Fanorama.pro :</a>Sign up for More Money More Fun
           </p>
         </div>
       </div>
