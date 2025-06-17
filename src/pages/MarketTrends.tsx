@@ -1,31 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, Menu } from 'lucide-react';
-
-// Header Component
-const Header = () => {
-  return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <BarChart3 className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-bold text-gray-900">Market Analytics</h1>
-          </div>
-          <nav className="hidden md:flex space-x-8">
-            <a href="#" className="text-blue-600 font-medium">Dashboard</a>
-            <a href="#" className="text-gray-500 hover:text-gray-700">Analytics</a>
-            <a href="#" className="text-gray-500 hover:text-gray-700">Portfolio</a>
-            <a href="#" className="text-gray-500 hover:text-gray-700">Research</a>
-          </nav>
-          <div className="md:hidden">
-            <Menu className="h-6 w-6 text-gray-500" />
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-};
+import Header from "@/components/layout/Header";
 
 // ETF data configuration - Comprehensive list for trade research
 const ETF_SYMBOLS = [
@@ -475,7 +451,7 @@ const MarketTrends = () => {
 
         {/* API Integration Instructions */}
         <div className="mt-8 w-full bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
-          <h4 className="font-bold text-blue-900 mb-2">🔧 Alpha Vantage Integration</h4>
+          <h4 className="font-bold text-blue-900 mb-2">🔧 Check Out Our Platform Sponsors:</h4>
           <p className="text-blue-800 text-sm mb-2">
             To use real data, replace the mock API function with actual Alpha Vantage calls:
           </p>
@@ -483,7 +459,7 @@ const MarketTrends = () => {
             https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&apikey=YOUR_API_KEY
           </code>
           <p className="text-blue-700 text-xs mt-2">
-            Sign up at alphavantage.co for free API access (500 calls/day) • Use TIME_SERIES_DAILY for historical data
+            <a href="https://www.Fanorama.pro">Sign up at alphavantage.co </a>for even more money making opportunities for your social profiles
           </p>
         </div>
       </div>
