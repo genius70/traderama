@@ -57,7 +57,7 @@ interface PortfolioStats {
   totalTrades: number;
 }
 
-const CopyTradingManager: React.FC = () => {
+const CopyTrading: React.FC = () => {
   const [isActive, setIsActive] = useState(false);
   const [settings, setSettings] = useState<CopyTradingSettings>({
     enabled: false,
@@ -540,4 +540,4 @@ const CopyTradingManager: React.FC = () => {
   );
 };
 
-export default CopyTradingManager;
+export default CopyTrading;
