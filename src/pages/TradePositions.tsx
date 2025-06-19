@@ -1,33 +1,168 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import IronCondorBuilder from "@/components/trading/IronCondorBuilder";
 import TradingOptionsSelector from "@/components/trading/TradingOptionsSelector";
 import TradingTemplate from "@/components/trading/TradingTemplate";
 import OptionsChainPanel from "@/components/trading/OptionsChainPanel";
-import { TrendingUp, ArrowLeft, ArrowRight } from "lucide-react";
+import LiveOptionsChainModal from "@/utils/LiveOptionsChainModal";
+import { TrendingUp, ArrowLeft, ArrowRight, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { useNavigate } from "react-router-dom";
+// Table components will be implemented inline
+// Navigation will be handled with state
 import Header from "@/components/layout/Header";
 import type { TradingLeg, ContractRow } from "@/components/trading/types";
 
-// --- Extracted Tabs block ---
-const PositionsTabs: React.FC<{
-  tab: string;
-  setTab: React.Dispatch<React.SetStateAction<string>>;
-  openPositions: any[];
-  closedPositions: any[];
-  tradingLogs: any[];
-  pnls: any[];
-}> = ({ tab, setTab, openPositions, closedPositions, tradingLogs, pnls }) => (
+// Import the live trading functions
+import {
+  fetchLivePositions,
+  submitTradeOrder,
+  fetchAccountInfo,
+  assessTradeRisk,
+  fetchLiveOptionsChain,
+  LivePriceWebSocket,
+  type LivePosition,
+  type TradeOrderRequest,
+  type AccountInfo,
+  type RiskAssessment
+} from "@/utils/liveTradingAPI";
+
+// Risk Assessment Modal
+const RiskAssessmentModal = ({ isOpen, onClose, riskData, onConfirm }) => {
+  if (!isOpen || !riskData) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+        <div className="p-6">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            Risk Assessment
+          </h2>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-600">Max Loss</label>
+                <div className="text-lg font-semibold text-red-600">
+                  ${Math.abs(riskData.maxLoss).toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Max Gain</label>
+                <div className="text-lg font-semibold text-green-600">
+                  ${riskData.maxGain.toFixed(2)}
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-600">Risk Level</label>
+              <div className={`text-lg font-semibold ${
+                riskData.riskLevel === 'High' ? 'text-red-600' :
+                riskData.riskLevel === 'Medium' ? 'text-yellow-600' : 'text-green-600'
+              }`}>
+                {riskData.riskLevel}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-600">Margin Requirement</label>
+              <div className="text-lg font-semibold">
+                ${riskData.marginRequirement.toFixed(2)}
+              </div>
+            </div>
+
+            {riskData.warnings.length > 0 && (
+              <div>
+                <label className="text-sm font-medium text-gray-600">Warnings</label>
+                <ul className="text-sm text-red-600 mt-1">
+                  {riskData.warnings.map((warning, idx) => (
+                    <li key={idx}>• {warning}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <Button variant="secondary" onClick={onClose} className="flex-1">
+              Cancel
+            </Button>
+            <Button onClick={onConfirm} className="flex-1 bg-blue-600 hover:bg-blue-700">
+              Proceed with Trade
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Trade Confirmation Modal
+const TradeConfirmationModal = ({ isOpen, onClose, orderResponse }) => {
+  if (!isOpen || !orderResponse) return null;
+
+  const isSuccess = orderResponse.status === 'submitted' || orderResponse.status === 'filled';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+        <div className="p-6 text-center">
+          {isSuccess ? (
+            <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
+          ) : (
+            <XCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
+          )}
+          
+          <h2 className="text-xl font-bold mb-2">
+            {isSuccess ? 'Trade Submitted' : 'Trade Failed'}
+          </h2>
+          
+          <p className="text-gray-600 mb-4">{orderResponse.message}</p>
+          
+          {orderResponse.orderId && (
+            <p className="text-sm text-gray-500 mb-4">
+              Order ID: {orderResponse.orderId}
+            </p>
+          )}
+          
+          <Button onClick={onClose} className="w-full">
+            Close
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Simple table components
+const Table = ({ children, className = "" }) => (
+  <table className={`w-full border-collapse ${className}`}>{children}</table>
+);
+
+const TableHeader = ({ children }) => <thead className="bg-gray-50">{children}</thead>;
+const TableBody = ({ children }) => <tbody>{children}</tbody>;
+const TableHead = ({ children, className = "" }) => (
+  <th className={`p-3 text-left font-medium text-gray-700 border-b ${className}`}>{children}</th>
+);
+const TableRow = ({ children, className = "" }) => (
+  <tr className={`border-b hover:bg-gray-50 ${className}`}>{children}</tr>
+);
+const TableCell = ({ children, className = "" }) => (
+  <td className={`p-3 ${className}`}>{children}</td>
+);
+
+// Updated PositionsTabs with live data
+const PositionsTabs = ({ tab, setTab, positions, tradingLogs, accountInfo }) => (
   <Tabs value={tab} onValueChange={setTab} className="mb-8">
     <TabsList className="mb-4 w-full flex flex-wrap">
       <TabsTrigger value="open">Open Positions</TabsTrigger>
       <TabsTrigger value="closed">Closed Positions</TabsTrigger>
       <TabsTrigger value="logs">Trading Logs</TabsTrigger>
-      <TabsTrigger value="pnl">P&amp;L</TabsTrigger>
+      <TabsTrigger value="account">Account</TabsTrigger>
     </TabsList>
+    
     <TabsContent value="open">
       <Table>
         <TableHeader>
@@ -37,53 +172,57 @@ const PositionsTabs: React.FC<{
             <TableHead>Contracts</TableHead>
             <TableHead>Entry</TableHead>
             <TableHead>Mark</TableHead>
-            <TableHead>P&amp;L</TableHead>
+            <TableHead>P&L</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {openPositions.map(pos => (
+          {positions.open.map(pos => (
             <TableRow key={pos.id}>
               <TableCell>{pos.strategy}</TableCell>
               <TableCell>{pos.symbol}</TableCell>
               <TableCell>{pos.contracts}</TableCell>
-              <TableCell>{pos.entry}</TableCell>
-              <TableCell>{pos.mark}</TableCell>
-              <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>{pos.pnl}</TableCell>
+              <TableCell>${pos.entry.toFixed(2)}</TableCell>
+              <TableCell>${pos.mark.toFixed(2)}</TableCell>
+              <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>
+                ${pos.pnl.toFixed(2)}
+              </TableCell>
               <TableCell>{pos.status}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </TabsContent>
+    
     <TabsContent value="closed">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Strategy</TableHead>
             <TableHead>Symbol</TableHead>
-            <TableHead>Contracts</TableHead>
             <TableHead>Entry</TableHead>
             <TableHead>Exit</TableHead>
-            <TableHead>P&amp;L</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>P&L</TableHead>
+            <TableHead>Close Date</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {closedPositions.map(pos => (
+          {positions.closed.map(pos => (
             <TableRow key={pos.id}>
               <TableCell>{pos.strategy}</TableCell>
               <TableCell>{pos.symbol}</TableCell>
-              <TableCell>{pos.contracts}</TableCell>
-              <TableCell>{pos.entry}</TableCell>
-              <TableCell>{pos.exit}</TableCell>
-              <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>{pos.pnl}</TableCell>
-              <TableCell>{pos.status}</TableCell>
+              <TableCell>${pos.entry.toFixed(2)}</TableCell>
+              <TableCell>${pos.exit?.toFixed(2) || 'N/A'}</TableCell>
+              <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>
+                ${pos.pnl.toFixed(2)}
+              </TableCell>
+              <TableCell>{pos.closeDate || 'N/A'}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </TabsContent>
+    
     <TabsContent value="logs">
       <Table>
         <TableHeader>
@@ -104,29 +243,50 @@ const PositionsTabs: React.FC<{
         </TableBody>
       </Table>
     </TabsContent>
-    <TabsContent value="pnl">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Symbol</TableHead>
-            <TableHead>Total P&amp;L</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {pnls.map((pnl, i) => (
-            <TableRow key={i}>
-              <TableCell>{pnl.symbol}</TableCell>
-              <TableCell className={pnl.totalPnl >= 0 ? "text-green-700" : "text-red-600"}>{pnl.totalPnl}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+
+    <TabsContent value="account">
+      {accountInfo && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-gray-600">Buying Power</div>
+              <div className="text-2xl font-bold text-green-600">
+                ${accountInfo.buyingPower.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-gray-600">Cash Balance</div>
+              <div className="text-2xl font-bold">
+                ${accountInfo.cashBalance.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-gray-600">Margin Used</div>
+              <div className="text-2xl font-bold text-orange-600">
+                ${accountInfo.marginUsed.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-gray-600">Day Trading BP</div>
+              <div className="text-2xl font-bold text-blue-600">
+                ${accountInfo.dayTradingBuyingPower.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </TabsContent>
   </Tabs>
 );
 
-// --- Extracted confirmation summary ---
-const OrderSummary: React.FC<{ legs: TradingLeg[] }> = ({ legs }) => (
+// Order Summary component
+const OrderSummary = ({ legs }) => (
   <div>
     <h3 className="font-semibold mb-4">Order Summary</h3>
     <div className="overflow-x-auto">
@@ -158,40 +318,64 @@ const OrderSummary: React.FC<{ legs: TradingLeg[] }> = ({ legs }) => (
   </div>
 );
 
-// --- Existing mock data ---
-const initialLegs: TradingLeg[] = [
+// Initial legs for Iron Condor
+const initialLegs = [
   { strike: "", type: "Call", expiration: "", buySell: "Sell", size: 1, price: "" },
   { strike: "", type: "Call", expiration: "", buySell: "Buy", size: 1, price: "" },
   { strike: "", type: "Put", expiration: "", buySell: "Sell", size: 1, price: "" },
   { strike: "", type: "Put", expiration: "", buySell: "Buy", size: 1, price: "" },
 ];
 
-const openPositions = [
-  { id: 1, strategy: "Iron Condor", symbol: "SPY", contracts: 1, entry: 2.3, mark: 2.7, pnl: +40, status: "Open" },
-];
-const closedPositions = [
-  { id: 2, strategy: "Bull Call Spread", symbol: "AAPL", contracts: 2, entry: 4.5, exit: 5.1, pnl: +120, status: "Closed" },
-];
-const tradingLogs = [
-  { id: 101, time: "2024-06-13 11:00", action: "Opened Iron Condor", details: "SPY 1 contract" }
-];
-const pnls = [
-  { symbol: "SPY", totalPnl: 120 },
-  { symbol: "AAPL", totalPnl: 80 },
-];
-
-// --- Main page component ---
-const TradePositions: React.FC = () => {
-  const [page, setPage] = useState<"strategy" | "builder" | "confirmation">("strategy");
-  const [selectedOption, setSelectedOption] = useState<any>(null);
-  const [legs, setLegs] = useState<TradingLeg[]>(initialLegs);
+// Main TradePositions component with live integration
+const TradePositions = () => {
+  const [page, setPage] = useState("strategy");
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [legs, setLegs] = useState(initialLegs);
   const [tab, setTab] = useState("open");
-  const navigate = useNavigate();
+  const [positions, setPositions] = useState({ open: [], closed: [] });
+  const [tradingLogs, setTradingLogs] = useState([]);
+  const [accountInfo, setAccountInfo] = useState(null);
+  const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false);
+  const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [riskAssessment, setRiskAssessment] = useState(null);
+  const [orderResponse, setOrderResponse] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [priceSocket, setPriceSocket] = useState(null);
+  // Navigation handled with state
 
-  // Handles selection of a contract/row from options chain
-  const handleSelectContract = (contract: ContractRow) => {
+  // Load live data on component mount
+  useEffect(() => {
+    loadLiveData();
+    
+    // Initialize WebSocket for real-time updates
+    const socket = new LivePriceWebSocket();
+    socket.connect();
+    setPriceSocket(socket);
+
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, []);
+
+  const loadLiveData = async () => {
+    try {
+      const [positionsData, accountData] = await Promise.all([
+        fetchLivePositions(),
+        fetchAccountInfo()
+      ]);
+      
+      setPositions(positionsData);
+      setAccountInfo(accountData);
+    } catch (error) {
+      console.error('Failed to load live data:', error);
+    }
+  };
+
+  const handleSelectContract = (contract) => {
     setLegs((prevLegs) => {
-      // Find first incomplete leg (matching type and empty strike)
       const idx = prevLegs.findIndex(
         (leg) =>
           leg.type === contract.type &&
@@ -199,17 +383,69 @@ const TradePositions: React.FC = () => {
           (!leg.expiration || leg.expiration === "")
       );
       if (idx === -1) return prevLegs;
-      // Fill fields from the contract: strike, expiration, price
-      const newLeg: TradingLeg = {
+      
+      const newLeg = {
         ...prevLegs[idx],
-        strike: contract.strike || "",
+        strike: contract.strike?.toString() || "",
         expiration: contract.expiry || "",
-        price: contract.ask?.toString?.() || "",
+        price: contract.ask?.toString() || "",
       };
       const newLegs = [...prevLegs];
       newLegs[idx] = newLeg;
       return newLegs;
     });
+    setIsOptionsModalOpen(false);
+  };
+
+  const handleSubmitTrade = async () => {
+    setLoading(true);
+    
+    try {
+      // First, assess risk
+      const risk = await assessTradeRisk(legs);
+      setRiskAssessment(risk);
+      setIsRiskModalOpen(true);
+    } catch (error) {
+      console.error('Risk assessment failed:', error);
+      alert('Failed to assess trade risk. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmTradeSubmission = async () => {
+    setIsRiskModalOpen(false);
+    setLoading(true);
+
+    try {
+      const orderRequest = {
+        symbol: selectedOption?.symbol || "SPY",
+        strategy: selectedOption?.name || "Custom Strategy",
+        legs: legs,
+        orderType: "limit",
+        timeInForce: "DAY"
+      };
+
+      const response = await submitTradeOrder(orderRequest);
+      setOrderResponse(response);
+      setIsConfirmModalOpen(true);
+      
+      // Reload positions after successful trade
+      if (response.status === 'submitted' || response.status === 'filled') {
+        await loadLiveData();
+      }
+    } catch (error) {
+      console.error('Trade submission failed:', error);
+      setOrderResponse({
+        status: 'rejected',
+        message: 'Trade submission failed. Please try again.',
+        orderId: null,
+        timestamp: new Date().toISOString()
+      });
+      setIsConfirmModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -218,7 +454,7 @@ const TradePositions: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-100 py-8">
         <div className="container mx-auto px-4 sm:px-8">
           <div className="mb-6 flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-2xl font-bold flex items-center gap-2 ml-2">
@@ -226,21 +462,26 @@ const TradePositions: React.FC = () => {
               Trade Positions
             </h1>
           </div>
+
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>
-                Options Trading: {page === "strategy" ? "Select Strategy" : page === "builder" ? "Configure Trade" : "Review Submission"}
+                Options Trading: {
+                  page === "strategy" ? "Select Strategy" : 
+                  page === "builder" ? "Configure Trade" : 
+                  "Review Submission"
+                }
               </CardTitle>
             </CardHeader>
             <CardContent>
               <PositionsTabs
                 tab={tab}
                 setTab={setTab}
-                openPositions={openPositions}
-                closedPositions={closedPositions}
+                positions={positions}
                 tradingLogs={tradingLogs}
-                pnls={pnls}
+                accountInfo={accountInfo}
               />
+
               {page === "strategy" && (
                 <div className="space-y-6">
                   <TradingOptionsSelector
@@ -252,6 +493,7 @@ const TradePositions: React.FC = () => {
                   />
                 </div>
               )}
+
               {page === "builder" && (
                 <div className="space-y-6">
                   <TradingTemplate
@@ -259,10 +501,17 @@ const TradePositions: React.FC = () => {
                     legs={legs}
                     onLegsChange={setLegs}
                   />
-                  <OptionsChainPanel
-                    symbol={selectedOption?.symbol || "SPY"}
-                    onSelectContract={handleSelectContract}
-                  />
+                  
+                  <div className="flex gap-4">
+                    <Button
+                      onClick={() => setIsOptionsModalOpen(true)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Open Live Options Chain
+                    </Button>
+                  </div>
+
                   <div className="flex gap-4 mt-4 justify-end">
                     <Button variant="secondary" onClick={() => setPage("strategy")}>
                       <ArrowLeft className="h-4 w-4 mr-1" /> Back
@@ -273,6 +522,7 @@ const TradePositions: React.FC = () => {
                   </div>
                 </div>
               )}
+
               {page === "confirmation" && (
                 <div className="space-y-8">
                   <OrderSummary legs={legs} />
@@ -280,19 +530,45 @@ const TradePositions: React.FC = () => {
                     <Button variant="secondary" onClick={() => setPage("builder")}>
                       <ArrowLeft className="h-4 w-4 mr-1" /> Edit
                     </Button>
-                    <Button className="bg-blue-600 text-white hover:bg-blue-700 transition-colors" onClick={() => alert("Trade submitted! (Live trading backend integration needed)")}>
-                      Submit Trade
+                    <Button 
+                      className="bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                      onClick={handleSubmitTrade}
+                      disabled={loading}
+                    >
+                      {loading ? 'Processing...' : 'Submit Trade'}
                     </Button>
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
+
           <div className="text-center text-muted-foreground text-xs">
-            * This platform supports multi-leg options strategies, including Iron Condors, Spreads, Straddles, and more. For live trading, connect your broker account in settings.
+            * Live trading integration active. All trades are submitted to your connected broker account.
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <LiveOptionsChainModal
+        isOpen={isOptionsModalOpen}
+        onClose={() => setIsOptionsModalOpen(false)}
+        symbol={selectedOption?.symbol || "SPY"}
+        onSelectContract={handleSelectContract}
+      />
+
+      <RiskAssessmentModal
+        isOpen={isRiskModalOpen}
+        onClose={() => setIsRiskModalOpen(false)}
+        riskData={riskAssessment}
+        onConfirm={confirmTradeSubmission}
+      />
+
+      <TradeConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        orderResponse={orderResponse}
+      />
     </div>
   );
 };
