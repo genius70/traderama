@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import AdminAuth from "./pages/AdminAuth";
 import CreateStrategy from "./pages/CreateStrategy";
+import CopyTradingManager from "./pages/CopyTradingManager";
 import MarketTrends from "./pages/MarketTrends";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import Profile from "./pages/Profile";
@@ -46,6 +47,7 @@ const App: React.FC = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin-auth" element={<AdminAuth />} />
               <Route path="/create-strategy" element={<CreateStrategy />} />
+              <Route path="/copy-trading-manager" element={CopyTradingManager} />
               <Route path="/market-trends" element={<MarketTrends />} />              
               <Route path="/admin" element={<AdminAnalytics />} />
               <Route path="/profile/:userId?" element={<Profile />} />
