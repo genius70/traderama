@@ -42,14 +42,14 @@ const Header = () => {
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
         onClick={onItemClick}
       >
-        Trades |
+        Positions |
       </Link>
      <Link 
         to="/copy-trading" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
         onClick={onItemClick}
       >
-        Copy Trades |
+        Auto Trading |
       </Link>     
      <Link 
         to="/community" 
