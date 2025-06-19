@@ -28,35 +28,35 @@ const Header = () => {
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
         onClick={onItemClick}
       > 
-       Markets|
+       Markets |
     </Link>
     <Link 
         to="/dashboard" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
         onClick={onItemClick}
       >
-        Dashboard|
+        Dashboard |
       </Link>
       <Link 
         to="/trade-positions" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
         onClick={onItemClick}
       >
-        Trades|
+        Trades |
       </Link>
      <Link 
         to="/copy-trading" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
         onClick={onItemClick}
       >
-        Copy Trades|
+        Copy Trades |
       </Link>     
      <Link 
         to="/community" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
         onClick={onItemClick}
       >
-        Community|
+        Community |
       </Link>
       <Link 
         to="/create-strategy" 
