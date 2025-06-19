@@ -47,7 +47,7 @@ const App: React.FC = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin-auth" element={<AdminAuth />} />
               <Route path="/create-strategy" element={<CreateStrategy />} />
-              <Route path="/copy-trading-manager" element={CopyTradingManager} />
+              <Route path="/copy-trading-manager" element={<CopyTradingManager />} />
               <Route path="/market-trends" element={<MarketTrends />} />              
               <Route path="/admin" element={<AdminAnalytics />} />
               <Route path="/profile/:userId?" element={<Profile />} />
