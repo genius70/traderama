@@ -189,7 +189,7 @@ const Index = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/trade-positions">
+              <Link to="/auth">
                 <Button size="lg" className="w-full sm:w-auto px-8 py-4 text-lg bg-blue-600 hover:bg-red-600 text-white transition-all duration-300">
                   Start Trading Now
                   <ArrowRight className="h-5 w-5 ml-2" />
