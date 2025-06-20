@@ -73,7 +73,7 @@ const RiskAssessmentModal = ({ isOpen, onClose, riskData, onConfirm }) => {
               </div>
             </div>
 
-            {riskData.warnings.length > 0 && (
+            {riskData.warnings && riskData.warnings.length > 0 && (
               <div>
                 <label className="text-sm font-medium text-gray-600">Warnings</label>
                 <ul className="text-sm text-red-600 mt-1">
@@ -153,7 +153,7 @@ const TableCell = ({ children, className = "" }) => (
   <td className={`p-3 ${className}`}>{children}</td>
 );
 
-// Updated PositionsTabs with live data
+// Updated PositionsTabs with live data and proper null checks
 const PositionsTabs = ({ tab, setTab, positions, tradingLogs, accountInfo }) => (
   <Tabs value={tab} onValueChange={setTab} className="mb-8">
     <TabsList className="mb-4 w-full flex flex-wrap">
@@ -177,19 +177,27 @@ const PositionsTabs = ({ tab, setTab, positions, tradingLogs, accountInfo }) => 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {positions.open.map(pos => (
-            <TableRow key={pos.id}>
-              <TableCell>{pos.strategy}</TableCell>
-              <TableCell>{pos.symbol}</TableCell>
-              <TableCell>{pos.contracts}</TableCell>
-              <TableCell>${pos.entry.toFixed(2)}</TableCell>
-              <TableCell>${pos.mark.toFixed(2)}</TableCell>
-              <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>
-                ${pos.pnl.toFixed(2)}
+          {positions?.open?.length > 0 ? (
+            positions.open.map(pos => (
+              <TableRow key={pos.id}>
+                <TableCell>{pos.strategy}</TableCell>
+                <TableCell>{pos.symbol}</TableCell>
+                <TableCell>{pos.contracts}</TableCell>
+                <TableCell>${pos.entry?.toFixed(2) || '0.00'}</TableCell>
+                <TableCell>${pos.mark?.toFixed(2) || '0.00'}</TableCell>
+                <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>
+                  ${pos.pnl?.toFixed(2) || '0.00'}
+                </TableCell>
+                <TableCell>{pos.status}</TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                No open positions
               </TableCell>
-              <TableCell>{pos.status}</TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
     </TabsContent>
@@ -207,18 +215,26 @@ const PositionsTabs = ({ tab, setTab, positions, tradingLogs, accountInfo }) => 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {positions.closed.map(pos => (
-            <TableRow key={pos.id}>
-              <TableCell>{pos.strategy}</TableCell>
-              <TableCell>{pos.symbol}</TableCell>
-              <TableCell>${pos.entry.toFixed(2)}</TableCell>
-              <TableCell>${pos.exit?.toFixed(2) || 'N/A'}</TableCell>
-              <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>
-                ${pos.pnl.toFixed(2)}
+          {positions?.closed?.length > 0 ? (
+            positions.closed.map(pos => (
+              <TableRow key={pos.id}>
+                <TableCell>{pos.strategy}</TableCell>
+                <TableCell>{pos.symbol}</TableCell>
+                <TableCell>${pos.entry?.toFixed(2) || '0.00'}</TableCell>
+                <TableCell>${pos.exit?.toFixed(2) || 'N/A'}</TableCell>
+                <TableCell className={pos.pnl >= 0 ? "text-green-700" : "text-red-600"}>
+                  ${pos.pnl?.toFixed(2) || '0.00'}
+                </TableCell>
+                <TableCell>{pos.closeDate || 'N/A'}</TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                No closed positions
               </TableCell>
-              <TableCell>{pos.closeDate || 'N/A'}</TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
     </TabsContent>
@@ -233,25 +249,33 @@ const PositionsTabs = ({ tab, setTab, positions, tradingLogs, accountInfo }) => 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {tradingLogs.map(log => (
-            <TableRow key={log.id}>
-              <TableCell>{log.time}</TableCell>
-              <TableCell>{log.action}</TableCell>
-              <TableCell>{log.details}</TableCell>
+          {tradingLogs?.length > 0 ? (
+            tradingLogs.map(log => (
+              <TableRow key={log.id}>
+                <TableCell>{log.time}</TableCell>
+                <TableCell>{log.action}</TableCell>
+                <TableCell>{log.details}</TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={3} className="text-center text-gray-500 py-8">
+                No trading logs available
+              </TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
     </TabsContent>
 
     <TabsContent value="account">
-      {accountInfo && (
+      {accountInfo ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-gray-600">Buying Power</div>
               <div className="text-2xl font-bold text-green-600">
-                ${accountInfo.buyingPower.toLocaleString()}
+                ${accountInfo.buyingPower?.toLocaleString() || '0'}
               </div>
             </CardContent>
           </Card>
@@ -259,7 +283,7 @@ const PositionsTabs = ({ tab, setTab, positions, tradingLogs, accountInfo }) => 
             <CardContent className="p-4">
               <div className="text-sm text-gray-600">Cash Balance</div>
               <div className="text-2xl font-bold">
-                ${accountInfo.cashBalance.toLocaleString()}
+                ${accountInfo.cashBalance?.toLocaleString() || '0'}
               </div>
             </CardContent>
           </Card>
@@ -267,7 +291,7 @@ const PositionsTabs = ({ tab, setTab, positions, tradingLogs, accountInfo }) => 
             <CardContent className="p-4">
               <div className="text-sm text-gray-600">Margin Used</div>
               <div className="text-2xl font-bold text-orange-600">
-                ${accountInfo.marginUsed.toLocaleString()}
+                ${accountInfo.marginUsed?.toLocaleString() || '0'}
               </div>
             </CardContent>
           </Card>
@@ -275,17 +299,21 @@ const PositionsTabs = ({ tab, setTab, positions, tradingLogs, accountInfo }) => 
             <CardContent className="p-4">
               <div className="text-sm text-gray-600">Day Trading BP</div>
               <div className="text-2xl font-bold text-blue-600">
-                ${accountInfo.dayTradingBuyingPower.toLocaleString()}
+                ${accountInfo.dayTradingBuyingPower?.toLocaleString() || '0'}
               </div>
             </CardContent>
           </Card>
+        </div>
+      ) : (
+        <div className="text-center text-gray-500 py-8">
+          Loading account information...
         </div>
       )}
     </TabsContent>
   </Tabs>
 );
 
-// Order Summary component
+// Order Summary component with null checks
 const OrderSummary = ({ legs }) => (
   <div>
     <h3 className="font-semibold mb-4">Order Summary</h3>
@@ -302,14 +330,14 @@ const OrderSummary = ({ legs }) => (
           </tr>
         </thead>
         <tbody>
-          {legs.map((leg, i) => (
+          {(legs || []).map((leg, i) => (
             <tr key={i}>
-              <td className="p-2">{leg.strike}</td>
-              <td className="p-2">{leg.type}</td>
-              <td className="p-2">{leg.expiration}</td>
-              <td className="p-2">{leg.buySell}</td>
-              <td className="p-2">{leg.size}</td>
-              <td className="p-2">{leg.price}</td>
+              <td className="p-2">{leg.strike || 'N/A'}</td>
+              <td className="p-2">{leg.type || 'N/A'}</td>
+              <td className="p-2">{leg.expiration || 'N/A'}</td>
+              <td className="p-2">{leg.buySell || 'N/A'}</td>
+              <td className="p-2">{leg.size || 'N/A'}</td>
+              <td className="p-2">{leg.price || 'N/A'}</td>
             </tr>
           ))}
         </tbody>
@@ -332,7 +360,9 @@ const TradePositions = () => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [legs, setLegs] = useState(initialLegs);
   const [tab, setTab] = useState("open");
+  // Initialize positions with empty arrays to prevent undefined errors
   const [positions, setPositions] = useState({ open: [], closed: [] });
+  // Initialize tradingLogs as empty array
   const [tradingLogs, setTradingLogs] = useState([]);
   const [accountInfo, setAccountInfo] = useState(null);
   const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false);
@@ -367,10 +397,17 @@ const TradePositions = () => {
         fetchAccountInfo()
       ]);
       
-      setPositions(positionsData);
+      // Ensure positions data has the correct structure with fallbacks
+      setPositions({
+        open: positionsData?.open || [],
+        closed: positionsData?.closed || []
+      });
       setAccountInfo(accountData);
     } catch (error) {
       console.error('Failed to load live data:', error);
+      // Set fallback data on error
+      setPositions({ open: [], closed: [] });
+      setTradingLogs([]);
     }
   };
 
@@ -487,7 +524,7 @@ const TradePositions = () => {
                   <TradingOptionsSelector
                     onSelectOption={(option) => {
                       setSelectedOption(option);
-                      setLegs(option.template.legs);
+                      setLegs(option.template?.legs || initialLegs);
                       setPage("builder");
                     }}
                   />
