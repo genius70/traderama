@@ -4,9 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, User } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from "lucide-react";
@@ -21,16 +21,20 @@ const Auth = () => {
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const { user, signIn, signUp } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Allow Dev account to access /auth even when logged in
-  if (user && user.email !== "dev@traderama.com") {
-    return <Navigate to="/" replace />;
+  // Redirect authenticated users to dashboard
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await signIn(email, password);
+    const success = await signIn(email, password);
+    if (success) {
+      navigate('/dashboard');
+    }
     setLoading(false);
   };
 
@@ -83,6 +87,9 @@ const Auth = () => {
         title: "Account created successfully!",
         description: "Please check your email for verification.",
       });
+
+      // Redirect to homepage after successful signup
+      navigate('/');
     }
     
     setLoading(false);
@@ -112,12 +119,6 @@ const Auth = () => {
     setLoading(false);
   };
 
-  const useDefaultCredentials = () => {
-    setEmail('user@traderama.com');
-    setPassword('password123');
-    setUsername('demouser');
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <Card className="w-full max-w-md">
@@ -132,20 +133,6 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Default Credentials Section */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-semibold mb-3 text-gray-700">Demo Account (Development)</h3>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full justify-start"
-              onClick={useDefaultCredentials}
-            >
-              <User className="h-4 w-4 mr-2" />
-              Demo User Account
-            </Button>
-          </div>
-
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -234,12 +221,6 @@ const Auth = () => {
                       {showSignupPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                </div>
-                {/* h-captcha (present but does NOT block sign up while not verified) */}
-                <div className="space-y-2">
-                  <Label>Security Verification</Label>
-                  <div className="h-captcha" data-sitekey="cd5ee2c2-9292-4ed8-b254-f990bb0aff82"></div>
-                  {/* Actual verification skipped for now */}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Creating Account...' : 'Create Account'}
