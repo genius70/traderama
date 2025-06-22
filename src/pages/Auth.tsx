@@ -19,6 +19,7 @@ const Auth = () => {
   const [resetEmail, setResetEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { user, signIn, signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -66,7 +67,7 @@ const Auth = () => {
         data: {
           username: username,
         },
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: 'https://qyadjaahgiqkohvucfmg.supabase.co/auth/v1/callback',
       }
     });
 
@@ -100,7 +101,7 @@ const Auth = () => {
     setLoading(true);
     
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/`,
+      redirectTo: 'https://qyadjaahgiqkohvucfmg.supabase.co/auth/v1/callback',
     });
     
     if (error) {
@@ -119,6 +120,112 @@ const Auth = () => {
     setLoading(false);
   };
 
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'https://qyadjaahgiqkohvucfmg.supabase.co/auth/v1/callback'
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign in with Google",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleLinkGoogleAccount = async () => {
+    setGoogleLoading(true);
+    try {
+      const { data, error } = await supabase.auth.linkIdentity({ provider: 'google' });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Google account linked successfully",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to link Google account",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleUnlinkGoogleAccount = async () => {
+    setGoogleLoading(true);
+    try {
+      // retrieve all identities linked to a user
+      const { data: identities, error: identitiesError } = await supabase.auth.getUserIdentities();
+      
+      if (!identitiesError) {
+        // find the google identity linked to the user
+        const googleIdentity = identities.identities.find((identity) => identity.provider === 'google');
+        
+        if (googleIdentity) {
+          // unlink the google identity from the user
+          const { data, error } = await supabase.auth.unlinkIdentity(googleIdentity);
+          
+          if (error) {
+            toast({
+              title: "Error",
+              description: error.message,
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Success",
+              description: "Google account unlinked successfully",
+            });
+          }
+        } else {
+          toast({
+            title: "Info",
+            description: "No Google account linked to unlink",
+          });
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: identitiesError.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to unlink Google account",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <Card className="w-full max-w-md">
@@ -134,10 +241,11 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
               <TabsTrigger value="forgot">Forgot Password</TabsTrigger>
+              <TabsTrigger value="oauth">OAuth</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
@@ -175,6 +283,23 @@ const Auth = () => {
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Signing In...' : 'Sign In'}
+                </Button>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleGoogleSignIn}
+                  disabled={googleLoading}
+                >
+                  {googleLoading ? 'Signing in with Google...' : 'Sign in with Google'}
                 </Button>
               </form>
             </TabsContent>
@@ -225,6 +350,23 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Creating Account...' : 'Create Account'}
                 </Button>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleGoogleSignIn}
+                  disabled={googleLoading}
+                >
+                  {googleLoading ? 'Signing up with Google...' : 'Sign up with Google'}
+                </Button>
               </form>
             </TabsContent>
 
@@ -245,6 +387,32 @@ const Auth = () => {
                   {loading ? 'Sending...' : 'Send Reset Email'}
                 </Button>
               </form>
+            </TabsContent>
+
+            <TabsContent value="oauth">
+              <div className="space-y-4">
+                <div className="text-center text-sm text-gray-600 mb-4">
+                  Manage your connected accounts
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleLinkGoogleAccount}
+                  disabled={googleLoading}
+                >
+                  {googleLoading ? 'Linking...' : 'Link Google Account'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleUnlinkGoogleAccount}
+                  disabled={googleLoading}
+                >
+                  {googleLoading ? 'Unlinking...' : 'Unlink Google Account'}
+                </Button>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>
