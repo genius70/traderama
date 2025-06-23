@@ -250,8 +250,8 @@ const CopyTrading: React.FC = () => {
   };
 
   return (
-     <Header /> 
     <div className="min-h-screen bg-gray-900 text-white p-6">
+   <Header />     
     <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
