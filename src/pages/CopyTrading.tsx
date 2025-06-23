@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Play, Pause, Settings, TrendingUp, TrendingDown, DollarSign, AlertTriangle, CheckCircle, XCircle, Activity, Bell, BarChart3, RefreshCw } from 'lucide-react';
+import Header from "@/components/layout/Header";
 
 // Types matching the copyTradingEngine.ts
 interface TradingViewAlert {
@@ -250,7 +251,8 @@ const CopyTrading: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
-      <div className="max-w-7xl mx-auto">
+    <Header /> 
+       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
