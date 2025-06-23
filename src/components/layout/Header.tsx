@@ -21,55 +21,55 @@ const Header = () => {
   const isAdmin = user?.email === 'royan.shaw@gmail.com';
 
   const NavigationItems = ({ mobile = false, onItemClick = () => {} }) => (
-    <div className={`${mobile ? 'flex flex-col space-y-4' : 'hidden lg:flex items-center'}`}>
+    <div className={`${mobile ? 'flex flex-col space-y-4' : 'hidden xl:flex items-center justify-center space-x-1 min-w-0 flex-1'}`}>
       <Link 
         to="/market-trends" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-3 py-2 rounded-md hover:bg-gray-50"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       > 
         Markets
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
       
       <Link 
         to="/dashboard" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-3 py-2 rounded-md hover:bg-gray-50"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Dashboard
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
       
       <Link 
         to="/trade-positions" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-3 py-2 rounded-md hover:bg-gray-50"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Positions
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
       
       <Link 
         to="/copy-trading" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-3 py-2 rounded-md hover:bg-gray-50"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Auto Trading
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
       
       <Link 
         to="/community" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-3 py-2 rounded-md hover:bg-gray-50"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Community
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
       
       <Link 
         to="/create-strategy" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-3 py-2 rounded-md hover:bg-gray-50"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Create Strategy
@@ -77,10 +77,10 @@ const Header = () => {
       
       {isAdmin && (
         <>
-          <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300'}`} />
+          <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
           <Link 
             to="/admin" 
-            className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-3 py-2 rounded-md hover:bg-gray-50"
+            className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
             onClick={onItemClick}
           >
             Analytics
@@ -93,7 +93,7 @@ const Header = () => {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 min-w-0">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 flex-shrink-0">
             <TrendingUp className="h-8 w-8 text-blue-600" />
@@ -101,9 +101,9 @@ const Header = () => {
             <span className="text-lg font-bold text-gray-900 sm:hidden">TR</span>
           </Link>
 
-          {/* Desktop Navigation - Hidden on mobile/tablet */}
+          {/* Desktop Navigation - Flexible and responsive */}
           {user && (
-            <div className="flex-1 flex justify-center max-w-2xl mx-8">
+            <div className="flex-1 flex justify-center px-4 xl:px-8 min-w-0 overflow-hidden">
               <NavigationItems />
             </div>
           )}
@@ -115,7 +115,7 @@ const Header = () => {
                 {/* Mobile/Tablet Menu Button */}
                 <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="lg:hidden">
+                    <Button variant="ghost" size="icon" className="xl:hidden">
                       <Menu className="h-6 w-6" />
                     </Button>
                   </SheetTrigger>
@@ -186,7 +186,7 @@ const Header = () => {
                 {/* Desktop User Menu - Hidden on mobile/tablet */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full hidden lg:flex">
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full hidden xl:flex">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                           {user?.email?.[0]?.toUpperCase() || 'U'}
