@@ -175,55 +175,75 @@ const Auth = () => {
       setGoogleLoading(false);
     }
   };
+const handleUnlinkGoogleAccount = async () => {
+  // Check if user is authenticated
+  if (!user) {
+    toast({
+      title: "Error",
+      description: "You must be logged in to unlink accounts",
+      variant: "destructive",
+    });
+    return;
+  }
 
-  const handleUnlinkGoogleAccount = async () => {
-    setGoogleLoading(true);
-    try {
-      // retrieve all identities linked to a user
-      const { data: identities, error: identitiesError } = await supabase.auth.getUserIdentities();
+  setGoogleLoading(true);
+  try {
+    // Check for active session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        title: "Error",
+        description: "No active session found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // retrieve all identities linked to a user
+    const { data: identities, error: identitiesError } = await supabase.auth.getUserIdentities();
+    
+    if (!identitiesError) {
+      // find the google identity linked to the user
+      const googleIdentity = identities.identities.find((identity) => identity.provider === 'google');
       
-      if (!identitiesError) {
-        // find the google identity linked to the user
-        const googleIdentity = identities.identities.find((identity) => identity.provider === 'google');
+      if (googleIdentity) {
+        // unlink the google identity from the user
+        const { data, error } = await supabase.auth.unlinkIdentity(googleIdentity);
         
-        if (googleIdentity) {
-          // unlink the google identity from the user
-          const { data, error } = await supabase.auth.unlinkIdentity(googleIdentity);
-          
-          if (error) {
-            toast({
-              title: "Error",
-              description: error.message,
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Success",
-              description: "Google account unlinked successfully",
-            });
-          }
+        if (error) {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
         } else {
           toast({
-            title: "Info",
-            description: "No Google account linked to unlink",
+            title: "Success",
+            description: "Google account unlinked successfully",
           });
         }
       } else {
         toast({
-          title: "Error",
-          description: identitiesError.message,
-          variant: "destructive",
+          title: "Info",
+          description: "No Google account linked to unlink",
         });
       }
-    } catch (error) {
+    } else {
       toast({
         title: "Error",
-        description: "Failed to unlink Google account",
+        description: identitiesError.message,
         variant: "destructive",
       });
-    } finally {
-      setGoogleLoading(false);
     }
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: "Failed to unlink Google account",
+      variant: "destructive",
+    });
+  } finally {
+    setGoogleLoading(false);
+  }  
   };
 
   return (
@@ -388,32 +408,39 @@ const Auth = () => {
                 </Button>
               </form>
             </TabsContent>
-
-            <TabsContent value="oauth">
-              <div className="space-y-4">
-                <div className="text-center text-sm text-gray-600 mb-4">
-                  Manage your connected accounts
-                </div>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={handleLinkGoogleAccount}
-                  disabled={googleLoading}
-                >
-                  {googleLoading ? 'Linking...' : 'Link Google Account'}
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={handleUnlinkGoogleAccount}
-                  disabled={googleLoading}
-                >
-                  {googleLoading ? 'Unlinking...' : 'Unlink Google Account'}
-                </Button>
-              </div>
-            </TabsContent>
+             <TabsContent value="oauth">
+  <div className="space-y-4">
+    {user ? (
+      <>
+        <div className="text-center text-sm text-gray-600 mb-4">
+          Manage your connected accounts
+        </div>
+        <Button 
+          type="button" 
+          variant="outline" 
+          className="w-full" 
+          onClick={handleLinkGoogleAccount}
+          disabled={googleLoading}
+        >
+          {googleLoading ? 'Linking...' : 'Link Google Account'}
+        </Button>
+        <Button 
+          type="button" 
+          variant="outline" 
+          className="w-full" 
+          onClick={handleUnlinkGoogleAccount}
+          disabled={googleLoading}
+        >
+          {googleLoading ? 'Unlinking...' : 'Unlink Google Account'}
+        </Button>
+      </>
+    ) : (
+      <div className="text-center text-sm text-gray-600">
+        Please sign in to manage your connected accounts
+      </div>
+    )}
+  </div>
+</TabsContent>            
           </Tabs>
         </CardContent>
       </Card>
