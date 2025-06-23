@@ -250,10 +250,8 @@ const CopyTrading: React.FC = () => {
   };
 
   return (
- <div className="min-h-screen bg-gray-50">     
      <Header /> 
-    </div>    
- <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="min-h-screen bg-gray-900 text-white p-6">
     <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -268,7 +266,7 @@ const CopyTrading: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 mt-10">
             <button
               onClick={() => setShowSettings(!showSettings)}
               className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
