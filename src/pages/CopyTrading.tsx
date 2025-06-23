@@ -250,10 +250,10 @@ const CopyTrading: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-   <Header />     
-    <div className="max-w-7xl mx-auto">
-        {/* Header */}
+   <div className="min-h-screen bg-gray-50"><Header />
+     <div className="min-h-screen bg-gray-900 text-white p-6">
+       <div className="max-w-7xl mx-auto">
+          {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
@@ -264,7 +264,7 @@ const CopyTrading: React.FC = () => {
               <div className={`w-3 h-3 rounded-full ${getConnectionStatusColor()}`}></div>
               <span className="text-sm text-gray-400 capitalize">{connectionStatus}</span>
             </div>
-          </div>
+          </div></div>
           
           <div className="flex items-center space-x-4 mt-10">
             <button
