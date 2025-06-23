@@ -264,7 +264,7 @@ const CopyTrading: React.FC = () => {
               <div className={`w-3 h-3 rounded-full ${getConnectionStatusColor()}`}></div>
               <span className="text-sm text-gray-400 capitalize">{connectionStatus}</span>
             </div>
-          </div></div>
+          </div>
           
           <div className="flex items-center space-x-4 mt-10">
             <button
@@ -287,7 +287,7 @@ const CopyTrading: React.FC = () => {
             </button>
           </div>
         </div>
-
+</div>
         {/* Portfolio Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-gray-800 p-6 rounded-xl">
