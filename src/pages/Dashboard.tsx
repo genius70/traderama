@@ -32,11 +32,11 @@ const Dashboard = () => {
   const isPremiumUser = false; // This would be fetched from user profile
 
   const handleIGSignup = () => {
-    window.open('https://www.tradingview.com/?aff_id=154029', '_blank');
-  };
+    window.open('https://refer.ig.com/royanuriens-3', '_blank');  };
 
  const tradViewSignup = () => {
-    window.open('https://refer.ig.com/royanuriens-3', '_blank');
+    window.open('https://www.tradingview.com/?aff_id=154029', '_blank');    
+    
   };
 
   const handleConnectBroker = () => {
@@ -77,11 +77,11 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <Link to="/create-strategy">
-                <Button className="w-full">Get Started</Button>
+                <Button className="w-full bg-blue-600 border-red-800 text-white hover:bg-red-600 transition-colors mt-5">Get Started</Button>
               </Link>
              <Button
                 onClick={tradViewSignup}
-                className="w-full bg-red-600 border-red-800 text-white hover:bg-blue-600 transition-colors"
+                className="w-full bg-red-600 border-red-800 text-white hover:bg-blue-600 transition-colors mt-5"
                 type="button"> Join TradingView
              </Button>           
            </CardContent>
