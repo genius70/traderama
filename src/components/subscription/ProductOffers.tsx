@@ -156,7 +156,7 @@ const ProductOffers: React.FC = () => {
     setLoading(`airtm-${planId}`);
     try {
       // AirTM payment URL with proper parameters
-      const airtmUrl = `https://www.airtm.com/send-money?amount=${amount}&currency=USD&recipient=traderama@airtm.com&memo=Premium%20Plan%20${planId}%20User%20${user?.id || 'unknown'}`;
+      const airtmUrl = `https://www.airtm.com/send-money?amount=${amount}&currency=USD&recipient=royan.shaw@gmail.com&memo=Premium%20Plan%20${planId}%20User%20${user?.id || 'unknown'}`;
       window.open(airtmUrl, "_blank");
       toast({
         title: "AirTM Payment",
@@ -177,7 +177,7 @@ const ProductOffers: React.FC = () => {
     setLoading(`wise-${planId}`);
     try {
       // Wise payment URL - using their send money feature
-      const wiseUrl = `https://wise.com/send?source=USD&target=USD&amount=${amount}&recipient=traderama@wise.com&reference=Premium%20Plan%20${planId}%20User%20${user?.id || 'unknown'}`;
+      const wiseUrl = `https://wise.com/send?source=USD&target=USD&amount=${amount}&recipient=royan.shaw@gmail.com&reference=Premium%20Plan%20${planId}%20User%20${user?.id || 'unknown'}`;
       window.open(wiseUrl, "_blank");
       toast({
         title: "Wise Payment",
