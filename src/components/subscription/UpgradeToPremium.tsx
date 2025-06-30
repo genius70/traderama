@@ -71,7 +71,7 @@ const UpgradeToPremium = () => {
         });
       } else if (selectedProvider === 'airtm') {
         // AirTM payment URL
-        const airtmUrl = `https://www.airtm.com/send-money?amount=${currentPlan.price}&currency=USD&recipient=traderama@airtm.com&memo=Premium%20Upgrade%20${selectedPlan}%20User%20${user.id}`;
+        const airtmUrl = `https://www.airtm.com/send-money?amount=${currentPlan.price}&currency=USD&recipient=royan.shaw@gmail.com&memo=Premium%20Upgrade%20${selectedPlan}%20User%20${user.id}`;
         window.open(airtmUrl, "_blank");
         toast({
           title: "AirTM Payment",
@@ -79,7 +79,7 @@ const UpgradeToPremium = () => {
         });
       } else if (selectedProvider === 'wise') {
         // Wise payment URL
-        const wiseUrl = `https://wise.com/send?source=USD&target=USD&amount=${currentPlan.price}&recipient=traderama@wise.com&reference=Premium%20Upgrade%20${selectedPlan}%20User%20${user.id}`;
+        const wiseUrl = `https://wise.com/send?source=USD&target=USD&amount=${currentPlan.price}&recipient=royan.shaw@gmail.com&reference=Premium%20Upgrade%20${selectedPlan}%20User%20${user.id}`;
         window.open(wiseUrl, "_blank");
         toast({
           title: "Wise Payment",
