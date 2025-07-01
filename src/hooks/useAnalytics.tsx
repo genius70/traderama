@@ -60,10 +60,18 @@ export const useAnalytics = () => {
       // End session on page unload
       const handleBeforeUnload = () => {
         if (sessionIdRef.current) {
-          navigator.sendBeacon(
-            `${supabase.supabaseUrl}/rest/v1/rpc/end_user_session`,
-            JSON.stringify({ p_session_id: sessionIdRef.current })
-          );
+          // Use fetch instead of navigator.sendBeacon with full URL
+          fetch('/rest/v1/rpc/end_user_session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ p_session_id: sessionIdRef.current }),
+            keepalive: true
+          }).catch(() => {
+            // Fallback - try to update session directly
+            supabase.rpc('end_user_session', { p_session_id: sessionIdRef.current });
+          });
         }
       };
 
