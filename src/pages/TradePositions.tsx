@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,8 +9,6 @@ import OptionsChainPanel from "@/components/trading/OptionsChainPanel";
 import LiveOptionsChainModal from "@/utils/LiveOptionsChainModal";
 import { TrendingUp, ArrowLeft, ArrowRight, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-// Table components will be implemented inline
-// Navigation will be handled with state
 import Header from "@/components/layout/Header";
 import type { TradingLeg, ContractRow } from "@/components/trading/types";
 
@@ -19,7 +18,6 @@ import {
   submitTradeOrder,
   fetchAccountInfo,
   assessTradeRisk,
-  fetchLiveOptionsChain,
   LivePriceWebSocket,
   type LivePosition,
   type TradeOrderRequest,
@@ -59,8 +57,8 @@ const RiskAssessmentModal = ({ isOpen, onClose, riskData, onConfirm }) => {
             <div>
               <label className="text-sm font-medium text-gray-600">Risk Level</label>
               <div className={`text-lg font-semibold ${
-                riskData.riskLevel === 'High' ? 'text-red-600' :
-                riskData.riskLevel === 'Medium' ? 'text-yellow-600' : 'text-green-600'
+                riskData.riskLevel === 'high' ? 'text-red-600' :
+                riskData.riskLevel === 'medium' ? 'text-yellow-600' : 'text-green-600'
               }`}>
                 {riskData.riskLevel}
               </div>
@@ -149,8 +147,8 @@ const TableHead = ({ children, className = "" }) => (
 const TableRow = ({ children, className = "" }) => (
   <tr className={`border-b hover:bg-gray-50 ${className}`}>{children}</tr>
 );
-const TableCell = ({ children, className = "" }) => (
-  <td className={`p-3 ${className}`}>{children}</td>
+const TableCell = ({ children, className = "", colSpan = 1 }) => (
+  <td className={`p-3 ${className}`} colSpan={colSpan}>{children}</td>
 );
 
 // Updated PositionsTabs with live data and proper null checks
@@ -360,9 +358,7 @@ const TradePositions = () => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [legs, setLegs] = useState(initialLegs);
   const [tab, setTab] = useState("open");
-  // Initialize positions with empty arrays to prevent undefined errors
   const [positions, setPositions] = useState({ open: [], closed: [] });
-  // Initialize tradingLogs as empty array
   const [tradingLogs, setTradingLogs] = useState([]);
   const [accountInfo, setAccountInfo] = useState(null);
   const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false);
@@ -372,7 +368,6 @@ const TradePositions = () => {
   const [orderResponse, setOrderResponse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [priceSocket, setPriceSocket] = useState(null);
-  // Navigation handled with state
 
   // Load live data on component mount
   useEffect(() => {
@@ -397,15 +392,10 @@ const TradePositions = () => {
         fetchAccountInfo()
       ]);
       
-      // Ensure positions data has the correct structure with fallbacks
-      setPositions({
-        open: positionsData?.open || [],
-        closed: positionsData?.closed || []
-      });
+      setPositions(positionsData);
       setAccountInfo(accountData);
     } catch (error) {
       console.error('Failed to load live data:', error);
-      // Set fallback data on error
       setPositions({ open: [], closed: [] });
       setTradingLogs([]);
     }
@@ -438,7 +428,6 @@ const TradePositions = () => {
     setLoading(true);
     
     try {
-      // First, assess risk
       const risk = await assessTradeRisk(legs);
       setRiskAssessment(risk);
       setIsRiskModalOpen(true);
@@ -455,28 +444,26 @@ const TradePositions = () => {
     setLoading(true);
 
     try {
-      const orderRequest = {
+      const orderRequest: TradeOrderRequest = {
         symbol: selectedOption?.symbol || "SPY",
-        strategy: selectedOption?.name || "Custom Strategy",
-        legs: legs,
-        orderType: "limit",
-        timeInForce: "DAY"
+        side: "buy",
+        quantity: legs[0]?.size || 1,
+        orderType: "limit"
       };
 
       const response = await submitTradeOrder(orderRequest);
       setOrderResponse(response);
       setIsConfirmModalOpen(true);
       
-      // Reload positions after successful trade
       if (response.status === 'submitted' || response.status === 'filled') {
         await loadLiveData();
       }
     } catch (error) {
       console.error('Trade submission failed:', error);
       setOrderResponse({
+        success: false,
         status: 'rejected',
         message: 'Trade submission failed. Please try again.',
-        orderId: null,
         timestamp: new Date().toISOString()
       });
       setIsConfirmModalOpen(true);
@@ -535,7 +522,7 @@ const TradePositions = () => {
                 <div className="space-y-6">
                   <TradingTemplate
                     strategyName={selectedOption?.name || "Strategy"}
-                    legs={legs}
+                    legs={legs as TradingLeg[]}
                     onLegsChange={setLegs}
                   />
                   
