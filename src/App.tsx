@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -5,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
@@ -40,27 +42,29 @@ const App: React.FC = () => {
         <Toaster />
         <Sonner />
         <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/admin-auth" element={<AdminAuth />} />
-              <Route path="/create-strategy" element={<CreateStrategy />} />
-              <Route path="/auto-trading" element={<AutoTrading />} />
-              <Route path="/market-trends" element={<MarketTrends />} />              
-              <Route path="/admin" element={<AdminAnalytics />} />
-              <Route path="/profile/:userId?" element={<Profile />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/community" element={<Community />} />
-              <Route path="/airdrop" element={<AirdropPage />} />
-              <Route path="/product-offers" element={<ProductOffers />} />
-              <Route path="/trade-positions" element={<TradePositions />} />
-              <Route path="/success" element={<PaymentSuccess />} />
-              <Route path="/cancel" element={<PaymentCancel />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <AnalyticsProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/admin-auth" element={<AdminAuth />} />
+                <Route path="/create-strategy" element={<CreateStrategy />} />
+                <Route path="/auto-trading" element={<AutoTrading />} />
+                <Route path="/market-trends" element={<MarketTrends />} />              
+                <Route path="/admin" element={<AdminAnalytics />} />
+                <Route path="/profile/:userId?" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/community" element={<Community />} />
+                <Route path="/airdrop" element={<AirdropPage />} />
+                <Route path="/product-offers" element={<ProductOffers />} />
+                <Route path="/trade-positions" element={<TradePositions />} />
+                <Route path="/success" element={<PaymentSuccess />} />
+                <Route path="/cancel" element={<PaymentCancel />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </AnalyticsProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

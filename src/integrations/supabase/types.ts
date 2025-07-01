@@ -112,6 +112,56 @@ export type Database = {
           },
         ]
       }
+      error_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string
+          error_stack: string | null
+          error_type: string
+          id: string
+          page_path: string | null
+          resolved: boolean | null
+          session_id: string | null
+          timestamp: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message: string
+          error_stack?: string | null
+          error_type: string
+          id?: string
+          page_path?: string | null
+          resolved?: boolean | null
+          session_id?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string
+          error_stack?: string | null
+          error_type?: string
+          id?: string
+          page_path?: string | null
+          resolved?: boolean | null
+          session_id?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       escrow_accounts: {
         Row: {
           account_number: string
@@ -143,6 +193,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "escrow_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_usage: {
+        Row: {
+          created_at: string | null
+          feature_name: string
+          first_used_at: string | null
+          id: string
+          last_used_at: string | null
+          success_rate: number | null
+          total_time_spent: number | null
+          updated_at: string | null
+          usage_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          feature_name: string
+          first_used_at?: string | null
+          id?: string
+          last_used_at?: string | null
+          success_rate?: number | null
+          total_time_spent?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          feature_name?: string
+          first_used_at?: string | null
+          id?: string
+          last_used_at?: string | null
+          success_rate?: number | null
+          total_time_spent?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_usage_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -545,48 +642,125 @@ export type Database = {
           },
         ]
       }
+      page_views: {
+        Row: {
+          browser_type: string | null
+          created_at: string | null
+          device_type: string | null
+          duration_seconds: number | null
+          id: string
+          ip_address: unknown | null
+          page_path: string
+          page_title: string | null
+          referrer_url: string | null
+          session_id: string | null
+          timestamp: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          browser_type?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_seconds?: number | null
+          id?: string
+          ip_address?: unknown | null
+          page_path: string
+          page_title?: string | null
+          referrer_url?: string | null
+          session_id?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          browser_type?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_seconds?: number | null
+          id?: string
+          ip_address?: unknown | null
+          page_path?: string
+          page_title?: string | null
+          referrer_url?: string | null
+          session_id?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_analytics: {
         Row: {
           active_users: number | null
+          avg_session_duration: number | null
+          bounce_rate: number | null
+          conversion_rate: number | null
           created_at: string | null
           date: string
+          error_rate: number | null
+          feature_adoption_rate: number | null
           id: string
           new_signups: number | null
           new_strategies: number | null
           new_trades: number | null
+          page_views_total: number | null
           revenue: number | null
           total_strategies: number | null
           total_trades: number | null
           total_users: number | null
           total_volume: number | null
+          unique_page_views: number | null
         }
         Insert: {
           active_users?: number | null
+          avg_session_duration?: number | null
+          bounce_rate?: number | null
+          conversion_rate?: number | null
           created_at?: string | null
           date: string
+          error_rate?: number | null
+          feature_adoption_rate?: number | null
           id?: string
           new_signups?: number | null
           new_strategies?: number | null
           new_trades?: number | null
+          page_views_total?: number | null
           revenue?: number | null
           total_strategies?: number | null
           total_trades?: number | null
           total_users?: number | null
           total_volume?: number | null
+          unique_page_views?: number | null
         }
         Update: {
           active_users?: number | null
+          avg_session_duration?: number | null
+          bounce_rate?: number | null
+          conversion_rate?: number | null
           created_at?: string | null
           date?: string
+          error_rate?: number | null
+          feature_adoption_rate?: number | null
           id?: string
           new_signups?: number | null
           new_strategies?: number | null
           new_trades?: number | null
+          page_views_total?: number | null
           revenue?: number | null
           total_strategies?: number | null
           total_trades?: number | null
           total_users?: number | null
           total_volume?: number | null
+          unique_page_views?: number | null
         }
         Relationships: []
       }
@@ -1160,29 +1334,53 @@ export type Database = {
       user_activities: {
         Row: {
           activity_type: string
+          browser_type: string | null
           created_at: string | null
           credits_awarded: number | null
+          device_type: string | null
+          duration_seconds: number | null
           id: string
+          ip_address: unknown | null
+          page_url: string | null
           referred_by: string | null
+          referrer_url: string | null
+          session_id: string | null
           target_id: string | null
+          user_agent: string | null
           user_id: string | null
         }
         Insert: {
           activity_type: string
+          browser_type?: string | null
           created_at?: string | null
           credits_awarded?: number | null
+          device_type?: string | null
+          duration_seconds?: number | null
           id?: string
+          ip_address?: unknown | null
+          page_url?: string | null
           referred_by?: string | null
+          referrer_url?: string | null
+          session_id?: string | null
           target_id?: string | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Update: {
           activity_type?: string
+          browser_type?: string | null
           created_at?: string | null
           credits_awarded?: number | null
+          device_type?: string | null
+          duration_seconds?: number | null
           id?: string
+          ip_address?: unknown | null
+          page_url?: string | null
           referred_by?: string | null
+          referrer_url?: string | null
+          session_id?: string | null
           target_id?: string | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -1195,6 +1393,53 @@ export type Database = {
           },
           {
             foreignKeyName: "user_activities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_engagement: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          element_id: string | null
+          element_type: string | null
+          id: string
+          metadata: Json | null
+          page_path: string | null
+          session_id: string
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          element_id?: string | null
+          element_type?: string | null
+          id?: string
+          metadata?: Json | null
+          page_path?: string | null
+          session_id: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          element_id?: string | null
+          element_type?: string | null
+          id?: string
+          metadata?: Json | null
+          page_path?: string | null
+          session_id?: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_engagement_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1274,6 +1519,62 @@ export type Database = {
           },
         ]
       }
+      user_sessions: {
+        Row: {
+          actions_count: number | null
+          browser_type: string | null
+          created_at: string | null
+          device_type: string | null
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          ip_address: unknown | null
+          pages_visited: number | null
+          session_id: string
+          started_at: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          actions_count?: number | null
+          browser_type?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          pages_visited?: number | null
+          session_id: string
+          started_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          actions_count?: number | null
+          browser_type?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          pages_visited?: number | null
+          session_id?: string
+          started_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_settings: {
         Row: {
           created_at: string | null
@@ -1320,6 +1621,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      end_user_session: {
+        Args: { p_session_id: string }
+        Returns: undefined
+      }
       get_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
@@ -1327,6 +1632,15 @@ export type Database = {
       is_admin_role: {
         Args: { role_to_check: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
+      }
+      update_feature_usage: {
+        Args: {
+          p_user_id: string
+          p_feature_name: string
+          p_time_spent?: number
+          p_success?: boolean
+        }
+        Returns: undefined
       }
     }
     Enums: {

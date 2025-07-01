@@ -6,16 +6,24 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, User, Settings, Users, BarChart3, Plus, Menu, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useAnalyticsContext } from "@/components/analytics/AnalyticsProvider";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const Header = () => {
   const { user, signOut } = useAuth();
+  const { trackFeatureUsage, trackActivity } = useAnalyticsContext();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
+    trackActivity('sign_out');
     await signOut();
     navigate('/auth');
+  };
+
+  const handleNavigation = (path: string, feature: string) => {
+    trackFeatureUsage(`navigation_${feature}`);
+    trackActivity('navigation', feature);
   };
 
   const isAdmin = user?.email === 'royan.shaw@gmail.com';
@@ -25,7 +33,10 @@ const Header = () => {
       <Link 
         to="/market-trends" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={onItemClick}
+        onClick={() => {
+          handleNavigation('/market-trends', 'markets');
+          onItemClick();
+        }}
       > 
         Markets
       </Link>
@@ -34,7 +45,10 @@ const Header = () => {
       <Link 
         to="/dashboard" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={onItemClick}
+        onClick={() => {
+          handleNavigation('/dashboard', 'dashboard');
+          onItemClick();
+        }}
       >
         Dashboard
       </Link>
@@ -43,7 +57,10 @@ const Header = () => {
       <Link 
         to="/trade-positions" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={onItemClick}
+        onClick={() => {
+          handleNavigation('/trade-positions', 'positions');
+          onItemClick();
+        }}
       >
         Positions
       </Link>
@@ -52,7 +69,10 @@ const Header = () => {
       <Link 
         to="/auto-trading" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={onItemClick}
+        onClick={() => {
+          handleNavigation('/auto-trading', 'auto_trading');
+          onItemClick();
+        }}
       >
         Auto Trading
       </Link>
@@ -61,7 +81,10 @@ const Header = () => {
       <Link 
         to="/community" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={onItemClick}
+        onClick={() => {
+          handleNavigation('/community', 'community');
+          onItemClick();
+        }}
       >
         Community
       </Link>
@@ -70,7 +93,10 @@ const Header = () => {
       <Link 
         to="/create-strategy" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={onItemClick}
+        onClick={() => {
+          handleNavigation('/create-strategy', 'create_strategy');
+          onItemClick();
+        }}
       >
         Create Strategy
       </Link>
@@ -81,7 +107,10 @@ const Header = () => {
           <Link 
             to="/admin" 
             className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-            onClick={onItemClick}
+            onClick={() => {
+              handleNavigation('/admin', 'admin_analytics');
+              onItemClick();
+            }}
           >
             Analytics
           </Link>
@@ -95,7 +124,11 @@ const Header = () => {
       <div className="container mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 min-w-0">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3 flex-shrink-0">
+          <Link 
+            to="/" 
+            className="flex items-center space-x-3 flex-shrink-0"
+            onClick={() => trackActivity('logo_click')}
+          >
             <TrendingUp className="h-8 w-8 text-blue-600" />
             <span className="text-xl font-bold text-gray-900 hidden sm:block">Traderama</span>
             <span className="text-lg font-bold text-gray-900 sm:hidden">TR</span>
@@ -115,7 +148,12 @@ const Header = () => {
                 {/* Mobile/Tablet Menu Button */}
                 <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="xl:hidden">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="xl:hidden"
+                      onClick={() => trackFeatureUsage('mobile_menu')}
+                    >
                       <Menu className="h-6 w-6" />
                     </Button>
                   </SheetTrigger>
@@ -145,7 +183,10 @@ const Header = () => {
                           <Link 
                             to="/profile" 
                             className="flex items-center space-x-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors px-3 py-2 rounded-md"
-                            onClick={() => setIsMenuOpen(false)}
+                            onClick={() => {
+                              trackFeatureUsage('profile_access');
+                              setIsMenuOpen(false);
+                            }}
                           >
                             <User className="h-5 w-5" />
                             <span>Profile</span>
@@ -153,7 +194,10 @@ const Header = () => {
                           <Link 
                             to="/settings" 
                             className="flex items-center space-x-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors px-3 py-2 rounded-md"
-                            onClick={() => setIsMenuOpen(false)}
+                            onClick={() => {
+                              trackFeatureUsage('settings_access');
+                              setIsMenuOpen(false);
+                            }}
                           >
                             <Settings className="h-5 w-5" />
                             <span>Settings</span>
@@ -162,7 +206,10 @@ const Header = () => {
                             <Link 
                               to="/admin" 
                               className="flex items-center space-x-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors px-3 py-2 rounded-md"
-                              onClick={() => setIsMenuOpen(false)}
+                              onClick={() => {
+                                trackFeatureUsage('admin_access');
+                                setIsMenuOpen(false);
+                              }}
                             >
                               <BarChart3 className="h-5 w-5" />
                               <span>Admin Analytics</span>
@@ -186,7 +233,11 @@ const Header = () => {
                 {/* Desktop User Menu - Hidden on mobile/tablet */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full hidden xl:flex">
+                    <Button 
+                      variant="ghost" 
+                      className="relative h-10 w-10 rounded-full hidden xl:flex"
+                      onClick={() => trackFeatureUsage('user_menu')}
+                    >
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                           {user?.email?.[0]?.toUpperCase() || 'U'}
@@ -208,27 +259,42 @@ const Header = () => {
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link to="/profile" className="flex items-center">
+                      <Link 
+                        to="/profile" 
+                        className="flex items-center"
+                        onClick={() => trackFeatureUsage('profile_access')}
+                      >
                         <User className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/settings" className="flex items-center">
+                      <Link 
+                        to="/settings" 
+                        className="flex items-center"
+                        onClick={() => trackFeatureUsage('settings_access')}
+                      >
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Settings</span>
                       </Link>
                     </DropdownMenuItem>
                     {isAdmin && (
                       <DropdownMenuItem asChild>
-                        <Link to="/admin" className="flex items-center">
+                        <Link 
+                          to="/admin" 
+                          className="flex items-center"
+                          onClick={() => trackFeatureUsage('admin_access')}
+                        >
                           <BarChart3 className="mr-2 h-4 w-4" />
                           <span>Admin Analytics</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                    <DropdownMenuItem 
+                      onClick={handleSignOut} 
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    >
                       Sign Out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -236,7 +302,12 @@ const Header = () => {
               </>
             ) : (
               <Link to="/auth">
-                <Button className="bg-blue-600 hover:bg-blue-700">Sign In</Button>
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => trackActivity('sign_in_click')}
+                >
+                  Sign In
+                </Button>
               </Link>
             )}
           </div>
