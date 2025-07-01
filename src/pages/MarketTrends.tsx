@@ -220,7 +220,7 @@ const MarketTrends = () => {
               </Card>
 
               <div className="lg:col-span-2">
-                <TradingChart symbol="SPY" data={marketData} />
+                <TradingChart symbol="SPY" />
               </div>
             </div>
           </TabsContent>
