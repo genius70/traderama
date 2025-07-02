@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 // import YouTube icon
 import { Youtube } from "lucide-react";
 
-export default function PremiumGroupPostComposer({ groupId, onPost }: { groupId: string, onPost?: () => void }) {
+interface PremiumGroupPostComposerProps {
+  groupId: string;
+  onPost?: () => void;
+}
+
+export default function PremiumGroupPostComposer({ groupId, onPost }: PremiumGroupPostComposerProps) {
   const [content, setContent] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
@@ -114,7 +118,7 @@ export default function PremiumGroupPostComposer({ groupId, onPost }: { groupId:
 
 function getYoutubeId(url: string): string {
   const match = url.match(
-    /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|watch)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+    /(?:youtube\.com\/(?:[^/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|watch)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
   );
   return match ? match[1] : "";
 }
