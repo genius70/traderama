@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,11 +31,7 @@ export default function CommunityCommentModal({ postId, open, onOpenChange }: Co
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (open) fetchComments();
-  }, [open, postId]);
-
-  async function fetchComments() {
+  const fetchComments = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("post_comments")
@@ -49,7 +45,11 @@ export default function CommunityCommentModal({ postId, open, onOpenChange }: Co
       setComments(data as Comment[] ?? []);
     }
     setLoading(false);
-  }
+  }, [postId, toast]);
+
+  useEffect(() => {
+    if (open) fetchComments();
+  }, [open, fetchComments]);
 
   async function handleAddComment() {
     if (!user || !newComment.trim()) return;
