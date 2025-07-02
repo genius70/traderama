@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,14 +33,7 @@ const InviteFriend: React.FC = () => {
 
   const defaultMessage = "Hey! I recently join this amazing Expert Copy Trading Platform for Iron Condor Options Trading Strategies. Send your first 10 invites and earn $50 credited to your wallet. You should check it out. 🚀📈";
 
-  useEffect(() => {
-    if (user) {
-      fetchUserProfile();
-      fetchReferralHistory();
-    }
-  }, [user]);
-
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     if (!user) return;
     
     const { data } = await supabase
@@ -53,16 +45,23 @@ const InviteFriend: React.FC = () => {
     if (data) {
       setUserReferralCode(data.referral_code);
     }
-  };
+  }, [user]);
 
-  const fetchReferralHistory = async () => {
+  const fetchReferralHistory = useCallback(async () => {
     // This would typically fetch from a referrals tracking table
     // For now, we'll use placeholder data
     setReferralHistory([
       { phone: '+1234567890', name: 'John Doe', status: 'accepted', invitedAt: '2024-01-15' },
       { phone: '+0987654321', name: 'Jane Smith', status: 'pending', invitedAt: '2024-01-20' }
     ]);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+      fetchReferralHistory();
+    }
+  }, [user, fetchUserProfile, fetchReferralHistory]);
 
   const addFriend = () => {
     if (!currentFriend.name.trim() || !currentFriend.phoneNumber.trim()) {
@@ -83,7 +82,7 @@ const InviteFriend: React.FC = () => {
       return;
     }
 
-    const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
+    const phoneRegex = /^\+?[\d\s\-()]+$/;
     if (!phoneRegex.test(currentFriend.phoneNumber)) {
       toast({
         title: "Invalid Phone Number",
