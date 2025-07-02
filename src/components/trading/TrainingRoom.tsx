@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Play, X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Play, X, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
 
-const TrainingRoom = () => {
+const TrainingRoom = ({ trainingPlans = [] }) => {
   const [selectedVideo, setSelectedVideo] = useState(null);
 
-  const tradingStrategies = [
+  const defaultStrategies = [
     { name: "Long Call", sentiment: "Bullish", color: "bg-green-500", embedId: "dQw4w9WgXcQ" },
     { name: "Short Call", sentiment: "Bearish", color: "bg-red-500", embedId: "dQw4w9WgXcQ" },
     { name: "Long Put", sentiment: "Bearish", color: "bg-red-500", embedId: "dQw4w9WgXcQ" },
@@ -37,6 +37,20 @@ const TrainingRoom = () => {
     { name: "Synthetic Short Underlying", sentiment: "Bearish", color: "bg-red-500", embedId: "dQw4w9WgXcQ" }
   ];
 
+  // Merge custom training plans with default strategies
+  const allStrategies = defaultStrategies.map(defaultStrategy => {
+    const customPlan = trainingPlans.find(plan => plan.strategy === defaultStrategy.name);
+    if (customPlan) {
+      return {
+        ...defaultStrategy,
+        ...customPlan,
+        color: defaultStrategy.color, // Keep default color for consistency
+        hasCustomContent: true
+      };
+    }
+    return defaultStrategy;
+  });
+
   const getSentimentIcon = (sentiment) => {
     switch (sentiment) {
       case 'Bullish':
@@ -48,6 +62,18 @@ const TrainingRoom = () => {
       default:
         return null;
     }
+  };
+
+  const extractVideoId = (url) => {
+    if (!url) return null;
+    if (url.includes('youtube.com/watch?v=')) {
+      return url.split('v=')[1].split('&')[0];
+    } else if (url.includes('youtu.be/')) {
+      return url.split('youtu.be/')[1].split('?')[0];
+    } else if (url.includes('youtube.com/embed/')) {
+      return url.split('embed/')[1].split('?')[0];
+    }
+    return url;
   };
 
   const openVideoModal = (strategy) => {
@@ -78,11 +104,20 @@ const TrainingRoom = () => {
       {/* Video Cards Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {tradingStrategies.map((strategy, index) => (
+          {allStrategies.map((strategy, index) => (
             <div
               key={index}
               className="group relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl overflow-hidden border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:transform hover:scale-105 hover:shadow-2xl"
             >
+              {/* Custom Content Badge */}
+              {strategy.hasCustomContent && (
+                <div className="absolute top-4 left-4 z-10">
+                  <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-1 rounded-full text-white text-xs font-medium shadow-lg">
+                    Custom
+                  </div>
+                </div>
+              )}
+
               {/* Card Background Pattern */}
               <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/20"></div>
               
@@ -113,9 +148,27 @@ const TrainingRoom = () => {
                   How to Set Up a {strategy.name}
                 </h3>
                 
-                <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-                  Learn the step-by-step process for implementing this {strategy.sentiment.toLowerCase()} options strategy effectively.
+                <p className="text-gray-400 text-sm mb-4 leading-relaxed">
+                  {strategy.summary || `Learn the step-by-step process for implementing this ${strategy.sentiment.toLowerCase()} options strategy effectively.`}
                 </p>
+
+                {/* Sponsor Information */}
+                {strategy.sponsor && (
+                  <div className="mb-4 p-2 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400">Sponsored by:</span>
+                      <a 
+                        href={strategy.sponsorUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-400 text-xs hover:text-blue-300 flex items-center space-x-1"
+                      >
+                        <span>{strategy.sponsor}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                )}
 
                 <button
                   onClick={() => openVideoModal(strategy)}
@@ -146,6 +199,9 @@ const TrainingRoom = () => {
                 <div className="flex items-center space-x-2 mt-2">
                   {getSentimentIcon(selectedVideo.sentiment)}
                   <span className="text-gray-300 text-sm">{selectedVideo.sentiment} Strategy</span>
+                  {selectedVideo.hasCustomContent && (
+                    <span className="bg-emerald-500 px-2 py-1 rounded-full text-white text-xs">Custom Content</span>
+                  )}
                 </div>
               </div>
               <button
@@ -159,7 +215,10 @@ const TrainingRoom = () => {
             {/* Video Container */}
             <div className="relative aspect-video bg-black">
               <iframe
-                src={`https://www.youtube.com/embed/${selectedVideo.embedId}?autoplay=1&rel=0`}
+                src={selectedVideo.videoSrc ? 
+                  `https://www.youtube.com/embed/${extractVideoId(selectedVideo.videoSrc)}?autoplay=1&rel=0` :
+                  `https://www.youtube.com/embed/${selectedVideo.embedId}?autoplay=1&rel=0`
+                }
                 title={`How to Set Up a ${selectedVideo.name}`}
                 className="w-full h-full"
                 frameBorder="0"
@@ -171,8 +230,23 @@ const TrainingRoom = () => {
             {/* Modal Footer */}
             <div className="p-6 bg-gray-800/50">
               <p className="text-gray-300 text-sm">
-                Master the {selectedVideo.name} strategy with this comprehensive tutorial covering setup, risk management, and profit optimization.
+                {selectedVideo.description || 
+                 `Master the ${selectedVideo.name} strategy with this comprehensive tutorial covering setup, risk management, and profit optimization.`}
               </p>
+              {selectedVideo.sponsor && (
+                <div className="flex items-center justify-between mt-4 p-3 bg-gray-700/50 rounded-lg">
+                  <span className="text-gray-400 text-sm">This video is sponsored by:</span>
+                  <a 
+                    href={selectedVideo.sponsorUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 flex items-center space-x-2"
+                  >
+                    <span>{selectedVideo.sponsor}</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
