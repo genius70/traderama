@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,25 @@ type AirdropMilestoneRow = {
   created_at?: string;
 };
 
+// Type for database row with unknown structure
+type DatabaseMilestone = {
+  id: unknown;
+  name: unknown;
+  kem_bonus: unknown;
+  created_at?: unknown;
+};
+
+// Type guard to validate milestone data
+const isValidMilestone = (milestone: unknown): milestone is DatabaseMilestone => {
+  return (
+    milestone !== null &&
+    typeof milestone === 'object' &&
+    'id' in milestone &&
+    'name' in milestone &&
+    'kem_bonus' in milestone
+  );
+};
+
 const AdminAirdropPanel: React.FC = () => {
   const [milestones, setMilestones] = useState<AirdropMilestoneRow[]>([]);
   const [newMilestoneName, setNewMilestoneName] = useState('');
@@ -21,11 +40,7 @@ const AdminAirdropPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchMilestones();
-  }, []);
-
-  const fetchMilestones = async () => {
+  const fetchMilestones = useCallback(async () => {
     const { data, error } = await supabase
       .from("airdrop_milestones")
       .select("*")
@@ -43,25 +58,23 @@ const AdminAirdropPanel: React.FC = () => {
     if (data && Array.isArray(data)) {
       // Properly type-check and filter the data
       const validMilestones = data
-        .filter((milestone): milestone is any => 
-          milestone && 
-          typeof milestone === 'object' && 
-          'id' in milestone && 
-          'name' in milestone && 
-          'kem_bonus' in milestone
-        )
+        .filter((milestone): milestone is DatabaseMilestone => isValidMilestone(milestone))
         .map(milestone => ({
-          id: milestone.id,
-          name: milestone.name,
+          id: String(milestone.id),
+          name: String(milestone.name),
           kem_bonus: Number(milestone.kem_bonus),
-          created_at: milestone.created_at
+          created_at: milestone.created_at ? String(milestone.created_at) : undefined
         }));
       
       setMilestones(validMilestones);
     } else {
       setMilestones([]);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchMilestones();
+  }, [fetchMilestones]);
 
   const handleAddMilestone = async () => {
     if (!newMilestoneName.trim() || !newMilestoneBonus.trim()) {
@@ -88,10 +101,10 @@ const AdminAirdropPanel: React.FC = () => {
 
       if (data) {
         setMilestones(prev => [...prev, {
-          id: data.id,
-          name: data.name,
+          id: String(data.id),
+          name: String(data.name),
           kem_bonus: Number(data.kem_bonus),
-          created_at: data.created_at
+          created_at: data.created_at ? String(data.created_at) : undefined
         }]);
         
         setNewMilestoneName('');
@@ -102,10 +115,11 @@ const AdminAirdropPanel: React.FC = () => {
           description: "Milestone added successfully!",
         });
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
