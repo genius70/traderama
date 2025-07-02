@@ -1,14 +1,21 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+interface Post {
+  id: string | number;
+  content?: string;
+  author?: string;
+  created_at?: string;
+  [key: string]: unknown; // Allow for other post properties
+}
+
 interface TipModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  post: any;
+  post: Post;
 }
 
 const TIP_AMOUNTS = [
