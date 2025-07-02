@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardHeader, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,8 +12,23 @@ import { supabase } from "@/integrations/supabase/client";
 // Added Tip Modal
 import TipModal from "./TipModal";
 
+interface PostProfile {
+  name?: string;
+  email?: string;
+}
+
+interface CommunityPost {
+  id: string | number;
+  content?: string;
+  created_at: string;
+  likes_count?: number;
+  comments_count?: number;
+  shares_count?: number;
+  profiles?: PostProfile;
+}
+
 interface CommunityPostCardProps {
-  post: any;
+  post: CommunityPost;
   onLike?: () => void;
   onCommentAdded?: () => void;
 }
@@ -37,8 +51,9 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onC
       if (error) throw error;
       setLikes((prev) => prev + 1);
       onLike?.();
-    } catch (e: any) {
-      toast({ title: "Error liking post", description: e.message, variant: "destructive" });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      toast({ title: "Error liking post", description: errorMessage, variant: "destructive" });
     }
     setLikeDisabled(false);
   }
