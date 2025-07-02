@@ -3,7 +3,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 
 const SpyReturnsDistribution = () => {
   // Sample of recent SPY monthly returns (representative data based on search results)
-  const monthlyReturns = [
+  const monthlyReturns = useMemo(() => [
     -5.75, -1.42, 2.70, -2.50, 5.73, -0.99, 2.02, 2.28, 1.13, 3.47,
     4.80, -4.16, 3.10, 5.17, 1.59, 4.42, 8.92, -2.20, -4.87, -1.77,
     3.11, 6.47, 0.25, 1.46, 3.51, -2.61, 6.18, -5.90, 5.38, 7.99,
@@ -14,7 +14,7 @@ const SpyReturnsDistribution = () => {
     -0.69, 3.56, 1.79, -0.73, 0.28, -7.03, 7.05, 3.85, -8.81, 20.54,
     -16.94, 12.82, -0.04, 11.96, 8.59, 3.09, 2.65, -6.98, 9.12, -3.35,
     1.01, 8.76, 5.09, 1.38, -6.12, -13.04, 11.43, -8.43, 21.44, -11.98
-  ];
+  ], []);
 
   // Calculate statistics
   const mean = monthlyReturns.reduce((a, b) => a + b, 0) / monthlyReturns.length;
