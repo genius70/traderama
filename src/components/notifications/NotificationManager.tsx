@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,22 +20,37 @@ interface NotificationFilter {
   activityPeriod?: '30' | '60' | '90';
 }
 
+interface TargetAudience {
+  country?: string;
+  region?: string;
+  lastLoginDays?: number;
+  lastCommentDays?: number;
+  activityPeriod?: string;
+}
+
+interface Notification {
+  id: string;
+  sender_id: string;
+  title: string;
+  content: string;
+  notification_type: string;
+  target_audience: TargetAudience;
+  cost: number;
+  status: 'sent' | 'draft' | 'scheduled' | 'pending';
+  sent_at: string | null;
+  created_at: string;
+}
+
 const NotificationManager: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [filter, setFilter] = useState<NotificationFilter>({ type: 'general' });
   const [loading, setLoading] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (user) {
-      fetchNotifications();
-    }
-  }, [user]);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
 
     const { data, error } = await supabase
@@ -51,7 +65,13 @@ const NotificationManager: React.FC = () => {
     }
 
     setNotifications(data || []);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+    }
+  }, [user, fetchNotifications]);
 
   const calculateCost = () => {
     if (filter.type === 'strategy_creator') {
@@ -121,10 +141,11 @@ const NotificationManager: React.FC = () => {
       // Refresh notifications list
       await fetchNotifications();
 
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -137,6 +158,14 @@ const NotificationManager: React.FC = () => {
     if (status === 'draft' && cost > 0) return <Badge className="bg-yellow-100 text-yellow-800">Pending Payment</Badge>;
     if (status === 'scheduled') return <Badge className="bg-blue-100 text-blue-800">Scheduled</Badge>;
     return <Badge variant="outline">{status}</Badge>;
+  };
+
+  const handleFilterTypeChange = (value: string) => {
+    setFilter({ type: value as NotificationFilter['type'] });
+  };
+
+  const handleActivityPeriodChange = (value: string) => {
+    setFilter({ ...filter, activityPeriod: value as '30' | '60' | '90' });
   };
 
   return (
@@ -183,7 +212,7 @@ const NotificationManager: React.FC = () => {
 
               <div className="space-y-2">
                 <Label>Target Audience</Label>
-                <Select value={filter.type} onValueChange={(value: any) => setFilter({ type: value })}>
+                <Select value={filter.type} onValueChange={handleFilterTypeChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select audience type" />
                   </SelectTrigger>
@@ -260,7 +289,7 @@ const NotificationManager: React.FC = () => {
                     <Label>Activity Period</Label>
                     <Select 
                       value={filter.activityPeriod || ''} 
-                      onValueChange={(value: any) => setFilter({ ...filter, activityPeriod: value })}
+                      onValueChange={handleActivityPeriodChange}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select period" />
