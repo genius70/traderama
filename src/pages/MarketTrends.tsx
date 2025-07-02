@@ -66,9 +66,9 @@ const TIME_PERIODS = [
 
 // Mock API function (replace with actual Alpha Vantage API calls)
 const fetchETFData = async (symbol) => {
-  // Simulated data - replace with actual Alpha Vantage API call
-  // const API_KEY = '8AQPB7J6D8TUCDJA';
-  // const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`;
+  // Real data - with Alpha Vantage API call
+  const API_KEY = '8AQPB7J6D8TUCDJA';
+  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`;
   
   await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
   
@@ -444,7 +444,7 @@ const MarketTrends = () => {
             To use real data, replace the mock API function with actual Alpha Vantage calls:
           </p>
           <code className="bg-blue-100 px-2 py-1 rounded text-xs text-blue-900 block w-full overflow-x-auto">
-            https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&apikey=YOUR_API_KEY
+            https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&apikey=${API_KEY}
           </code>
           <p className="text-blue-700 text-xs mt-2">
             Sign up at alphavantage.co for free API access (500 calls/day) • Use TIME_SERIES_DAILY for historical data
