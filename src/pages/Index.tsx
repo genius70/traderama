@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,10 +22,10 @@ interface Strategy {
   profiles?: {
     name: string;
     email: string;
-  };
+  } | null;
 }
 
-const Index = () => {
+const Index: React.FC = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -35,7 +35,7 @@ const Index = () => {
     fetchStrategies();
   }, []);
 
-  const fetchStrategies = async () => {
+  const fetchStrategies = async (): Promise<void> => {
     try {
       const { data, error } = await supabase
         .from('trading_strategies')
@@ -50,7 +50,11 @@ const Index = () => {
         .order('created_at', { ascending: false })
         .limit(6);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
       setStrategies(data || []);
     } catch (error) {
       console.error('Error fetching strategies:', error);
@@ -64,7 +68,7 @@ const Index = () => {
     }
   };
 
-  const subscribeToStrategy = async (strategyId: string) => {
+  const subscribeToStrategy = async (strategyId: string): Promise<void> => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -82,7 +86,10 @@ const Index = () => {
           user_id: user.id,
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Subscription error:', error);
+        throw error;
+      }
       
       toast({
         title: "Strategy subscribed!",
@@ -98,16 +105,16 @@ const Index = () => {
     }
   };
 
-  const getRiskColor = (config: any) => {
-    if (!config) return 'text-gray-500';
+  const getRiskColor = (config: any): string => {
+    if (!config || typeof config !== 'object') return 'text-gray-500';
     const stopLoss = config.stopLoss || 200;
     if (stopLoss <= 150) return 'text-green-500';
     if (stopLoss <= 200) return 'text-yellow-500';
     return 'text-red-500';
   };
 
-  const getRiskLevel = (config: any) => {
-    if (!config) return 'Medium';
+  const getRiskLevel = (config: any): string => {
+    if (!config || typeof config !== 'object') return 'Medium';
     const stopLoss = config.stopLoss || 200;
     if (stopLoss <= 150) return 'Low';
     if (stopLoss <= 200) return 'Medium';
@@ -161,6 +168,11 @@ const Index = () => {
     "Automated trading capabilities",
     "24/7 market monitoring"
   ];
+
+  // Add error boundary handling
+  if (!user && typeof user !== 'undefined') {
+    // Handle auth loading state
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -230,21 +242,24 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-1">
-                <CardHeader className="pb-4">
-                  <div className={`inline-flex p-3 rounded-xl bg-gray-100 group-hover:bg-opacity-80 transition-colors w-fit`}>
-                    <feature.icon className={`h-6 w-6 ${feature.color}`} />
-                  </div>
-                  <CardTitle className="text-lg font-semibold">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-gray-600 leading-relaxed">
-                    {feature.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ))}
+            {features.map((feature, index) => {
+              const IconComponent = feature.icon;
+              return (
+                <Card key={index} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-1">
+                  <CardHeader className="pb-4">
+                    <div className="inline-flex p-3 rounded-xl bg-gray-100 group-hover:bg-opacity-80 transition-colors w-fit">
+                      <IconComponent className={`h-6 w-6 ${feature.color}`} />
+                    </div>
+                    <CardTitle className="text-lg font-semibold">{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-gray-600 leading-relaxed">
+                      {feature.description}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>
