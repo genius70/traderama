@@ -490,9 +490,9 @@ const MarketTrends = () => {
 
         {/* API Integration Instructions */}
         <div className="mt-8 w-full bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
-          <h4 className="font-bold text-blue-900 mb-2">🔧 Alpha Vantage Integration</h4>
+          <h4 className="font-bold text-blue-900 mb-2">🔧 MARKET TREND HISTORY</h4>
           <p className="text-blue-800 text-sm mb-2">
-            To use real data, replace the mock API function with actual Alpha Vantage calls:
+            Get live market data, Alpha Vantage calls:
           </p>
           <code className="bg-blue-100 px-2 py-1 rounded text-xs text-blue-900 block w-full overflow-x-auto">
             https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=${API_KEY}
