@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,20 @@ type DistributionEntry = {
   errorMsg?: string;
 };
 
+type UserProfile = {
+  id: string;
+  role: string;
+  [key: string]: unknown;
+};
+
+// Type for CSV row data
+type CsvRowData = {
+  email?: string;
+  wallet?: string;
+  kemAmount?: string | number;
+  [key: string]: unknown;
+};
+
 const AirdropDistributionTemplate: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -28,17 +42,23 @@ const AirdropDistributionTemplate: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Only admins and super_admins may view this!
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  React.useEffect(() => {
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
-    supabase
+    const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => setProfile(data));
+      .maybeSingle();
+    if (data) {
+      setProfile(data as UserProfile);
+    }
   }, [user]);
+
+  React.useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
   if (!isAdmin) return null;
@@ -50,8 +70,8 @@ const AirdropDistributionTemplate: React.FC = () => {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          const parsedEntries: DistributionEntry[] = results.data
-            .map((row: any) => ({
+          const parsedEntries: DistributionEntry[] = (results.data as CsvRowData[])
+            .map((row) => ({
               email: row.email || "",
               wallet: row.wallet || "",
               kemAmount: Number(row.kemAmount) || 0,
@@ -66,7 +86,7 @@ const AirdropDistributionTemplate: React.FC = () => {
             toast({ title: "CSV Import Failed", description: "No valid entries found in the CSV file. Ensure columns 'wallet' and 'kemAmount' are present.", variant: "destructive" });
           }
         },
-        error: (error: any) => {
+        error: (error: Error) => {
           toast({ title: "CSV Parsing Error", description: error.message, variant: "destructive" });
         },
       });
