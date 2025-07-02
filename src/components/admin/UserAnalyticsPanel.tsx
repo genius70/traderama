@@ -1,95 +1,127 @@
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Users, UserPlus, Activity, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Users, Activity, Eye, Clock, AlertTriangle, TrendingUp } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-interface UserStats {
+interface AnalyticsData {
   totalUsers: number;
-  newUsersThisMonth: number;
   activeUsers: number;
-  userGrowthRate: number;
+  newSignups: number;
+  totalPageViews: number;
+  avgSessionDuration: number;
+  totalEngagements: number;
+  errorRate: number;
+  topFeatures: Array<{ feature_name: string; usage_count: number; success_rate: number }>;
 }
 
-const UserAnalyticsPanel = () => {
-  const { toast } = useToast();
-  const [stats, setStats] = useState<UserStats>({
+export default function UserAnalyticsPanel() {
+  const { user } = useAuth();
+  const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalUsers: 0,
-    newUsersThisMonth: 0,
     activeUsers: 0,
-    userGrowthRate: 0
+    newSignups: 0,
+    totalPageViews: 0,
+    avgSessionDuration: 0,
+    totalEngagements: 0,
+    errorRate: 0,
+    topFeatures: []
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchUserStats();
-  }, []);
+    if (!user) return;
 
-  const fetchUserStats = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch all users with their creation dates
-      const { data: users, error: usersError } = await supabase
-        .from('profiles')
-        .select('id, created_at, email, name');
-      
-      if (usersError) throw usersError;
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
 
-      // Calculate date ranges
-      const now = new Date();
-      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      
-      // Calculate metrics
-      const totalUsers = users?.length || 0;
-      const newUsersThisMonth = users?.filter(user => 
-        new Date(user.created_at) >= thisMonth
-      ).length || 0;
-      
-      const newUsersLastMonth = users?.filter(user => {
-        const userDate = new Date(user.created_at);
-        return userDate >= lastMonth && userDate < thisMonth;
-      }).length || 0;
+        // Get total users
+        const { count: totalUsers } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
 
-      // Calculate growth rate
-      const userGrowthRate = newUsersLastMonth > 0 
-        ? ((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100 
-        : newUsersThisMonth > 0 ? 100 : 0;
+        // Get active users (users with activity in last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const { count: activeUsers } = await supabase
+          .from('user_sessions')
+          .select('user_id', { count: 'exact', head: true })
+          .gte('started_at', thirtyDaysAgo.toISOString());
 
-      // For now, assume all users are active (can be enhanced with session data)
-      const activeUsers = totalUsers;
+        // Get new signups (last 30 days)
+        const { count: newSignups } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', thirtyDaysAgo.toISOString());
 
-      setStats({
-        totalUsers,
-        newUsersThisMonth,
-        activeUsers,
-        userGrowthRate
-      });
+        // Get total page views
+        const { count: totalPageViews } = await supabase
+          .from('page_views')
+          .select('*', { count: 'exact', head: true });
 
-    } catch (error) {
-      console.error('Error fetching user stats:', error);
-      toast({
-        title: "Error loading user stats",
-        description: "Failed to load user analytics data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Get average session duration
+        const { data: avgSessionData } = await supabase
+          .from('user_sessions')
+          .select('duration_seconds')
+          .not('duration_seconds', 'is', null);
+
+        const avgSessionDuration = avgSessionData?.length 
+          ? Math.round(avgSessionData.reduce((sum, session) => sum + (session.duration_seconds || 0), 0) / avgSessionData.length)
+          : 0;
+
+        // Get total engagements
+        const { count: totalEngagements } = await supabase
+          .from('user_engagement')
+          .select('*', { count: 'exact', head: true });
+
+        // Get error rate
+        const { count: totalErrors } = await supabase
+          .from('error_logs')
+          .select('*', { count: 'exact', head: true });
+
+        const errorRate = totalPageViews ? ((totalErrors || 0) / totalPageViews * 100) : 0;
+
+        // Get top features
+        const { data: topFeatures } = await supabase
+          .from('feature_usage')
+          .select('feature_name, usage_count, success_rate')
+          .order('usage_count', { ascending: false })
+          .limit(5);
+
+        setAnalytics({
+          totalUsers: totalUsers || 0,
+          activeUsers: activeUsers || 0,
+          newSignups: newSignups || 0,
+          totalPageViews: totalPageViews || 0,
+          avgSessionDuration,
+          totalEngagements: totalEngagements || 0,
+          errorRate: Math.round(errorRate * 100) / 100,
+          topFeatures: topFeatures || []
+        });
+
+      } catch (error) {
+        console.error('Failed to fetch analytics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [user]);
 
   if (loading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>User Analytics</CardTitle>
+          <CardTitle className="text-lg font-medium">User Analytics</CardTitle>
+          <CardDescription>Loading analytics data...</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center p-4">
-            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-sm text-gray-600">Loading user data...</p>
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
         </CardContent>
       </Card>
@@ -97,59 +129,114 @@ const UserAnalyticsPanel = () => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Users className="h-5 w-5 mr-2 text-blue-600" />
-          User Analytics
-        </CardTitle>
-        <CardDescription>Live user statistics and growth metrics</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-blue-500" />
-              <span className="text-sm font-medium">Total Users</span>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div>
+            <CardTitle className="text-lg font-medium">User Analytics Overview</CardTitle>
+            <CardDescription>Comprehensive user behavior and engagement metrics</CardDescription>
+          </div>
+          <Users className="h-6 w-6 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-2xl font-bold text-blue-600">{analytics.totalUsers}</div>
+              <div className="text-sm text-gray-500">Total Users</div>
             </div>
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.totalUsers.toLocaleString()}
+            <div>
+              <div className="text-2xl font-bold text-green-600">{analytics.activeUsers}</div>
+              <div className="text-sm text-gray-500">Active Users (30d)</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-emerald-600">+{analytics.newSignups}</div>
+              <div className="text-sm text-gray-500">New Signups (30d)</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-purple-600">{analytics.totalPageViews}</div>
+              <div className="text-sm text-gray-500">Page Views</div>
             </div>
           </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <UserPlus className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-medium">New This Month</span>
-            </div>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.newUsersThisMonth.toLocaleString()}
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Activity className="h-4 w-4 text-purple-500" />
-              <span className="text-sm font-medium">Active Users</span>
-            </div>
-            <div className="text-2xl font-bold text-purple-600">
-              {stats.activeUsers.toLocaleString()}
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="h-4 w-4 text-orange-500" />
-              <span className="text-sm font-medium">Growth Rate</span>
-            </div>
-            <div className={`text-2xl font-bold ${stats.userGrowthRate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {stats.userGrowthRate >= 0 ? '+' : ''}{stats.userGrowthRate.toFixed(1)}%
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+        </CardContent>
+      </Card>
 
-export default UserAnalyticsPanel;
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Session</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{Math.floor(analytics.avgSessionDuration / 60)}m {analytics.avgSessionDuration % 60}s</div>
+            <p className="text-xs text-muted-foreground">Average session duration</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Engagements</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{analytics.totalEngagements}</div>
+            <p className="text-xs text-muted-foreground">Total user interactions</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{analytics.errorRate}%</div>
+            <p className="text-xs text-muted-foreground">Errors per page view</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-sky-600">
+              {analytics.totalPageViews ? Math.round((analytics.totalEngagements / analytics.totalPageViews) * 100) : 0}%
+            </div>
+            <p className="text-xs text-muted-foreground">Interactions per page view</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {analytics.topFeatures.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-medium">Top Features</CardTitle>
+            <CardDescription>Most used features and their success rates</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {analytics.topFeatures.map((feature, index) => (
+                <div key={feature.feature_name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center text-sm font-semibold">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <p className="font-medium">{feature.feature_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                      <p className="text-sm text-gray-500">{feature.usage_count} uses</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-green-600">{Math.round(feature.success_rate)}%</div>
+                    <div className="text-xs text-gray-500">Success Rate</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

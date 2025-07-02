@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,19 +124,19 @@ const Index = () => {
     {
       icon: Users,
       title: "Copy Trading",
-      description: "Follow and copy successful options traders' strategies with customizable fee structures",
+      description: "Follow and copy successful traders' strategies with customizable fee structures",
       color: "text-green-600"
     },
     {
       icon: Shield,
       title: "Broker Integration",
-      description: "Connect to top international brokers: IG, TradeStation, Tradier, easyMarkets. IG Brokers are our primary brokers",
+      description: "Connect to top international brokers: IG, TradeStation, Tradier, easyMarkets",
       color: "text-purple-600"
     },
     {
       icon: BarChart3,
       title: "Advanced Analytics",
-      description: "Comprehensive performance tracking and market analysis tools for every market position",
+      description: "Comprehensive performance tracking and market analysis tools",
       color: "text-orange-600"
     },
     {

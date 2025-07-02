@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -9,120 +9,23 @@ import { useAnalyticsContext } from '@/components/analytics/AnalyticsProvider';
 import UserAnalyticsPanel from '@/components/admin/UserAnalyticsPanel';
 import AdminCharts from '@/components/admin/AdminCharts';
 import AssetManagement from '@/components/admin/AssetManagement';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { DollarSign, Target, TrendingUp, Users, Activity, Eye, Clock, AlertTriangle, BarChart3, Settings, Database, Shield } from 'lucide-react';
 
-interface LiveAnalytics {
-  totalUsers: number;
-  totalStrategies: number;
-  totalTrades: number;
-  newSignups: number;
-  newStrategies: number;
-  newTrades: number;
-  revenue: number;
-  activeUsers: number;
-  errorRate: number;
-  avgSessionTime: number;
-}
+// Mock metrics for cards
+const mockAnalytics = {
+  totalStrategies: 320,
+  newStrategies: 12,
+  totalTrades: 8750,
+  newTrades: 230,
+  revenue: 15000,
+  activeUsers: 1250,
+  newSignups: 45,
+  errorRate: 0.2,
+  avgSessionTime: 420 // seconds
+};
 
 const AdminDashboard = () => {
   const { trackFeatureUsage, trackActivity } = useAnalyticsContext();
-  const { toast } = useToast();
-  const [analytics, setAnalytics] = useState<LiveAnalytics>({
-    totalUsers: 0,
-    totalStrategies: 0,
-    totalTrades: 0,
-    newSignups: 0,
-    newStrategies: 0,
-    newTrades: 0,
-    revenue: 0,
-    activeUsers: 0,
-    errorRate: 0,
-    avgSessionTime: 0
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchLiveAnalytics();
-  }, []);
-
-  const fetchLiveAnalytics = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch total users
-      const { data: users, error: usersError } = await supabase
-        .from('profiles')
-        .select('id, created_at');
-      
-      if (usersError) throw usersError;
-
-      // Fetch total strategies
-      const { data: strategies, error: strategiesError } = await supabase
-        .from('trading_strategies')
-        .select('id, created_at');
-      
-      if (strategiesError) throw strategiesError;
-
-      // Fetch total trades
-      const { data: trades, error: tradesError } = await supabase
-        .from('iron_condor_trades')
-        .select('id, opened_at');
-      
-      if (tradesError) throw tradesError;
-
-      // Fetch subscriptions for revenue
-      const { data: subscriptions, error: subscriptionsError } = await supabase
-        .from('subscriptions')
-        .select('amount, created_at');
-      
-      if (subscriptionsError) throw subscriptionsError;
-
-      // Calculate metrics
-      const now = new Date();
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      
-      const newSignups = users?.filter(user => 
-        new Date(user.created_at) >= thirtyDaysAgo
-      ).length || 0;
-
-      const newStrategies = strategies?.filter(strategy => 
-        new Date(strategy.created_at) >= thirtyDaysAgo
-      ).length || 0;
-
-      const newTrades = trades?.filter(trade => 
-        trade.opened_at && new Date(trade.opened_at) >= thirtyDaysAgo
-      ).length || 0;
-
-      const totalRevenue = subscriptions?.reduce((sum, sub) => 
-        sum + (Number(sub.amount) || 0), 0
-      ) || 0;
-
-      setAnalytics({
-        totalUsers: users?.length || 0,
-        totalStrategies: strategies?.length || 0,
-        totalTrades: trades?.length || 0,
-        newSignups,
-        newStrategies,
-        newTrades,
-        revenue: totalRevenue,
-        activeUsers: users?.length || 0, // Simplified for now
-        errorRate: 0.2, // From error logs if available
-        avgSessionTime: 420 // From user sessions if available
-      });
-
-    } catch (error) {
-      console.error('Error fetching live analytics:', error);
-      toast({
-        title: "Error loading analytics",
-        description: "Failed to load live analytics data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleTabChange = (tabValue: string) => {
     trackFeatureUsage(`admin_dashboard_tab_${tabValue}`);
@@ -133,17 +36,6 @@ const AdminDashboard = () => {
     trackActivity('admin_action', action);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading analytics...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <FeatureTracker featureName="admin_dashboard" trackOnUnmount>
       <div className="space-y-8">
@@ -153,11 +45,11 @@ const AdminDashboard = () => {
             Admin Management Dashboard
           </h1>
           <p className="text-gray-600">
-            Live platform analytics, user management, and advanced trading data insights
+            Comprehensive platform analytics, user management, and advanced trading data insights
           </p>
         </div>
 
-        {/* Key Metrics Cards - Now with Live Data */}
+        {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="hover:shadow-lg transition-shadow border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -165,19 +57,19 @@ const AdminDashboard = () => {
               <DollarSign className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">${analytics.revenue.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Total subscription revenue</p>
+              <div className="text-2xl font-bold text-green-600">${mockAnalytics.revenue.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Monthly recurring revenue</p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-lg transition-shadow border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
               <Users className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{analytics.totalUsers.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">+{analytics.newSignups} new this month</p>
+              <div className="text-2xl font-bold text-blue-600">{mockAnalytics.activeUsers.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">+{mockAnalytics.newSignups} new this month</p>
             </CardContent>
           </Card>
 
@@ -187,19 +79,19 @@ const AdminDashboard = () => {
               <TrendingUp className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{analytics.totalTrades.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">+{analytics.newTrades} new trades</p>
+              <div className="text-2xl font-bold text-purple-600">{mockAnalytics.totalTrades.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">+{mockAnalytics.newTrades} new trades</p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-lg transition-shadow border-orange-200 bg-gradient-to-br from-orange-50 to-red-50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Strategies</CardTitle>
-              <Target className="h-4 w-4 text-orange-600" />
+              <CardTitle className="text-sm font-medium">System Health</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{analytics.totalStrategies.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">+{analytics.newStrategies} new strategies</p>
+              <div className="text-2xl font-bold text-green-600">99.8%</div>
+              <p className="text-xs text-muted-foreground">Uptime (Error rate: {mockAnalytics.errorRate}%)</p>
             </CardContent>
           </Card>
         </div>
@@ -292,6 +184,7 @@ const AdminDashboard = () => {
             <TabsTrigger value="assets">Asset Management</TabsTrigger>
           </TabsList>
 
+          {/* OVERVIEW - Comprehensive stats & advanced charts */}
           <TabsContent value="overview" className="space-y-8">
             <FeatureTracker featureName="admin_overview_tab">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -305,11 +198,13 @@ const AdminDashboard = () => {
             </FeatureTracker>
           </TabsContent>
 
+          {/* USER ANALYTICS TAB */}
           <TabsContent value="users">
             <FeatureTracker featureName="admin_users_tab">
               <div className="space-y-6">
                 <UserAnalyticsPanel />
                 
+                {/* Additional User Insights */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <Card>
                     <CardHeader>
@@ -354,6 +249,7 @@ const AdminDashboard = () => {
             </FeatureTracker>
           </TabsContent>
 
+          {/* TRADING DATA TAB */}
           <TabsContent value="trading">
             <FeatureTracker featureName="admin_trading_tab">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -388,6 +284,7 @@ const AdminDashboard = () => {
             </FeatureTracker>
           </TabsContent>
 
+          {/* SYSTEM MONITORING TAB */}
           <TabsContent value="system">
             <FeatureTracker featureName="admin_system_tab">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -408,7 +305,7 @@ const AdminDashboard = () => {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">Error Rate</span>
-                        <span className="text-sm text-orange-600 font-semibold">{analytics.errorRate}%</span>
+                        <span className="text-sm text-orange-600 font-semibold">{mockAnalytics.errorRate}%</span>
                       </div>
                     </div>
                   </CardContent>
@@ -430,6 +327,7 @@ const AdminDashboard = () => {
             </FeatureTracker>
           </TabsContent>
 
+          {/* ASSETS TAB (reuse existing AssetManagement) */}
           <TabsContent value="assets">
             <FeatureTracker featureName="admin_assets_tab">
               <AssetManagement />
