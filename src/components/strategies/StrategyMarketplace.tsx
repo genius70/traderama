@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,12 +7,21 @@ import { Star, TrendingUp, Users, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+interface PerformanceMetrics {
+  total_return?: number;
+  annual_return?: number;
+  max_drawdown?: number;
+  sharpe_ratio?: number;
+  win_rate?: number;
+  [key: string]: unknown;
+}
+
 interface Strategy {
   id: string;
   title: string;
   description: string;
   fee_percentage: number;
-  performance_metrics: any;
+  performance_metrics: PerformanceMetrics | null;
   creator_id: string;
   is_premium_only: boolean;
 }
@@ -23,11 +31,7 @@ const StrategyMarketplace = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchStrategies();
-  }, []);
-
-  const fetchStrategies = async () => {
+  const fetchStrategies = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('trading_strategies')
@@ -47,7 +51,11 @@ const StrategyMarketplace = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchStrategies();
+  }, [fetchStrategies]);
 
   const subscribeToStrategy = async (strategyId: string) => {
     try {
