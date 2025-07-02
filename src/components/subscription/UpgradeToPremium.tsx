@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
+
+interface UpgradeError extends Error {
+  message: string;
+}
 
 const UpgradeToPremium = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
@@ -86,10 +89,11 @@ const UpgradeToPremium = () => {
           description: "Complete your payment on Wise. Your subscription will be activated within 24 hours.",
         });
       }
-    } catch (error: any) {
+    } catch (error) {
+      const upgradeError = error as UpgradeError;
       toast({
         title: "Upgrade failed",
-        description: error.message || "Please try again or contact support.",
+        description: upgradeError.message || "Please try again or contact support.",
         variant: "destructive",
       });
     } finally {
