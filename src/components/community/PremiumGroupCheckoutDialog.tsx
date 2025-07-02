@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,10 @@ const paymentMethods = [
 interface PremiumGroupCheckoutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface CheckoutResponse {
+  url?: string;
 }
 
 const PRODUCT_LABEL = "Premium Group Access";
@@ -36,11 +39,15 @@ export default function PremiumGroupCheckoutDialog({ open, onOpenChange }: Premi
           }
         });
         if (error) throw error;
-        window.open(data?.url, "_blank");
-        toast({
-          title: "Redirecting to Stripe...",
-          description: "Complete your payment in the new tab.",
-        });
+        
+        const checkoutData = data as CheckoutResponse;
+        if (checkoutData?.url) {
+          window.open(checkoutData.url, "_blank");
+          toast({
+            title: "Redirecting to Stripe...",
+            description: "Complete your payment in the new tab.",
+          });
+        }
       } else {
         // Placeholder for other methods
         toast({
@@ -48,10 +55,11 @@ export default function PremiumGroupCheckoutDialog({ open, onOpenChange }: Premi
           description: `Payment provider (${paymentMethod}) is coming soon or handled manually.`,
         });
       }
-    } catch (e: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to initiate payment.";
       toast({
         title: "Payment Error",
-        description: e.message || "Failed to initiate payment.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
