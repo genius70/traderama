@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,15 +19,56 @@ type KemCredits = {
   credits_spent: number;
   total_airdrops_received: number;
 };
+
 type AirdropMilestoneRow = {
   id: string | number;
   name: string;
   kem_bonus: number;
   created_at?: string;
 };
+
 type UserMilestoneRow = {
   milestone_id: string | number;
   user_id: string;
+};
+
+type UserProfile = {
+  id: string;
+  role: string;
+  [key: string]: unknown;
+};
+
+// Type for database row with unknown structure
+type DatabaseMilestone = {
+  id: unknown;
+  name: unknown;
+  kem_bonus: unknown;
+  created_at?: unknown;
+};
+
+type DatabaseUserMilestone = {
+  milestone_id: unknown;
+  user_id: unknown;
+};
+
+// Type guards
+const isValidMilestone = (milestone: unknown): milestone is DatabaseMilestone => {
+  return (
+    milestone !== null &&
+    typeof milestone === 'object' &&
+    'id' in milestone &&
+    'name' in milestone &&
+    'kem_bonus' in milestone
+  );
+};
+
+const isValidUserMilestone = (milestone: unknown): milestone is DatabaseUserMilestone => {
+  return (
+    milestone !== null &&
+    typeof milestone === 'object' &&
+    'milestone_id' in milestone &&
+    typeof (milestone as DatabaseUserMilestone).milestone_id !== 'undefined'
+  );
 };
 
 const Airdrop: React.FC = () => {
@@ -39,14 +80,10 @@ const Airdrop: React.FC = () => {
   const { toast } = useToast();
   const [milestones, setMilestones] = useState<AirdropMilestoneRow[]>([]);
   const [userMilestones, setUserMilestones] = useState<(string | number)[]>([]);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user) fetchKemCredits();
-  }, [user]);
-
-  const fetchKemCredits = async () => {
+  const fetchKemCredits = useCallback(async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from('kem_credits')
@@ -68,7 +105,11 @@ const Airdrop: React.FC = () => {
         setAvailableCredits(0);
       }
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) fetchKemCredits();
+  }, [user, fetchKemCredits]);
 
   const calculateKemTokens = (credits: number) => Math.floor(credits * 0.05 * 100) / 100;
 
@@ -100,10 +141,11 @@ const Airdrop: React.FC = () => {
       });
       await fetchKemCredits();
       setEthereumWallet('');
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -114,13 +156,7 @@ const Airdrop: React.FC = () => {
   const milestoneProgress = kemCredits ? (kemCredits.credits_earned % 100) : 0;
   const nextMilestone = kemCredits ? Math.ceil(kemCredits.credits_earned / 100) * 100 : 100;
 
-  useEffect(() => {
-    fetchMilestones();
-    fetchProfile();
-    fetchUserMilestones();
-  }, [user]);
-
-  const fetchMilestones = async () => {
+  const fetchMilestones = useCallback(async () => {
     const { data, error } = await supabase
       .from("airdrop_milestones")
       .select("*")
@@ -143,30 +179,26 @@ const Airdrop: React.FC = () => {
     
     // Transform the data to match our expected type with proper type checking
     const validMilestones = data
-      .filter((milestone): milestone is any => 
-        milestone && 
-        typeof milestone === 'object' && 
-        'id' in milestone && 
-        'name' in milestone && 
-        'kem_bonus' in milestone
-      )
+      .filter((milestone): milestone is DatabaseMilestone => isValidMilestone(milestone))
       .map(milestone => ({
         id: milestone.id,
-        name: milestone.name,
-        kem_bonus: milestone.kem_bonus,
-        created_at: milestone.created_at
+        name: String(milestone.name),
+        kem_bonus: Number(milestone.kem_bonus),
+        created_at: milestone.created_at ? String(milestone.created_at) : undefined
       }));
     
     setMilestones(validMilestones);
-  };
+  }, [toast]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
-    setProfile(data);
-  };
+    if (data) {
+      setProfile(data as UserProfile);
+    }
+  }, [user]);
 
-  const fetchUserMilestones = async () => {
+  const fetchUserMilestones = useCallback(async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from("user_milestones")
@@ -185,16 +217,17 @@ const Airdrop: React.FC = () => {
     }
 
     const milestoneIds = data
-      .filter((item): item is any => 
-        item && 
-        typeof item === 'object' && 
-        'milestone_id' in item && 
-        typeof item.milestone_id !== 'undefined'
-      )
+      .filter((item): item is DatabaseUserMilestone => isValidUserMilestone(item))
       .map(item => item.milestone_id);
     
     setUserMilestones(milestoneIds);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchMilestones();
+    fetchProfile();
+    fetchUserMilestones();
+  }, [fetchMilestones, fetchProfile, fetchUserMilestones]);
 
   const isAdmin = (profile?.role === "admin" || profile?.role === "super_admin");
 
