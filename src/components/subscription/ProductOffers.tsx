@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,16 @@ interface SubscriptionPlan {
   currency: string;
   features: string[];
   popular?: boolean;
+}
+
+interface SupabaseError {
+  message: string;
+  details?: string;
+  hint?: string;
+}
+
+interface PaymentError extends Error {
+  message: string;
 }
 
 const ProductOffers: React.FC = () => {
@@ -107,10 +116,11 @@ const ProductOffers: React.FC = () => {
         description: "Our team will contact you to set up your email campaign.",
       });
 
-    } catch (error: any) {
+    } catch (error) {
+      const supabaseError = error as SupabaseError;
       toast({
         title: "Error",
-        description: error.message,
+        description: supabaseError.message,
         variant: "destructive",
       });
     } finally {
@@ -141,10 +151,11 @@ const ProductOffers: React.FC = () => {
         title: "Stripe checkout",
         description: "Complete your payment in the new tab.",
       });
-    } catch (err: any) {
+    } catch (err) {
+      const paymentError = err as PaymentError;
       toast({
         title: "Payment Error",
-        description: err.message,
+        description: paymentError.message,
         variant: "destructive"
       });
     }
@@ -162,10 +173,11 @@ const ProductOffers: React.FC = () => {
         title: "AirTM Payment",
         description: "Complete your payment on AirTM. Your subscription will be activated within 24 hours.",
       });
-    } catch (err: any) {
+    } catch (err) {
+      const paymentError = err as PaymentError;
       toast({
         title: "Payment Error",
-        description: err.message,
+        description: paymentError.message,
         variant: "destructive"
       });
     }
@@ -183,10 +195,11 @@ const ProductOffers: React.FC = () => {
         title: "Wise Payment",
         description: "Complete your payment on Wise. Your subscription will be activated within 24 hours.",
       });
-    } catch (err: any) {
+    } catch (err) {
+      const paymentError = err as PaymentError;
       toast({
         title: "Payment Error",
-        description: err.message,
+        description: paymentError.message,
         variant: "destructive"
       });
     }
