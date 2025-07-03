@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -52,7 +51,7 @@ type DatabaseUserMilestone = {
   user_id: unknown;
 };
 
-// Type guards - Fixed to properly validate the data types
+// Fixed type guards with proper return types
 const isValidMilestone = (milestone: unknown): milestone is AirdropMilestoneRow => {
   return (
     milestone !== null &&
@@ -185,7 +184,7 @@ const Airdrop: React.FC = () => {
     
     // Transform the data to match our expected type with proper type checking
     const validMilestones = data
-      .filter((milestone): milestone is AirdropMilestoneRow => isValidMilestone(milestone))
+      .filter(isValidMilestone)
       .map(milestone => ({
         id: milestone.id,
         name: String(milestone.name),
@@ -223,7 +222,7 @@ const Airdrop: React.FC = () => {
     }
 
     const milestoneIds = data
-      .filter((item): item is UserMilestoneRow => isValidUserMilestone(item))
+      .filter(isValidUserMilestone)
       .map(item => item.milestone_id);
     
     setUserMilestones(milestoneIds);

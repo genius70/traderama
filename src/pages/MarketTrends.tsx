@@ -1,8 +1,10 @@
-
-import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Activity } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import ETFCard from '@/components/market/ETFCard';
+import MarketChart from '@/components/market/MarketChart';
+import CategoryFilter from '@/components/market/CategoryFilter';
+import MarketSummaryStats from '@/components/market/MarketSummaryStats';
 
 // ETF data configuration - Comprehensive list for trade research
 const ETF_SYMBOLS = [
@@ -67,10 +69,6 @@ const TIME_PERIODS = [
 
 // Mock API function (replace with actual Alpha Vantage API calls)
 const fetchETFData = async (symbol: string) => {
-  // Real data - with Alpha Vantage API call
-  const API_KEY = '8AQPB7J6D8TUCDJA';
-  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`;
-  
   await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
   
   const basePrice = Math.random() * 400 + 100;
@@ -95,179 +93,33 @@ const generateHistoricalData = (symbol: string, days = 30) => {
   const basePrice = Math.random() * 400 + 100;
   let currentPrice = basePrice;
   
-  // Add more realistic price movement based on time period
   const volatility = days > 365 ? 0.02 : days > 90 ? 0.015 : 0.01;
-  const trend = (Math.random() - 0.5) * 0.001; // Small overall trend
+  const trend = (Math.random() - 0.5) * 0.001;
   
   for (let i = days; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     
-    // Add trend and random walk
     const dailyChange = (Math.random() - 0.5) * volatility * currentPrice;
     const trendChange = trend * currentPrice;
     currentPrice = Math.max(10, currentPrice + dailyChange + trendChange);
     
-    // Add some market events for longer periods
     if (days > 365 && Math.random() < 0.02) {
-      // Random market event (2% chance per day for long periods)
-      currentPrice *= (0.9 + Math.random() * 0.2); // ±10% event
+      currentPrice *= (0.9 + Math.random() * 0.2);
     }
     
     data.push({
       date: date.toISOString().split('T')[0],
       price: parseFloat(currentPrice.toFixed(2)),
       volume: Math.floor(Math.random() * 5000000) + 500000,
-      // Add technical indicators for analysis
       sma20: data.length >= 20 ? 
         data.slice(-20).reduce((sum, item) => sum + item.price, 0) / 20 : 
         currentPrice,
-      rsi: 30 + Math.random() * 40 // RSI between 30-70
+      rsi: 30 + Math.random() * 40
     });
   }
   
   return data;
-};
-
-// ETF Card Component
-const ETFCard = ({ etf, data, onSelect, isSelected }: {
-  etf: { symbol: string; name: string; description: string; category: string };
-  data: any;
-  onSelect: (symbol: string) => void;
-  isSelected: boolean;
-}) => {
-  const isPositive = parseFloat(data?.change || 0) >= 0;
-  
-  // Category color coding
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      'Core': 'bg-blue-100 text-blue-800',
-      'Sector': 'bg-green-100 text-green-800',
-      'International': 'bg-purple-100 text-purple-800',
-      'Bonds': 'bg-yellow-100 text-yellow-800',
-      'Style': 'bg-indigo-100 text-indigo-800',
-      'Commodities': 'bg-orange-100 text-orange-800',
-      'Real Estate': 'bg-red-100 text-red-800',
-      'Thematic': 'bg-pink-100 text-pink-800'
-    };
-    return colors[category] || 'bg-gray-100 text-gray-800';
-  };
-  
-  return (
-    <div 
-      className={`w-full bg-white rounded-xl shadow-lg p-4 sm:p-6 cursor-pointer transition-all duration-300 hover:shadow-xl border-2 ${
-        isSelected ? 'border-blue-500' : 'border-transparent hover:border-blue-200'
-      }`}
-      onClick={() => onSelect(etf.symbol)}
-    >
-      <div className="flex justify-between items-start mb-3 w-full">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-bold text-base sm:text-lg text-gray-900 truncate">{etf.symbol}</h3>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(etf.category)}`}>
-              {etf.category}
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-gray-600 truncate">{etf.name}</p>
-          <p className="text-xs text-gray-500 truncate">{etf.description}</p>
-        </div>
-        <div className={`p-2 rounded-full flex-shrink-0 ml-2 ${isPositive ? 'bg-green-100' : 'bg-red-100'}`}>
-          {isPositive ? 
-            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" /> : 
-            <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
-          }
-        </div>
-      </div>
-      
-      {data ? (
-        <div className="space-y-2 w-full">
-          <div className="flex justify-between items-center w-full">
-            <span className="text-lg sm:text-2xl font-bold text-gray-900 truncate">${data.price}</span>
-            <div className={`text-xs sm:text-sm font-semibold truncate ml-2 ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-              {isPositive ? '+' : ''}{data.change} ({isPositive ? '+' : ''}{data.changePercent}%)
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 w-full">
-            <div className="min-w-0">
-              <span className="block text-xs text-gray-500">High</span>
-              <span className="font-medium truncate">${data.high}</span>
-            </div>
-            <div className="min-w-0">
-              <span className="block text-xs text-gray-500">Low</span>
-              <span className="font-medium truncate">${data.low}</span>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500 truncate w-full">
-            Volume: {data.volume?.toLocaleString()}
-          </div>
-        </div>
-      ) : (
-        <div className="animate-pulse w-full">
-          <div className="h-6 sm:h-8 bg-gray-200 rounded mb-2 w-full"></div>
-          <div className="h-3 sm:h-4 bg-gray-200 rounded mb-2 w-full"></div>
-          <div className="h-2 sm:h-3 bg-gray-200 rounded w-full"></div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Chart Component
-const ChartComponent = ({ symbol, data }: { symbol: string; data: any[] }) => {
-  if (!data || data.length === 0) {
-    return (
-      <div className="h-64 sm:h-80 w-full flex items-center justify-center">
-        <div className="animate-pulse text-gray-500">Loading chart data...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-64 sm:h-80 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data}>
-          <defs>
-            <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-          <XAxis 
-            dataKey="date" 
-            tick={{ fontSize: 10 }}
-            stroke="#6B7280"
-            interval="preserveStartEnd"
-          />
-          <YAxis 
-            tick={{ fontSize: 10 }}
-            stroke="#6B7280"
-            domain={['dataMin - 5', 'dataMax + 5']}
-            width={60}
-          />
-          <Tooltip 
-            contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #E5E7EB',
-              borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-              fontSize: '12px'
-            }}
-            formatter={(value) => [`${value}`, 'Price']}
-            labelFormatter={(label) => `Date: ${label}`}
-          />
-          <Area
-            type="monotone"
-            dataKey="price"
-            stroke="#3B82F6"
-            strokeWidth={2}
-            fillOpacity={1}
-            fill="url(#colorPrice)"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
 };
 
 // Main Dashboard Component
@@ -287,6 +139,14 @@ const MarketTrends = () => {
   const filteredETFs = categoryFilter === 'All' 
     ? ETF_SYMBOLS 
     : ETF_SYMBOLS.filter(etf => etf.category === categoryFilter);
+
+  // Calculate ETF counts for filter
+  const etfCounts = categories.reduce((acc, category) => {
+    acc[category] = category === 'All' 
+      ? ETF_SYMBOLS.length 
+      : ETF_SYMBOLS.filter(etf => etf.category === category).length;
+    return acc;
+  }, {} as Record<string, number>);
 
   // Fetch ETF data
   useEffect(() => {
@@ -353,24 +213,12 @@ const MarketTrends = () => {
           </div>
         </div>
 
-        {/* Category Filter */}
-        <div className="mb-6 w-full">
-          <div className="flex flex-wrap gap-2">
-            {categories.map(category => (
-              <button
-                key={category}
-                onClick={() => setCategoryFilter(category)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  categoryFilter === category
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                {category} ({category === 'All' ? ETF_SYMBOLS.length : ETF_SYMBOLS.filter(etf => etf.category === category).length})
-              </button>
-            ))}
-          </div>
-        </div>
+        <CategoryFilter 
+          categories={categories}
+          selectedCategory={categoryFilter}
+          onCategoryChange={setCategoryFilter}
+          etfCounts={etfCounts}
+        />
 
         {/* ETF Cards Grid */}
         <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
@@ -415,34 +263,14 @@ const MarketTrends = () => {
             </div>
           </div>
           
-          <div className="w-full">
-            <ChartComponent 
-              symbol={selectedSymbol} 
-              data={currentChartData}
-            />
-          </div>
+          <MarketChart symbol={selectedSymbol} data={currentChartData} />
         </div>
 
-        {/* Market Summary Stats */}
-        <div className="mt-8 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {categories.slice(1, 5).map(category => {
-            const categoryETFs = ETF_SYMBOLS.filter(etf => etf.category === category);
-            const avgChange = categoryETFs.reduce((sum, etf) => {
-              const data = etfData[etf.symbol];
-              return sum + (data ? parseFloat(data.changePercent) : 0);
-            }, 0) / categoryETFs.length;
-            
-            return (
-              <div key={category} className="bg-white rounded-lg shadow p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">{category}</h4>
-                <div className={`text-2xl font-bold ${avgChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {avgChange >= 0 ? '+' : ''}{avgChange.toFixed(2)}%
-                </div>
-                <p className="text-xs text-gray-500">{categoryETFs.length} ETFs</p>
-              </div>
-            );
-          })}
-        </div>
+        <MarketSummaryStats 
+          categories={categories.slice(1, 5)}
+          etfData={etfData}
+          etfSymbols={ETF_SYMBOLS}
+        />
 
         {/* API Integration Instructions */}
         <div className="mt-8 w-full bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
@@ -454,7 +282,7 @@ const MarketTrends = () => {
             https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&apikey=$API_KEY
           </code>
           <p className="text-blue-700 text-xs mt-2">
-            Sign up at alphavantage.co for free API access (500 calls/day) • Use TIME_SERIES_DAILY for historical data
+            Sign up at alphavantage.co for free API access (500 calls/day) • Use TIME_SERIES_Daily for historical data
           </p>
         </div>
       </div>
