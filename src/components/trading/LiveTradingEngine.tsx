@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,12 +35,7 @@ const LiveTradingEngine: React.FC = () => {
   });
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
 
-  useEffect(() => {
-    checkBrokerConnection();
-    fetchPositions();
-  }, [user]);
-
-  const checkBrokerConnection = async () => {
+  const checkBrokerConnection = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -61,9 +56,9 @@ const LiveTradingEngine: React.FC = () => {
       console.error('Error checking broker connection:', error);
       setConnectionStatus('error');
     }
-  };
+  }, [user]);
 
-  const fetchPositions = async () => {
+  const fetchPositions = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -90,7 +85,12 @@ const LiveTradingEngine: React.FC = () => {
     } catch (error) {
       console.error('Error fetching positions:', error);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    checkBrokerConnection();
+    fetchPositions();
+  }, [checkBrokerConnection, fetchPositions]);
 
   const toggleTrading = async () => {
     if (connectionStatus !== 'connected') {
