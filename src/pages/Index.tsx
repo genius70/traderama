@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 import React, { useState, useEffect } from "react";
-=======
 import React, { useState, useEffect, useCallback } from "react";
->>>>>>> 9bddf80f32be6d1f6787f40743be9b25f2033070
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";

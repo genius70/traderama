@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 import { useState, useEffect } from "react";
-=======
 import { useState, useEffect, useCallback } from "react";
->>>>>>> 9bddf80f32be6d1f6787f40743be9b25f2033070
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import {
