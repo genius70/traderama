@@ -52,23 +52,28 @@ type DatabaseUserMilestone = {
   user_id: unknown;
 };
 
-// Type guards - Updated to match expected parameter types
-const isValidMilestone = (milestone: unknown): milestone is DatabaseMilestone => {
+// Type guards - Fixed to properly validate the data types
+const isValidMilestone = (milestone: unknown): milestone is AirdropMilestoneRow => {
   return (
     milestone !== null &&
     typeof milestone === 'object' &&
     'id' in milestone &&
     'name' in milestone &&
-    'kem_bonus' in milestone
+    'kem_bonus' in milestone &&
+    (typeof (milestone as any).id === 'string' || typeof (milestone as any).id === 'number') &&
+    typeof (milestone as any).name === 'string' &&
+    typeof (milestone as any).kem_bonus === 'number'
   );
 };
 
-const isValidUserMilestone = (milestone: unknown): milestone is DatabaseUserMilestone => {
+const isValidUserMilestone = (milestone: unknown): milestone is UserMilestoneRow => {
   return (
     milestone !== null &&
     typeof milestone === 'object' &&
     'milestone_id' in milestone &&
-    typeof (milestone as DatabaseUserMilestone).milestone_id !== 'undefined'
+    'user_id' in milestone &&
+    (typeof (milestone as any).milestone_id === 'string' || typeof (milestone as any).milestone_id === 'number') &&
+    typeof (milestone as any).user_id === 'string'
   );
 };
 
@@ -180,7 +185,7 @@ const Airdrop: React.FC = () => {
     
     // Transform the data to match our expected type with proper type checking
     const validMilestones = data
-      .filter((milestone): milestone is DatabaseMilestone => isValidMilestone(milestone))
+      .filter((milestone): milestone is AirdropMilestoneRow => isValidMilestone(milestone))
       .map(milestone => ({
         id: milestone.id,
         name: String(milestone.name),
@@ -218,7 +223,7 @@ const Airdrop: React.FC = () => {
     }
 
     const milestoneIds = data
-      .filter((item): item is DatabaseUserMilestone => isValidUserMilestone(item))
+      .filter((item): item is UserMilestoneRow => isValidUserMilestone(item))
       .map(item => item.milestone_id);
     
     setUserMilestones(milestoneIds);

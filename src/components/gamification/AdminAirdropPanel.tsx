@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,14 +23,17 @@ type DatabaseMilestone = {
   created_at?: unknown;
 };
 
-// Type guard to validate milestone data
-const isValidMilestone = (milestone: unknown): milestone is DatabaseMilestone => {
+// Type guard to validate milestone data - Fixed to properly check types
+const isValidMilestone = (milestone: unknown): milestone is AirdropMilestoneRow => {
   return (
     milestone !== null &&
     typeof milestone === 'object' &&
     'id' in milestone &&
     'name' in milestone &&
-    'kem_bonus' in milestone
+    'kem_bonus' in milestone &&
+    typeof (milestone as any).id === 'string' &&
+    typeof (milestone as any).name === 'string' &&
+    typeof (milestone as any).kem_bonus === 'number'
   );
 };
 
@@ -56,9 +60,9 @@ const AdminAirdropPanel: React.FC = () => {
     }
 
     if (data && Array.isArray(data)) {
-      // Properly type-check and filter the data
+      // Transform and validate the data
       const validMilestones = data
-        .filter((milestone): milestone is DatabaseMilestone => isValidMilestone(milestone))
+        .filter((milestone): milestone is AirdropMilestoneRow => isValidMilestone(milestone))
         .map(milestone => ({
           id: String(milestone.id),
           name: String(milestone.name),
