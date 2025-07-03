@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,13 +24,8 @@ const LiveOptionsChainModal: React.FC<LiveOptionsChainModalProps> = ({
   const [searchStrike, setSearchStrike] = useState('');
   const [selectedExpiry, setSelectedExpiry] = useState('2024-02-16');
 
-  useEffect(() => {
-    if (isOpen) {
-      loadOptionsChain();
-    }
-  }, [isOpen, symbol, selectedExpiry]);
-
-  const loadOptionsChain = async () => {
+  // Wrap loadOptionsChain in useCallback to prevent unnecessary re-renders
+  const loadOptionsChain = useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchLiveOptionsChain(symbol, selectedExpiry);
@@ -41,7 +35,13 @@ const LiveOptionsChainModal: React.FC<LiveOptionsChainModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [symbol, selectedExpiry]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadOptionsChain();
+    }
+  }, [isOpen, loadOptionsChain]);
 
   const filteredContracts = contracts.filter(contract => 
     !searchStrike || contract.strike.toString().includes(searchStrike)
