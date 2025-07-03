@@ -9,9 +9,15 @@ import {
   FormProvider,
   useFormContext,
 } from "react-hook-form"
-
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { 
+  FORM_MESSAGE_ID, 
+  FORM_ITEM_CONTEXT, 
+  FORM_FIELD_CONTEXT, 
+  FORM_CLASSES,
+  type FormClass 
+} from "@/constants"
 
 const Form = FormProvider
 
@@ -78,7 +84,7 @@ const FormItem = React.forwardRef<
 
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div ref={ref} className={cn("space-y-2", className)} {...props} />
+      <div ref={ref} className={cn(FORM_CLASSES.ITEM, className)} {...props} />
     </FormItemContext.Provider>
   )
 })
@@ -133,7 +139,7 @@ const FormDescription = React.forwardRef<
     <p
       ref={ref}
       id={formDescriptionId}
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn(FORM_CLASSES.DESCRIPTION, className)}
       {...props}
     />
   )
@@ -155,7 +161,7 @@ const FormMessage = React.forwardRef<
     <p
       ref={ref}
       id={formMessageId}
-      className={cn("text-sm font-medium text-destructive", className)}
+      className={cn(FORM_CLASSES.MESSAGE, className)}
       {...props}
     >
       {body}

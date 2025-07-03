@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
@@ -42,73 +41,61 @@ const Settings = () => {
     email: "",
   });
 
-<<<<<<< HEAD
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
+  const fetchSettings = useCallback(
+    async () => {
+      if (!user) return;
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+      try {
+        const { data, error } = await supabase
+          .from("user_settings")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-  useEffect(() => {
-    fetchSettings();
-    fetchProfile();
-  }, []);
-
-  const fetchSettings = async () => {
-=======
-  const fetchSettings = useCallback(async () => {
-    if (!user) return;
-    
->>>>>>> 9bddf80f32be6d1f6787f40743be9b25f2033070
-    try {
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error && error.code !== "PGRST116") throw error;
-      if (data) {
-        setSettings(data);
+        if (error && error.code !== "PGRST116") throw error;
+        if (data) {
+          setSettings(data);
+        }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
       }
-    } catch (error) {
-      console.error("Error fetching settings:", error);
-    }
-  }, [user]);
+    },
+    [user],
+  );
 
-  const fetchProfile = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name, email")
-        .eq("id", user.id)
-        .single();
+  const fetchProfile = useCallback(
+    async () => {
+      if (!user) return;
 
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    }
-  }, [user]);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("name, email")
+          .eq("id", user.id)
+          .single();
 
-  useEffect(() => {
-    if (user) {
-      fetchSettings();
-      fetchProfile();
-    }
-  }, [user, fetchSettings, fetchProfile]);
+        if (error) throw error;
+        setProfile(data);
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      }
+    },
+    [user],
+  );
+
+  useEffect(
+    () => {
+      if (user) {
+        fetchSettings();
+        fetchProfile();
+      }
+    },
+    [user, fetchSettings, fetchProfile],
+  );
 
   const updateSettings = async (updates: Partial<typeof settings>) => {
     if (!user) return;
-    
+
     try {
       const { error } = await supabase.from("user_settings").upsert({
         user_id: user.id,
@@ -131,7 +118,7 @@ const Settings = () => {
 
   const updateProfile = async () => {
     if (!user) return;
-    
+
     try {
       const { error } = await supabase
         .from("profiles")
@@ -314,11 +301,7 @@ const Settings = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="public">
-<<<<<<< HEAD
-                      Public - unknownone can see your profile
-=======
                       Public - Anyone can see your profile
->>>>>>> 9bddf80f32be6d1f6787f40743be9b25f2033070
                     </SelectItem>
                     <SelectItem value="followers">
                       Followers Only - Only your followers can see your profile
@@ -382,3 +365,4 @@ const Settings = () => {
 };
 
 export default Settings;
+export type { SettingsProps } from "./Settings.types";

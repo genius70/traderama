@@ -67,6 +67,19 @@ export type ButtonVariants = VariantProps<typeof buttonVariants>;
 // =============================================================================
 export const FORM_MESSAGE_ID = "form-message";
 
+export const FORM_ITEM_CONTEXT = "FormItemContext";
+export const FORM_FIELD_CONTEXT = "FormFieldContext";
+
+export const FORM_CLASSES = {
+  ITEM: "space-y-2",
+  LABEL: "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+  CONTROL: "",
+  DESCRIPTION: "text-sm text-muted-foreground",
+  MESSAGE: "text-sm font-medium text-destructive",
+} as const;
+
+export type FormClass = typeof FORM_CLASSES[keyof typeof FORM_CLASSES];
+
 // =============================================================================
 // NAVIGATION MENU CONSTANTS
 // =============================================================================
@@ -81,6 +94,22 @@ export const SIDEBAR_WIDTH = "16rem";
 export const SIDEBAR_WIDTH_MOBILE = "18rem";
 export const SIDEBAR_WIDTH_ICON = "3rem";
 export const SIDEBAR_KEYBOARD_SHORTCUT = "b";
+
+export const SIDEBAR_VARIANTS = {
+  SIDEBAR: "sidebar",
+  FLOATING: "floating",
+  INSET: "inset",
+} as const;
+
+export const SIDEBAR_SIDES = {
+  LEFT: "left",
+  RIGHT: "right",
+} as const;
+
+export const SIDEBAR_CONTEXT_NAME = "SidebarContext";
+
+export type SidebarVariant = typeof SIDEBAR_VARIANTS[keyof typeof SIDEBAR_VARIANTS];
+export type SidebarSide = typeof SIDEBAR_SIDES[keyof typeof SIDEBAR_SIDES];
 
 // =============================================================================
 // SONNER TOAST VARIANTS
@@ -142,6 +171,17 @@ export const ANALYTICS_EVENTS = {
 
 export type AnalyticsEvent = typeof ANALYTICS_EVENTS[keyof typeof ANALYTICS_EVENTS];
 
+export const ANALYTICS_CONTEXT_NAME = "AnalyticsContext";
+
+export const ANALYTICS_PROVIDERS = {
+  GOOGLE_ANALYTICS: 'google_analytics',
+  MIXPANEL: 'mixpanel',
+  AMPLITUDE: 'amplitude',
+  CUSTOM: 'custom',
+} as const;
+
+export type AnalyticsProvider = typeof ANALYTICS_PROVIDERS[keyof typeof ANALYTICS_PROVIDERS];
+
 // =============================================================================
 // AUTH CONSTANTS
 // =============================================================================
@@ -160,3 +200,91 @@ export const AUTH_ENDPOINTS = {
 
 export type AuthStorageKey = typeof AUTH_STORAGE_KEYS[keyof typeof AUTH_STORAGE_KEYS];
 export type AuthEndpoint = typeof AUTH_ENDPOINTS[keyof typeof AUTH_ENDPOINTS];
+
+// =============================================================================
+// AUTH CONTEXT/PROVIDER CONSTANTS
+// =============================================================================
+export const AUTH_ERRORS = {
+  INVALID_CREDENTIALS: 'Invalid credentials',
+  TOKEN_EXPIRED: 'Token has expired',
+  NETWORK_ERROR: 'Network error occurred',
+  UNKNOWN_ERROR: 'An unknown error occurred',
+} as const;
+
+export const AUTH_STATES = {
+  IDLE: 'idle',
+  LOADING: 'loading',
+  AUTHENTICATED: 'authenticated',
+  UNAUTHENTICATED: 'unauthenticated',
+  ERROR: 'error',
+} as const;
+
+export const AUTH_CONTEXT_NAME = "AuthContext";
+
+export type AuthError = typeof AUTH_ERRORS[keyof typeof AUTH_ERRORS];
+export type AuthState = typeof AUTH_STATES[keyof typeof AUTH_STATES];
+
+// =============================================================================
+// COMMON UI CONSTANTS
+// =============================================================================
+export const COMMON_CLASSES = {
+  CONTAINER: "container mx-auto",
+  FLEX_CENTER: "flex items-center justify-center",
+  FLEX_BETWEEN: "flex items-center justify-between",
+  GRID_RESPONSIVE: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+  TEXT_MUTED: "text-muted-foreground",
+  TEXT_ERROR: "text-destructive",
+  TEXT_SUCCESS: "text-green-600",
+  BUTTON_FULL: "w-full",
+  BUTTON_LOADING: "opacity-50 cursor-not-allowed",
+} as const;
+
+export type CommonClass = typeof COMMON_CLASSES[keyof typeof COMMON_CLASSES];
+
+// =============================================================================
+// VALIDATION CONSTANTS
+// =============================================================================
+export const VALIDATION_MESSAGES = {
+  REQUIRED: 'This field is required',
+  EMAIL_INVALID: 'Please enter a valid email address',
+  PASSWORD_TOO_SHORT: 'Password must be at least 8 characters',
+  PASSWORD_MISMATCH: 'Passwords do not match',
+  INVALID_FORMAT: 'Invalid format',
+  TOO_LONG: 'Input is too long',
+  TOO_SHORT: 'Input is too short',
+} as const;
+
+export type ValidationMessage = typeof VALIDATION_MESSAGES[keyof typeof VALIDATION_MESSAGES];
+
+// =============================================================================
+// API CONSTANTS
+// =============================================================================
+export const API_ENDPOINTS = {
+  USERS: '/api/users',
+  TRADES: '/api/trades',
+  ANALYTICS: '/api/analytics',
+  WALLETS: '/api/wallets',
+  SETTINGS: '/api/settings',
+} as const;
+
+export const HTTP_METHODS = {
+  GET: 'GET',
+  POST: 'POST',
+  PUT: 'PUT',
+  DELETE: 'DELETE',
+  PATCH: 'PATCH',
+} as const;
+
+export const HTTP_STATUS_CODES = {
+  OK: 200,
+  CREATED: 201,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  INTERNAL_SERVER_ERROR: 500,
+} as const;
+
+export type ApiEndpoint = typeof API_ENDPOINTS[keyof typeof API_ENDPOINTS];
+export type HttpMethod = typeof HTTP_METHODS[keyof typeof HTTP_METHODS];
+export type HttpStatusCode = typeof HTTP_STATUS_CODES[keyof typeof HTTP_STATUS_CODES];
