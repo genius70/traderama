@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useState, useEffect } from "react";
+=======
+import { useState, useEffect, useCallback } from "react";
+>>>>>>> 9bddf80f32be6d1f6787f40743be9b25f2033070
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import {
@@ -41,6 +45,7 @@ const Settings = () => {
     email: "",
   });
 
+<<<<<<< HEAD
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -59,6 +64,11 @@ const Settings = () => {
   }, []);
 
   const fetchSettings = async () => {
+=======
+  const fetchSettings = useCallback(async () => {
+    if (!user) return;
+    
+>>>>>>> 9bddf80f32be6d1f6787f40743be9b25f2033070
     try {
       const { data, error } = await supabase
         .from("user_settings")
@@ -73,9 +83,11 @@ const Settings = () => {
     } catch (error) {
       console.error("Error fetching settings:", error);
     }
-  };
+  }, [user]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
+    if (!user) return;
+    
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -88,9 +100,18 @@ const Settings = () => {
     } catch (error) {
       console.error("Error fetching profile:", error);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchSettings();
+      fetchProfile();
+    }
+  }, [user, fetchSettings, fetchProfile]);
 
   const updateSettings = async (updates: Partial<typeof settings>) => {
+    if (!user) return;
+    
     try {
       const { error } = await supabase.from("user_settings").upsert({
         user_id: user.id,
@@ -112,6 +133,8 @@ const Settings = () => {
   };
 
   const updateProfile = async () => {
+    if (!user) return;
+    
     try {
       const { error } = await supabase
         .from("profiles")
@@ -129,6 +152,18 @@ const Settings = () => {
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -282,7 +317,11 @@ const Settings = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="public">
+<<<<<<< HEAD
                       Public - unknownone can see your profile
+=======
+                      Public - Anyone can see your profile
+>>>>>>> 9bddf80f32be6d1f6787f40743be9b25f2033070
                     </SelectItem>
                     <SelectItem value="followers">
                       Followers Only - Only your followers can see your profile

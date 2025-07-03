@@ -208,6 +208,7 @@ const TradingOptionsSelector = ({ onSelectOption, filter }) => {
             <button
               key={i}
               onClick={() => setCurrentPage(i)}
+              title={`Go to page ${i + 1}`}
               className={`w-2 h-2 rounded-full transition-colors ${
                 i === currentPage ? 'bg-blue-500' : 'bg-gray-300'
               }`}

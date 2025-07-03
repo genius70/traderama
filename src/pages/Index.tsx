@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import React, { useState, useEffect } from "react";
+=======
+import React, { useState, useEffect, useCallback } from "react";
+>>>>>>> 9bddf80f32be6d1f6787f40743be9b25f2033070
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -29,11 +33,7 @@ const Index: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchStrategies();
-  }, []);
-
-  const fetchStrategies = async (): Promise<void> => {
+  const fetchStrategies = useCallback(async (): Promise<void> => {
     try {
       const { data, error } = await supabase
         .from("trading_strategies")
@@ -66,7 +66,11 @@ const Index: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchStrategies();
+  }, [fetchStrategies]);
 
   const subscribeToStrategy = async (strategyId: string): Promise<void> => {
     if (!user) {
