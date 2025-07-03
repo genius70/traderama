@@ -22,6 +22,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Community from "./pages/Community";
 import AirdropPage from "./pages/AirdropPage";
+import NotificationManager from "./pages/NotificationManager";
 import ProductOffers from "./pages/ProductOffers";
 import TradePositions from "./pages/TradePositions";
 import PaymentSuccess from "./pages/PaymentSuccess";
@@ -64,7 +65,7 @@ const App: React.FC = () => {
                   <Route path="/airdrop" element={<AirdropPage />} />
                   <Route path="/product-offers" element={<ProductOffers />} />
                   <Route path="/trade-positions" element={<TradePositions />} />
-                  <Route path="/notifications" element={<NotificationManagerPage />} />
+                  <Route path="/notifications" element={<NotificationManager />} />
                   <Route path="/success" element={<PaymentSuccess />} />
                   <Route path="/cancel" element={<PaymentCancel />} />
                   <Route path="*" element={<NotFound />} />
