@@ -1,19 +1,31 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import Header from '@/components/layout/Header';
-import WalletSettings from '@/components/wallet/WalletSettings';
-import BrokerConnections from '@/components/brokers/BrokerConnections';
-import PlatformWallet from '@/components/wallet/PlatformWallet';
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { Navigate } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/layout/Header";
+import WalletSettings from "@/components/wallet/WalletSettings";
+import BrokerConnections from "@/components/brokers/BrokerConnections";
+import PlatformWallet from "@/components/wallet/PlatformWallet";
 
 const Settings = () => {
   const { user, loading, signOut } = useAuth();
@@ -21,74 +33,72 @@ const Settings = () => {
   const [settings, setSettings] = useState({
     notifications_enabled: true,
     email_notifications: true,
-    privacy_level: 'public',
-    theme_preference: 'system'
+    privacy_level: "public",
+    theme_preference: "system",
   });
   const [profile, setProfile] = useState({
-    name: '',
-    email: ''
+    name: "",
+    email: "",
   });
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  useEffect(() => {
-    fetchSettings();
-    fetchProfile();
-  }, []);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
+    if (!user) return;
+    
     try {
       const { data, error } = await supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("user_settings")
+        .select("*")
+        .eq("user_id", user.id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== "PGRST116") throw error;
       if (data) {
         setSettings(data);
       }
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error("Error fetching settings:", error);
     }
-  };
+  }, [user]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
+    if (!user) return;
+    
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('name, email')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("name, email")
+        .eq("id", user.id)
         .single();
 
       if (error) throw error;
       setProfile(data);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error("Error fetching profile:", error);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchSettings();
+      fetchProfile();
+    }
+  }, [user, fetchSettings, fetchProfile]);
 
   const updateSettings = async (updates: Partial<typeof settings>) => {
+    if (!user) return;
+    
     try {
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          ...settings,
-          ...updates
-        });
+      const { error } = await supabase.from("user_settings").upsert({
+        user_id: user.id,
+        ...settings,
+        ...updates,
+      });
 
       if (error) throw error;
       setSettings({ ...settings, ...updates });
       toast({ title: "Settings updated successfully" });
     } catch (error) {
-      console.error('Error updating settings:', error);
+      console.error("Error updating settings:", error);
       toast({
         title: "Error updating settings",
         description: "Failed to update settings",
@@ -98,16 +108,18 @@ const Settings = () => {
   };
 
   const updateProfile = async () => {
+    if (!user) return;
+    
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from("profiles")
         .update({ name: profile.name })
-        .eq('id', user.id);
+        .eq("id", user.id);
 
       if (error) throw error;
       toast({ title: "Profile updated successfully" });
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error("Error updating profile:", error);
       toast({
         title: "Error updating profile",
         description: "Failed to update profile",
@@ -116,14 +128,30 @@ const Settings = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <main className="container mx-auto p-4 sm:p-6 max-w-4xl">
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Settings</h1>
-          <p className="text-gray-600">Manage your account settings and preferences</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            Settings
+          </h1>
+          <p className="text-gray-600">
+            Manage your account settings and preferences
+          </p>
         </div>
 
         <div className="space-y-6">
@@ -131,7 +159,9 @@ const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Update your personal information</CardDescription>
+              <CardDescription>
+                Update your personal information
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -140,7 +170,8 @@ const Settings = () => {
                   <Input
                     id="name"
                     value={profile.name}
-                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                    onChange={e =>
+                      setProfile({ ...profile, name: e.target.value })}
                     placeholder="Your display name"
                   />
                 </div>
@@ -162,7 +193,9 @@ const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>Platform Wallet</CardTitle>
-              <CardDescription>Manage your platform credits and transfers</CardDescription>
+              <CardDescription>
+                Manage your platform credits and transfers
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <PlatformWallet />
@@ -173,7 +206,9 @@ const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>Trading Wallet</CardTitle>
-              <CardDescription>Manage your trading funds and payment methods</CardDescription>
+              <CardDescription>
+                Manage your trading funds and payment methods
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <WalletSettings />
@@ -195,32 +230,42 @@ const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>Notifications</CardTitle>
-              <CardDescription>Manage how you receive notifications</CardDescription>
+              <CardDescription>
+                Manage how you receive notifications
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="push-notifications">Push Notifications</Label>
-                  <p className="text-sm text-gray-600">Receive notifications in your browser</p>
+                  <p className="text-sm text-gray-600">
+                    Receive notifications in your browser
+                  </p>
                 </div>
                 <Switch
                   id="push-notifications"
                   checked={settings.notifications_enabled}
-                  onCheckedChange={(checked) => updateSettings({ notifications_enabled: checked })}
+                  onCheckedChange={checked =>
+                    updateSettings({ notifications_enabled: checked })}
                 />
               </div>
-              
+
               <Separator />
-              
+
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications">Email Notifications</Label>
-                  <p className="text-sm text-gray-600">Receive notifications via email</p>
+                  <Label htmlFor="email-notifications">
+                    Email Notifications
+                  </Label>
+                  <p className="text-sm text-gray-600">
+                    Receive notifications via email
+                  </p>
                 </div>
                 <Switch
                   id="email-notifications"
                   checked={settings.email_notifications}
-                  onCheckedChange={(checked) => updateSettings({ email_notifications: checked })}
+                  onCheckedChange={checked =>
+                    updateSettings({ email_notifications: checked })}
                 />
               </div>
             </CardContent>
@@ -230,22 +275,31 @@ const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>Privacy & Security</CardTitle>
-              <CardDescription>Control who can see your content</CardDescription>
+              <CardDescription>
+                Control who can see your content
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="privacy-level">Profile Visibility</Label>
-                <Select 
-                  value={settings.privacy_level} 
-                  onValueChange={(value) => updateSettings({ privacy_level: value })}
+                <Select
+                  value={settings.privacy_level}
+                  onValueChange={value =>
+                    updateSettings({ privacy_level: value })}
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="public">Public - Anyone can see your profile</SelectItem>
-                    <SelectItem value="followers">Followers Only - Only your followers can see your profile</SelectItem>
-                    <SelectItem value="private">Private - Only you can see your profile</SelectItem>
+                    <SelectItem value="public">
+                      Public - Anyone can see your profile
+                    </SelectItem>
+                    <SelectItem value="followers">
+                      Followers Only - Only your followers can see your profile
+                    </SelectItem>
+                    <SelectItem value="private">
+                      Private - Only you can see your profile
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -261,9 +315,10 @@ const Settings = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="theme">Theme Preference</Label>
-                <Select 
-                  value={settings.theme_preference} 
-                  onValueChange={(value) => updateSettings({ theme_preference: value })}
+                <Select
+                  value={settings.theme_preference}
+                  onValueChange={value =>
+                    updateSettings({ theme_preference: value })}
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -285,7 +340,11 @@ const Settings = () => {
               <CardDescription>Manage your account</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button onClick={signOut} variant="outline" className="w-full sm:w-auto">
+              <Button
+                onClick={signOut}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
                 Sign Out
               </Button>
             </CardContent>
