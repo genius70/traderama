@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,19 @@ const StrategyMarketplace = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setStrategies(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData = (data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description || '',
+        fee_percentage: item.fee_percentage || 0,
+        performance_metrics: item.performance_metrics as PerformanceMetrics | null,
+        creator_id: item.creator_id,
+        is_premium_only: item.is_premium_only || false
+      }));
+      
+      setStrategies(transformedData);
     } catch (error) {
       console.error('Error fetching strategies:', error);
       toast({

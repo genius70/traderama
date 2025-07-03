@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,7 +65,21 @@ const NotificationManager: React.FC = () => {
       return;
     }
 
-    setNotifications(data || []);
+    // Transform the data to match our interface
+    const transformedData = (data || []).map(item => ({
+      id: item.id,
+      sender_id: item.sender_id || '',
+      title: item.title,
+      content: item.content,
+      notification_type: item.notification_type,
+      target_audience: (item.target_audience || {}) as TargetAudience,
+      cost: item.cost || 0,
+      status: item.status as 'sent' | 'draft' | 'scheduled' | 'pending',
+      sent_at: item.sent_at,
+      created_at: item.created_at || ''
+    }));
+
+    setNotifications(transformedData);
   }, [user]);
 
   useEffect(() => {

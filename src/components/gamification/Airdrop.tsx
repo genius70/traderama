@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -51,7 +52,7 @@ type DatabaseUserMilestone = {
   user_id: unknown;
 };
 
-// Type guards
+// Type guards - Updated to match expected parameter types
 const isValidMilestone = (milestone: unknown): milestone is DatabaseMilestone => {
   return (
     milestone !== null &&

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardHeader, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -25,6 +26,7 @@ interface CommunityPost {
   comments_count?: number;
   shares_count?: number;
   profiles?: PostProfile;
+  [key: string]: unknown; // Add index signature
 }
 
 interface CommunityPostCardProps {
@@ -47,7 +49,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onC
     try {
       const { error } = await supabase
         .from("post_likes")
-        .insert({ post_id: post.id, user_id: user.id });
+        .insert({ post_id: String(post.id), user_id: user.id });
       if (error) throw error;
       setLikes((prev) => prev + 1);
       onLike?.();
