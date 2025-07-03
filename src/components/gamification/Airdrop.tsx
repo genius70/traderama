@@ -59,9 +59,9 @@ const isValidMilestone = (milestone: unknown): milestone is AirdropMilestoneRow 
     'id' in milestone &&
     'name' in milestone &&
     'kem_bonus' in milestone &&
-    (typeof (milestone as any).id === 'string' || typeof (milestone as any).id === 'number') &&
-    typeof (milestone as any).name === 'string' &&
-    typeof (milestone as any).kem_bonus === 'number'
+    (typeof (milestone as unknown).id === 'string' || typeof (milestone as unknown).id === 'number') &&
+    typeof (milestone as unknown).name === 'string' &&
+    typeof (milestone as unknown).kem_bonus === 'number'
   );
 };
 
@@ -71,8 +71,8 @@ const isValidUserMilestone = (milestone: unknown): milestone is UserMilestoneRow
     typeof milestone === 'object' &&
     'milestone_id' in milestone &&
     'user_id' in milestone &&
-    (typeof (milestone as any).milestone_id === 'string' || typeof (milestone as any).milestone_id === 'number') &&
-    typeof (milestone as any).user_id === 'string'
+    (typeof (milestone as unknown).milestone_id === 'string' || typeof (milestone as unknown).milestone_id === 'number') &&
+    typeof (milestone as unknown).user_id === 'string'
   );
 };
 

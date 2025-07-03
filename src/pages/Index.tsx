@@ -1,20 +1,19 @@
-
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import HeroSection from '@/components/home/HeroSection';
-import FeaturesSection from '@/components/home/FeaturesSection';
-import StrategiesSection from '@/components/home/StrategiesSection';
-import CTASection from '@/components/home/CTASection';
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import HeroSection from "@/components/home/HeroSection";
+import FeaturesSection from "@/components/home/FeaturesSection";
+import StrategiesSection from "@/components/home/StrategiesSection";
+import CTASection from "@/components/home/CTASection";
 
 interface Strategy {
   id: string;
   title: string;
   description: string;
   fee_percentage: number;
-  strategy_config: any;
-  performance_metrics: any;
+  strategy_config: unknown;
+  performance_metrics: unknown;
   creator_id: string;
   is_premium_only: boolean;
   created_at: string;
@@ -37,26 +36,28 @@ const Index: React.FC = () => {
   const fetchStrategies = async (): Promise<void> => {
     try {
       const { data, error } = await supabase
-        .from('trading_strategies')
-        .select(`
+        .from("trading_strategies")
+        .select(
+          `
           *,
           profiles (
             name,
             email
           )
-        `)
-        .eq('status', 'published')
-        .order('created_at', { ascending: false })
+        `,
+        )
+        .eq("status", "published")
+        .order("created_at", { ascending: false })
         .limit(6);
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error("Supabase error:", error);
         throw error;
       }
-      
+
       setStrategies(data || []);
     } catch (error) {
-      console.error('Error fetching strategies:', error);
+      console.error("Error fetching strategies:", error);
       toast({
         title: "Error loading strategies",
         description: "Failed to load trading strategies",
@@ -78,24 +79,22 @@ const Index: React.FC = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('strategy_subscriptions')
-        .insert({
-          strategy_id: strategyId,
-          user_id: user.id,
-        });
+      const { error } = await supabase.from("strategy_subscriptions").insert({
+        strategy_id: strategyId,
+        user_id: user.id,
+      });
 
       if (error) {
-        console.error('Subscription error:', error);
+        console.error("Subscription error:", error);
         throw error;
       }
-      
+
       toast({
         title: "Strategy subscribed!",
         description: "You can now copy trades from this strategy",
       });
     } catch (error) {
-      console.error('Error subscribing to strategy:', error);
+      console.error("Error subscribing to strategy:", error);
       toast({
         title: "Subscription failed",
         description: "Failed to subscribe to strategy",
@@ -108,7 +107,7 @@ const Index: React.FC = () => {
     <div className="min-h-screen bg-white">
       <HeroSection user={user} />
       <FeaturesSection />
-      <StrategiesSection 
+      <StrategiesSection
         strategies={strategies}
         loading={loading}
         user={user}

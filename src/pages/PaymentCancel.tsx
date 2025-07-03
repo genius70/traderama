@@ -1,15 +1,20 @@
-
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { XCircle, ArrowLeft, RotateCcw } from 'lucide-react';
-import Header from '@/components/layout/Header';
+import { Link } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { XCircle, ArrowLeft, RotateCcw } from "lucide-react";
+import Header from "@/components/layout/Header";
 
 const PaymentCancel = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <main className="container mx-auto p-4 sm:p-6 flex items-center justify-center min-h-[calc(100vh-80px)]">
         <Card className="max-w-md w-full text-center">
           <CardHeader>
@@ -20,15 +25,19 @@ const PaymentCancel = () => {
               Payment Cancelled
             </CardTitle>
             <CardDescription>
-              Your payment was cancelled. No charges have been made to your account.
+              Your payment was cancelled. No charges have been made to your
+              account.
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-4">
             <div className="text-sm text-gray-600">
-              <p>If you experienced any issues during checkout, please try again or contact our support team.</p>
+              <p>
+                If you experienced unknown issues during checkout, please try
+                again or contact our support team.
+              </p>
             </div>
-            
+
             <div className="space-y-2">
               <Button asChild className="w-full">
                 <Link to="/product-offers">
@@ -36,7 +45,7 @@ const PaymentCancel = () => {
                   Try Again
                 </Link>
               </Button>
-              
+
               <Button variant="outline" asChild className="w-full">
                 <Link to="/">
                   <ArrowLeft className="h-4 w-4 mr-2" />

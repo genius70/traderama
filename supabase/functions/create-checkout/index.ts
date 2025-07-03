@@ -41,7 +41,7 @@ serve(async (req) => {
     // Determine if it's a subscription or one-time payment
     const isSubscription = plan && (plan.includes('premium') || plan.includes('annual'));
     
-    let sessionConfig: any = {
+    let sessionConfig: unknown = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       success_url: `${req.headers.get("origin")}/success?session_id={CHECKOUT_SESSION_ID}`,

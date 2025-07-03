@@ -21,7 +21,7 @@ ALTER TABLE public.airdrop_milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_milestones ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for airdrop_milestones (readable by all authenticated users)
-CREATE POLICY "Anyone can view milestones" 
+CREATE POLICY "unknownone can view milestones" 
   ON public.airdrop_milestones 
   FOR SELECT 
   TO authenticated 

@@ -9,7 +9,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "noImplicitAny": false,
+    "noImplicitunknown": false,
     "noUnusedParameters": false,
     "skipLibCheck": true,
     "allowJs": true,

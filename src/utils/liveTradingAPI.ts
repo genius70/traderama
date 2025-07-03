@@ -1,4 +1,3 @@
-
 // utils/liveTradingAPI.ts
 
 export type LivePosition = {
@@ -21,7 +20,7 @@ export type TradeOrderRequest = {
   orderType: "market" | "limit";
   limitPrice?: number;
   strategy?: string;
-  legs?: any[];
+  legs?: unknown[];
   timeInForce?: string;
 };
 
@@ -77,21 +76,21 @@ const dummyAccount: AccountInfo = {
       symbol: "SPY",
       strategy: "Iron Condor",
       contracts: 5,
-      entry: 2.50,
+      entry: 2.5,
       mark: 1.85,
       pnl: 325,
-      status: "Open"
+      status: "Open",
     },
     {
-      id: "2", 
+      id: "2",
       symbol: "QQQ",
       strategy: "Put Spread",
       contracts: 10,
-      entry: 1.20,
+      entry: 1.2,
       mark: 0.95,
       pnl: 250,
-      status: "Open"
-    }
+      status: "Open",
+    },
   ],
 };
 
@@ -103,11 +102,11 @@ const mockPositionsData = {
       symbol: "SPY",
       strategy: "Iron Condor",
       contracts: 5,
-      entry: 2.50,
+      entry: 2.5,
       mark: 1.85,
       pnl: 325,
-      status: "Open"
-    }
+      status: "Open",
+    },
   ],
   closed: [
     {
@@ -119,14 +118,16 @@ const mockPositionsData = {
       exit: 2.25,
       pnl: 150,
       status: "Closed",
-      closeDate: "2024-01-15"
-    }
-  ]
+      closeDate: "2024-01-15",
+    },
+  ],
 };
 
 // Simulated live price feed via WebSocket
 export class LivePriceWebSocket {
-  private listeners: ((priceData: { symbol: string; price: number }) => void)[] = [];
+  private listeners: ((
+    priceData: { symbol: string; price: number },
+  ) => void)[] = [];
 
   connect() {
     console.log("Connected to LivePriceWebSocket (simulated)");
@@ -135,11 +136,13 @@ export class LivePriceWebSocket {
         symbol: "SPY",
         price: 450 + Math.random() * 10 - 5,
       };
-      this.listeners.forEach((cb) => cb(priceData));
+      this.listeners.forEach(cb => cb(priceData));
     }, 2000);
   }
 
-  onPriceUpdate(callback: (priceData: { symbol: string; price: number }) => void) {
+  onPriceUpdate(
+    callback: (priceData: { symbol: string; price: number }) => void,
+  ) {
     this.listeners.push(callback);
   }
 
@@ -150,40 +153,50 @@ export class LivePriceWebSocket {
 }
 
 export async function fetchLivePositions(): Promise<typeof mockPositionsData> {
-  await new Promise((res) => setTimeout(res, 500));
+  await new Promise(res => setTimeout(res, 500));
   return mockPositionsData;
 }
 
-export async function submitTradeOrder(order: TradeOrderRequest): Promise<{ success: boolean; message: string; status: string; orderId?: string; timestamp: string }> {
-  await new Promise((res) => setTimeout(res, 800));
-  
+export async function submitTradeOrder(
+  order: TradeOrderRequest,
+): Promise<{
+  success: boolean;
+  message: string;
+  status: string;
+  orderId?: string;
+  timestamp: string;
+}> {
+  await new Promise(res => setTimeout(res, 800));
+
   // Simulate success/failure
   const success = Math.random() > 0.1; // 90% success rate
-  
+
   return {
     success,
-    status: success ? 'submitted' : 'rejected',
-    message: success 
-      ? `Trade order submitted successfully for ${order.quantity} contracts of ${order.symbol}` 
-      : 'Trade order rejected due to insufficient buying power',
+    status: success ? "submitted" : "rejected",
+    message: success
+      ? `Trade order submitted successfully for ${order.quantity} contracts of ${order.symbol}`
+      : "Trade order rejected due to insufficient buying power",
     orderId: success ? `ORD-${Date.now()}` : undefined,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
 export async function fetchAccountInfo(): Promise<AccountInfo> {
-  await new Promise((res) => setTimeout(res, 400));
+  await new Promise(res => setTimeout(res, 400));
   return dummyAccount;
 }
 
-export async function assessTradeRisk(legs: any[]): Promise<RiskAssessment> {
-  await new Promise((res) => setTimeout(res, 300));
-  
+export async function assessTradeRisk(
+  legs: unknown[],
+): Promise<RiskAssessment> {
+  await new Promise(res => setTimeout(res, 300));
+
   // Simple risk calculation based on number of legs
   const complexity = legs.length;
   const maxLoss = complexity * 500;
   const maxGain = complexity * 200;
-  
+
   let riskLevel: "low" | "medium" | "high" = "low";
   if (maxLoss > 2000) riskLevel = "high";
   else if (maxLoss > 1000) riskLevel = "medium";
@@ -191,21 +204,28 @@ export async function assessTradeRisk(legs: any[]): Promise<RiskAssessment> {
   return {
     riskLevel,
     maxTradeSize: 10000,
-    recommendedAction: riskLevel === "high" ? "Reduce position size" : "Proceed with caution",
+    recommendedAction:
+      riskLevel === "high" ? "Reduce position size" : "Proceed with caution",
     maxLoss,
     maxGain,
     marginRequirement: maxLoss * 0.6,
-    warnings: riskLevel === "high" ? ["High risk trade", "Consider reducing position size"] : []
+    warnings:
+      riskLevel === "high"
+        ? ["High risk trade", "Consider reducing position size"]
+        : [],
   };
 }
 
-export async function fetchLiveOptionsChain(symbol: string, expiry: string): Promise<LiveOptionContract[]> {
-  await new Promise((res) => setTimeout(res, 600));
-  
+export async function fetchLiveOptionsChain(
+  symbol: string,
+  expiry: string,
+): Promise<LiveOptionContract[]> {
+  await new Promise(res => setTimeout(res, 600));
+
   // Generate mock options chain
   const strikes = [440, 445, 450, 455, 460, 465, 470];
   const options: LiveOptionContract[] = [];
-  
+
   strikes.forEach(strike => {
     // Calls
     options.push({
@@ -221,13 +241,13 @@ export async function fetchLiveOptionsChain(symbol: string, expiry: string): Pro
       gamma: Math.random() * 0.05,
       theta: -Math.random() * 0.1,
       vega: Math.random() * 0.3,
-      percentChange: (Math.random() - 0.5) * 20
+      percentChange: (Math.random() - 0.5) * 20,
     });
-    
+
     // Puts
     options.push({
       strike,
-      type: "Put", 
+      type: "Put",
       expiry,
       bid: Math.random() * 5 + 1,
       ask: Math.random() * 5 + 2,
@@ -238,9 +258,9 @@ export async function fetchLiveOptionsChain(symbol: string, expiry: string): Pro
       gamma: Math.random() * 0.05,
       theta: -Math.random() * 0.1,
       vega: Math.random() * 0.3,
-      percentChange: (Math.random() - 0.5) * 20
+      percentChange: (Math.random() - 0.5) * 20,
     });
   });
-  
+
   return options;
 }

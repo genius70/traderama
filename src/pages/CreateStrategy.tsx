@@ -383,7 +383,7 @@ const CreateStrategy = () => {
   const [description, setDescription] = useState('');
   const [feePercentage, setFeePercentage] = useState(5);
   const [isPremiumOnly, setIsPremiumOnly] = useState(false);
-  const [selectedTradingOption, setSelectedTradingOption] = useState<any>(null);
+  const [selectedTradingOption, setSelectedTradingOption] = useState<unknown>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [strategyConfig, setStrategyConfig] = useState<StrategyConfig>({
@@ -415,7 +415,7 @@ const CreateStrategy = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const handleTradingOptionSelect = (option: any) => {
+  const handleTradingOptionSelect = (option: unknown) => {
     setSelectedTradingOption(option);
     setStrategyConfig(prev => ({
       ...prev,
@@ -444,7 +444,7 @@ const CreateStrategy = () => {
           description,
           fee_percentage: feePercentage,
           is_premium_only: isPremiumOnly,
-          strategy_config: strategyConfig as any,
+          strategy_config: strategyConfig as unknown,
           status: 'draft'
         });
 
@@ -456,7 +456,7 @@ const CreateStrategy = () => {
       });
 
       navigate('/');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating strategy:', error);
       toast({
         title: "Error creating strategy",

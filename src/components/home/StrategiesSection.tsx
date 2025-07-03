@@ -12,8 +12,8 @@ interface Strategy {
   title: string;
   description: string;
   fee_percentage: number;
-  strategy_config: any;
-  performance_metrics: any;
+  strategy_config: unknown;
+  performance_metrics: unknown;
   creator_id: string;
   is_premium_only: boolean;
   created_at: string;
@@ -26,7 +26,7 @@ interface Strategy {
 interface StrategiesSectionProps {
   strategies: Strategy[];
   loading: boolean;
-  user: any;
+  user: unknown;
   onSubscribe: (strategyId: string) => void;
 }
 
@@ -36,7 +36,7 @@ const StrategiesSection: React.FC<StrategiesSectionProps> = ({
   user, 
   onSubscribe 
 }) => {
-  const getRiskColor = (config: any): string => {
+  const getRiskColor = (config: unknown): string => {
     if (!config || typeof config !== 'object') return 'text-gray-500';
     const stopLoss = config.stopLoss || 200;
     if (stopLoss <= 150) return 'text-green-500';
@@ -44,7 +44,7 @@ const StrategiesSection: React.FC<StrategiesSectionProps> = ({
     return 'text-red-500';
   };
 
-  const getRiskLevel = (config: any): string => {
+  const getRiskLevel = (config: unknown): string => {
     if (!config || typeof config !== 'object') return 'Medium';
     const stopLoss = config.stopLoss || 200;
     if (stopLoss <= 150) return 'Low';

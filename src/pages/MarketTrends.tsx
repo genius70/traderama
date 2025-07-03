@@ -124,10 +124,10 @@ const generateHistoricalData = (symbol: string, days = 30) => {
 
 // Main Dashboard Component
 const MarketTrends = () => {
-  const [etfData, setEtfData] = useState<Record<string, any>>({});
+  const [etfData, setEtfData] = useState<Record<string, unknown>>({});
   const [selectedSymbol, setSelectedSymbol] = useState('SPY');
   const [selectedPeriod, setSelectedPeriod] = useState('3M');
-  const [chartData, setChartData] = useState<Record<string, any>>({});
+  const [chartData, setChartData] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -156,7 +156,7 @@ const MarketTrends = () => {
         const promises = ETF_SYMBOLS.map(etf => fetchETFData(etf.symbol));
         const results = await Promise.all(promises);
         
-        const dataMap: Record<string, any> = {};
+        const dataMap: Record<string, unknown> = {};
         results.forEach(result => {
           dataMap[result.symbol] = result;
         });

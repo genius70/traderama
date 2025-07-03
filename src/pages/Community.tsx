@@ -1,17 +1,31 @@
-import { useAuth } from '@/hooks/useAuth';
-import { Navigate, Link } from 'react-router-dom';
-import Header from '@/components/layout/Header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Users, MessageSquare, TrendingUp, Crown, Plus, Star, Mail } from 'lucide-react';
-import { useState } from 'react';
-import CommunityPostCard from '@/components/community/CommunityPostCard';
-import CommunityCommentModal from '@/components/community/CommunityCommentModal';
-import TipModal from '@/components/community/TipModal';
-import InviteFriend from '@/components/community/InviteFriend';
-import SocialShareButton from '@/components/community/SocialShareButton';
-import PremiumGroupPostComposer from '@/components/community/PremiumGroupPostComposer';
+import { useAuth } from "@/hooks/useAuth";
+import { Navigate, Link } from "react-router-dom";
+import Header from "@/components/layout/Header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Users,
+  MessageSquare,
+  TrendingUp,
+  Crown,
+  Plus,
+  Star,
+  Mail,
+} from "lucide-react";
+import { useState } from "react";
+import CommunityPostCard from "@/components/community/CommunityPostCard";
+import CommunityCommentModal from "@/components/community/CommunityCommentModal";
+import TipModal from "@/components/community/TipModal";
+import InviteFriend from "@/components/community/InviteFriend";
+import SocialShareButton from "@/components/community/SocialShareButton";
+import PremiumGroupPostComposer from "@/components/community/PremiumGroupPostComposer";
 
 const Community = () => {
   const { user, loading } = useAuth();
@@ -19,50 +33,54 @@ const Community = () => {
   const [posts, setPosts] = useState([
     {
       id: 1,
-      profiles: { name: 'Royan Shaw', email: 'royan.shaw@gmail.com' },
-      content: 'Excited to share my latest iron condor strategy! Check it out and let me know what you think. #ironcondor #options',
+      profiles: { name: "Royan Shaw", email: "royan.shaw@gmail.com" },
+      content:
+        "Excited to share my latest iron condor strategy! Check it out and let me know what you think. #ironcondor #options",
       likes_count: 120,
       comments_count: 35,
       shares_count: 5,
       created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      isPremium: false
+      isPremium: false,
     },
     {
       id: 2,
-      profiles: { name: 'Alice Johnson', email: 'alice.johnson@gmail.com' },
-      content: 'Just hit a 30% return on my last trade using a simple covered call strategy. Sometimes the basics are the best! #coveredcall #trading',
+      profiles: { name: "Alice Johnson", email: "alice.johnson@gmail.com" },
+      content:
+        "Just hit a 30% return on my last trade using a simple covered call strategy. Sometimes the basics are the best! #coveredcall #trading",
       likes_count: 85,
       comments_count: 22,
       shares_count: 3,
       created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-      isPremium: false
+      isPremium: false,
     },
     {
       id: 3,
-      profiles: { name: 'TraderPro', email: 'traderpro@gmail.com' },
-      content: 'Analyzing market trends for the upcoming week. Expecting volatility in tech stocks due to earnings reports. #marketanalysis #stocks',
+      profiles: { name: "TraderPro", email: "traderpro@gmail.com" },
+      content:
+        "Analyzing market trends for the upcoming week. Expecting volatility in tech stocks due to earnings reports. #marketanalysis #stocks",
       likes_count: 210,
       comments_count: 68,
       shares_count: 15,
       created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      isPremium: true
+      isPremium: true,
     },
     {
       id: 4,
-      profiles: { name: 'OptionsQueen', email: 'optionsqueen@gmail.com' },
-      content: 'Anyone else trading strangles this week? Looking for insights and tips! #strangles #options',
+      profiles: { name: "OptionsQueen", email: "optionsqueen@gmail.com" },
+      content:
+        "unknownone else trading strangles this week? Looking for insights and tips! #strangles #options",
       likes_count: 150,
       comments_count: 45,
       shares_count: 8,
       created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      isPremium: true
+      isPremium: true,
     },
   ]);
 
-  const [selectedPostId, setSelectedPostId] = useState<string>('');
+  const [selectedPostId, setSelectedPostId] = useState<string>("");
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [tipModalOpen, setTipModalOpen] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [selectedPost, setSelectedPost] = useState<unknown>(null);
 
   const openCommentModal = (postId: string) => {
     setSelectedPostId(postId);
@@ -70,11 +88,11 @@ const Community = () => {
   };
 
   const closeCommentModal = () => {
-    setSelectedPostId('');
+    setSelectedPostId("");
     setCommentModalOpen(false);
   };
 
-  const openTipModal = (post: any) => {
+  const openTipModal = (post: unknown) => {
     setSelectedPost(post);
     setTipModalOpen(true);
   };
@@ -85,7 +103,11 @@ const Community = () => {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
   }
 
   if (!user) {
@@ -102,7 +124,9 @@ const Community = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
             Trader Community
           </h1>
-          <p className="text-gray-600">Share your strategies, insights, and connect with fellow traders</p>
+          <p className="text-gray-600">
+            Share your strategies, insights, and connect with fellow traders
+          </p>
         </div>
 
         {/* Community Stats */}
@@ -144,7 +168,9 @@ const Community = () => {
               <CardDescription>Top performing strategies</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-800">Iron Condor</div>
+              <div className="text-2xl font-bold text-gray-800">
+                Iron Condor
+              </div>
               <p className="text-sm text-gray-500">Most discussed</p>
             </CardContent>
           </Card>
@@ -166,19 +192,16 @@ const Community = () => {
 
         {/* Community Feed */}
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Community Feed</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            Community Feed
+          </h2>
 
           {/* Post Composer - Using a placeholder groupId for now */}
           <PremiumGroupPostComposer groupId="community-general" />
 
           {/* Community Posts */}
           <div className="space-y-4">
-            {posts.map(post => (
-              <CommunityPostCard
-                key={post.id}
-                post={post}
-              />
-            ))}
+            {posts.map(post => <CommunityPostCard key={post.id} post={post} />)}
           </div>
         </section>
 
@@ -186,14 +209,16 @@ const Community = () => {
         <section className="mb-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Notification Manager - Only for premium users */}
-            {user && (
+            {user &&
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold flex items-center">
                     <Mail className="h-5 w-5 mr-2 text-blue-600" />
                     Send Notifications
                   </CardTitle>
-                  <CardDescription>Send targeted messages to community members</CardDescription>
+                  <CardDescription>
+                    Send targeted messages to community members
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Link to="/notifications">
@@ -202,8 +227,7 @@ const Community = () => {
                     </Button>
                   </Link>
                 </CardContent>
-              </Card>
-            )}
+              </Card>}
 
             {/* Live Trading Integration */}
             <Card>
@@ -212,13 +236,13 @@ const Community = () => {
                   <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
                   Live Trading
                 </CardTitle>
-                <CardDescription>Connect and manage your live trading</CardDescription>
+                <CardDescription>
+                  Connect and manage your live trading
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Link to="/auto-trading">
-                  <Button className="w-full">
-                    View Trading Dashboard
-                  </Button>
+                  <Button className="w-full">View Trading Dashboard</Button>
                 </Link>
               </CardContent>
             </Card>
@@ -229,8 +253,12 @@ const Community = () => {
         <section className="mb-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">Invite Friends</CardTitle>
-              <CardDescription>Share the Trader Community with your friends and earn rewards</CardDescription>
+              <CardTitle className="text-lg font-semibold">
+                Invite Friends
+              </CardTitle>
+              <CardDescription>
+                Share the Trader Community with your friends and earn rewards
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <InviteFriend />
@@ -242,28 +270,40 @@ const Community = () => {
         <section>
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">Share the Community</CardTitle>
-              <CardDescription>Spread the word and help grow our community</CardDescription>
+              <CardTitle className="text-lg font-semibold">
+                Share the Community
+              </CardTitle>
+              <CardDescription>
+                Spread the word and help grow our community
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex justify-around">
-              <SocialShareButton postData={{
-                id: 'community',
-                content: 'Check out the Trader Community!',
-                author: 'Traderama',
-                type: 'post'
-              }} />
-              <SocialShareButton postData={{
-                id: 'community-twitter',
-                content: 'Join the Trader Community for insights and strategies!',
-                author: 'Traderama',
-                type: 'post'
-              }} />
-              <SocialShareButton postData={{
-                id: 'community-linkedin',
-                content: 'Explore trading strategies and connect with experts in the Trader Community.',
-                author: 'Traderama',
-                type: 'post'
-              }} />
+              <SocialShareButton
+                postData={{
+                  id: "community",
+                  content: "Check out the Trader Community!",
+                  author: "Traderama",
+                  type: "post",
+                }}
+              />
+              <SocialShareButton
+                postData={{
+                  id: "community-twitter",
+                  content:
+                    "Join the Trader Community for insights and strategies!",
+                  author: "Traderama",
+                  type: "post",
+                }}
+              />
+              <SocialShareButton
+                postData={{
+                  id: "community-linkedin",
+                  content:
+                    "Explore trading strategies and connect with experts in the Trader Community.",
+                  author: "Traderama",
+                  type: "post",
+                }}
+              />
             </CardContent>
           </Card>
         </section>

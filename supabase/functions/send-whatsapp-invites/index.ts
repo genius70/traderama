@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
@@ -49,13 +48,15 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         // Append Traderama.com to the message
         const finalMessage = `Hi ${friend.name}! ${message} Check it out at Traderama.com`;
-        
+
         const response = await fetch(
           `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`,
           {
             method: "POST",
             headers: {
-              "Authorization": `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
+              Authorization: `Basic ${btoa(
+                `${twilioAccountSid}:${twilioAuthToken}`,
+              )}`,
               "Content-Type": "application/x-www-form-urlencoded",
             },
             body: new URLSearchParams({
@@ -63,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
               To: `whatsapp:${friend.phoneNumber}`,
               Body: finalMessage,
             }),
-          }
+          },
         );
 
         if (!response.ok) {
@@ -73,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
             name: friend.name,
             phoneNumber: friend.phoneNumber,
             success: false,
-            error: error
+            error: error,
           });
         } else {
           const result = await response.json();
@@ -82,7 +83,7 @@ const handler = async (req: Request): Promise<Response> => {
             name: friend.name,
             phoneNumber: friend.phoneNumber,
             success: true,
-            messageSid: result.sid
+            messageSid: result.sid,
           });
         }
       } catch (error) {
@@ -91,33 +92,32 @@ const handler = async (req: Request): Promise<Response> => {
           name: friend.name,
           phoneNumber: friend.phoneNumber,
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     }
 
     const successCount = results.filter(r => r.success).length;
-    
-    return new Response(JSON.stringify({
-      message: `Sent ${successCount} of ${friends.length} invites successfully`,
-      results: results
-    }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
 
-  } catch (error: any) {
-    console.error("Error in send-whatsapp-invites function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        message: `Sent ${successCount} of ${friends.length} invites successfully`,
+        results: results,
+      }),
       {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      },
     );
+  } catch (error) {
+    console.error("Error in send-whatsapp-invites function:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 };
 
