@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react';
@@ -65,7 +66,7 @@ const TIME_PERIODS = [
 ];
 
 // Mock API function (replace with actual Alpha Vantage API calls)
-const fetchETFData = async (symbol) => {
+const fetchETFData = async (symbol: string) => {
   // Real data - with Alpha Vantage API call
   const API_KEY = '8AQPB7J6D8TUCDJA';
   const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`;
@@ -89,7 +90,7 @@ const fetchETFData = async (symbol) => {
 };
 
 // Generate mock historical data for charts with different time periods
-const generateHistoricalData = (symbol, days = 30) => {
+const generateHistoricalData = (symbol: string, days = 30) => {
   const data = [];
   const basePrice = Math.random() * 400 + 100;
   let currentPrice = basePrice;
@@ -129,12 +130,17 @@ const generateHistoricalData = (symbol, days = 30) => {
 };
 
 // ETF Card Component
-const ETFCard = ({ etf, data, onSelect, isSelected }) => {
+const ETFCard = ({ etf, data, onSelect, isSelected }: {
+  etf: { symbol: string; name: string; description: string; category: string };
+  data: any;
+  onSelect: (symbol: string) => void;
+  isSelected: boolean;
+}) => {
   const isPositive = parseFloat(data?.change || 0) >= 0;
   
   // Category color coding
-  const getCategoryColor = (category) => {
-    const colors = {
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
       'Core': 'bg-blue-100 text-blue-800',
       'Sector': 'bg-green-100 text-green-800',
       'International': 'bg-purple-100 text-purple-800',
@@ -207,7 +213,7 @@ const ETFCard = ({ etf, data, onSelect, isSelected }) => {
 };
 
 // Chart Component
-const ChartComponent = ({ symbol, data }) => {
+const ChartComponent = ({ symbol, data }: { symbol: string; data: any[] }) => {
   if (!data || data.length === 0) {
     return (
       <div className="h-64 sm:h-80 w-full flex items-center justify-center">
@@ -266,10 +272,10 @@ const ChartComponent = ({ symbol, data }) => {
 
 // Main Dashboard Component
 const MarketTrends = () => {
-  const [etfData, setEtfData] = useState({});
+  const [etfData, setEtfData] = useState<Record<string, any>>({});
   const [selectedSymbol, setSelectedSymbol] = useState('SPY');
   const [selectedPeriod, setSelectedPeriod] = useState('3M');
-  const [chartData, setChartData] = useState({});
+  const [chartData, setChartData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -290,7 +296,7 @@ const MarketTrends = () => {
         const promises = ETF_SYMBOLS.map(etf => fetchETFData(etf.symbol));
         const results = await Promise.all(promises);
         
-        const dataMap = {};
+        const dataMap: Record<string, any> = {};
         results.forEach(result => {
           dataMap[result.symbol] = result;
         });
@@ -314,11 +320,13 @@ const MarketTrends = () => {
   useEffect(() => {
     if (selectedSymbol && selectedPeriod) {
       const period = TIME_PERIODS.find(p => p.key === selectedPeriod);
-      const data = generateHistoricalData(selectedSymbol, period.days);
-      setChartData(prev => ({
-        ...prev,
-        [`${selectedSymbol}_${selectedPeriod}`]: data
-      }));
+      if (period) {
+        const data = generateHistoricalData(selectedSymbol, period.days);
+        setChartData(prev => ({
+          ...prev,
+          [`${selectedSymbol}_${selectedPeriod}`]: data
+        }));
+      }
     }
   }, [selectedSymbol, selectedPeriod]);
 
@@ -411,7 +419,6 @@ const MarketTrends = () => {
             <ChartComponent 
               symbol={selectedSymbol} 
               data={currentChartData}
-              period={selectedPeriod}
             />
           </div>
         </div>
@@ -444,61 +451,10 @@ const MarketTrends = () => {
             To use real data, replace the mock API function with actual Alpha Vantage calls:
           </p>
           <code className="bg-blue-100 px-2 py-1 rounded text-xs text-blue-900 block w-full overflow-x-auto">
-            https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&apikey=${API_KEY}
+            https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&apikey=$API_KEY
           </code>
           <p className="text-blue-700 text-xs mt-2">
             Sign up at alphavantage.co for free API access (500 calls/day) • Use TIME_SERIES_DAILY for historical data
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
-          {ETF_SYMBOLS.map(etf => (
-            <ETFCard
-              key={etf.symbol}
-              etf={etf}
-              data={etfData[etf.symbol]}
-              onSelect={setSelectedSymbol}
-              isSelected={selectedSymbol === etf.symbol}
-            />
-          ))}
-        </div>
-
-        {/* Selected ETF Chart */}
-        <div className="w-full bg-white rounded-xl shadow-lg p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 w-full">
-            <div className="w-full sm:w-auto">
-              <h3 className="text-xl font-bold text-gray-900">
-                {ETF_SYMBOLS.find(etf => etf.symbol === selectedSymbol)?.name || selectedSymbol}
-              </h3>
-              <p className="text-gray-600">30-Day Price Chart</p>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 w-full sm:w-auto justify-start sm:justify-end">
-              <DollarSign className="w-4 h-4" />
-              <span>Price Movement</span>
-            </div>
-          </div>
-          
-          <div className="w-full">
-            <ChartComponent 
-              symbol={selectedSymbol} 
-              data={chartData[selectedSymbol]} 
-            />
-          </div>
-        </div>
-
-        {/* API Integration Instructions */}
-        <div className="mt-8 w-full bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
-          <h4 className="font-bold text-blue-900 mb-2">🔧 MARKET TREND HISTORY</h4>
-          <p className="text-blue-800 text-sm mb-2">
-            Get live market data, Alpha Vantage calls:
-          </p>
-          <code className="bg-blue-100 px-2 py-1 rounded text-xs text-blue-900 block w-full overflow-x-auto">
-            https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=${API_KEY}
-          </code>
-          <p className="text-blue-700 text-xs mt-2">
-            Interested in Influencer Marketing? You can make millions as an Influencer Marketer at Fanorama.pro
           </p>
         </div>
       </div>
