@@ -1,11 +1,10 @@
-
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, MessageSquare, TrendingUp, Crown, Plus, Star } from 'lucide-react';
+import { Users, MessageSquare, TrendingUp, Crown, Plus, Star, Mail } from 'lucide-react';
 import { useState } from 'react';
 import CommunityPostCard from '@/components/community/CommunityPostCard';
 import CommunityCommentModal from '@/components/community/CommunityCommentModal';
@@ -180,6 +179,49 @@ const Community = () => {
                 post={post}
               />
             ))}
+          </div>
+        </section>
+
+        {/* Enhanced Features Section */}
+        <section className="mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Notification Manager - Only for premium users */}
+            {user && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold flex items-center">
+                    <Mail className="h-5 w-5 mr-2 text-blue-600" />
+                    Send Notifications
+                  </CardTitle>
+                  <CardDescription>Send targeted messages to community members</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link to="/notifications">
+                    <Button className="w-full">
+                      Open Notification Manager
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Live Trading Integration */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
+                  Live Trading
+                </CardTitle>
+                <CardDescription>Connect and manage your live trading</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link to="/auto-trading">
+                  <Button className="w-full">
+                    View Trading Dashboard
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
           </div>
         </section>
 

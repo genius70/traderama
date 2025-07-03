@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -9,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Bot, TrendingUp, Users, Settings, Play, Pause, AlertCircle } from 'lucide-react';
 import CopyTradingComponent from '@/components/trading/CopyTradingComponent';
+import LiveTradingEngine from '@/components/trading/LiveTradingEngine';
 
 const AutoTrading = () => {
   const { user, loading } = useAuth();
@@ -36,52 +36,19 @@ const AutoTrading = () => {
           <p className="text-gray-600">Automated trading strategies and copy trading features</p>
         </div>
 
-        {/* Auto Trading Status */}
-        <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Auto Trading Status</CardTitle>
-                <CardDescription>Monitor and control your automated trading</CardDescription>
-              </div>
-              <Badge variant={isAutoTradingEnabled ? "default" : "secondary"}>
-                {isAutoTradingEnabled ? "Active" : "Inactive"}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                {isAutoTradingEnabled ? (
-                  <Play className="h-8 w-8 text-green-600" />
-                ) : (
-                  <Pause className="h-8 w-8 text-gray-400" />
-                )}
-                <div>
-                  <p className="font-medium">
-                    {isAutoTradingEnabled ? "Auto trading is running" : "Auto trading is paused"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {activeStrategies.length} strategies active
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={() => setIsAutoTradingEnabled(!isAutoTradingEnabled)}
-                variant={isAutoTradingEnabled ? "destructive" : "default"}
-              >
-                {isAutoTradingEnabled ? "Pause Trading" : "Start Trading"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Tabs defaultValue="strategies" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue="live-trading" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="live-trading">Live Trading</TabsTrigger>
             <TabsTrigger value="strategies">My Strategies</TabsTrigger>
             <TabsTrigger value="copy-trading">Copy Trading</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="live-trading">
+            <div className="grid grid-cols-1 gap-6">
+              <LiveTradingEngine />
+            </div>
+          </TabsContent>
 
           <TabsContent value="strategies">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -64,6 +64,7 @@ const App: React.FC = () => {
                   <Route path="/airdrop" element={<AirdropPage />} />
                   <Route path="/product-offers" element={<ProductOffers />} />
                   <Route path="/trade-positions" element={<TradePositions />} />
+                  <Route path="/notifications" element={<NotificationManagerPage />} />
                   <Route path="/success" element={<PaymentSuccess />} />
                   <Route path="/cancel" element={<PaymentCancel />} />
                   <Route path="*" element={<NotFound />} />

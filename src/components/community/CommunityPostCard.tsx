@@ -1,16 +1,13 @@
-
 import React, { useState } from "react";
 import { Card, CardHeader, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Heart, MessageSquare } from "lucide-react";
-import SocialShareButton from "./SocialShareButton";
+import EnhancedSocialShare from "./EnhancedSocialShare";
 import CommunityCommentModal from "./CommunityCommentModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-
-// Added Tip Modal
 import TipModal from "./TipModal";
 
 interface PostProfile {
@@ -26,6 +23,7 @@ interface CommunityPost {
   comments_count?: number;
   shares_count?: number;
   profiles?: PostProfile;
+  images?: string[];
   [key: string]: unknown; // Add index signature
 }
 
@@ -60,17 +58,18 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onC
     setLikeDisabled(false);
   }
 
-  // Compose data for SocialShareButton
+  const handleShare = (platform: string) => {
+    console.log(`Shared to ${platform}`);
+    // Track sharing analytics here if needed
+  };
+
+  // Enhanced share data with more details
   const shareData = {
     id: String(post.id),
     content: String(post.content ?? ""),
     author: post.profiles?.name || post.profiles?.email || "Unknown",
     type: "post" as const,
-    metrics: {
-      likes: Number(likes),
-      comments: Number(post.comments_count),
-      shares: Number(post.shares_count),
-    }
+    imageUrl: post.images?.[0] || undefined,
   };
 
   return (
@@ -90,6 +89,21 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onC
       </CardHeader>
       <CardContent>
         <p className="text-gray-800 mb-4">{post.content}</p>
+        
+        {/* Display images if available */}
+        {post.images && post.images.length > 0 && (
+          <div className="mb-4 grid grid-cols-1 gap-2">
+            {post.images.slice(0, 3).map((imageUrl: string, index: number) => (
+              <img
+                key={index}
+                src={imageUrl}
+                alt={`Post image ${index + 1}`}
+                className="rounded-lg max-h-64 w-full object-cover"
+              />
+            ))}
+          </div>
+        )}
+        
         <div className="flex items-center space-x-6 text-sm text-gray-600">
           <button
             onClick={handleLike}
@@ -108,8 +122,10 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onC
             <MessageSquare className="h-4 w-4" />
             <span>{post.comments_count}</span>
           </button>
-          {/* Share button */}
-          <SocialShareButton postData={shareData} />
+          
+          {/* Enhanced Share button */}
+          <EnhancedSocialShare postData={shareData} onShare={handleShare} />
+          
           {/* Tip button */}
           <Button variant="outline" size="sm" onClick={() => setTipOpen(true)}>
             💸 Tip
@@ -123,6 +139,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onC
         open={commentOpen}
         onOpenChange={setCommentOpen}
       />
+      
       {/* Tip Modal */}
       <TipModal open={tipOpen} onOpenChange={setTipOpen} post={post} />
     </Card>

@@ -120,7 +120,8 @@ const NotificationManager: React.FC = () => {
     try {
       const cost = calculateCost();
       
-      const { error } = await supabase
+      // Create the notification record
+      const { data: notificationData, error: createError } = await supabase
         .from('notifications')
         .insert([{
           sender_id: user.id,
@@ -135,11 +136,36 @@ const NotificationManager: React.FC = () => {
             activityPeriod: filter.activityPeriod
           },
           cost,
-          status: cost > 0 ? 'draft' : 'sent',
-          sent_at: cost > 0 ? null : new Date().toISOString()
-        }]);
+          status: cost > 0 ? 'draft' : 'processing'
+        }])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (createError) throw createError;
+
+      // If it's a free notification, send it immediately
+      if (cost === 0) {
+        const { error: functionError } = await supabase.functions.invoke('send-notifications', {
+          body: {
+            notificationId: notificationData.id,
+            targetAudience: {
+              country: filter.country,
+              region: filter.region,
+              lastLoginDays: filter.lastLoginDays,
+              lastCommentDays: filter.lastCommentDays,
+              activityPeriod: filter.activityPeriod
+            },
+            title,
+            content,
+            notificationType: filter.type
+          }
+        });
+
+        if (functionError) {
+          console.error('Function error:', functionError);
+          throw functionError;
+        }
+      }
 
       toast({
         title: cost > 0 ? "Notification Created" : "Notification Sent",
