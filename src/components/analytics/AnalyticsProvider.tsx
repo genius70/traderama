@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState } from 'react';
 import { 
   ANALYTICS_EVENTS, 
   ANALYTICS_PROVIDERS, 
-  ANALYTICS_CONTEXT_NAME,
   type AnalyticsEvent,
   type AnalyticsProvider as AnalyticsProviderType
 } from '@/constants';
@@ -14,7 +13,7 @@ interface AnalyticsContextType {
   provider: AnalyticsProviderType;
 }
 
-const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
+export const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
 
 interface AnalyticsProviderProps {
   children: React.ReactNode;
@@ -126,12 +125,4 @@ const AnalyticsProvider: React.FC<AnalyticsProviderProps> = ({
   );
 };
 
-const useAnalytics = () => {
-  const context = useContext(AnalyticsContext);
-  if (context === undefined) {
-    throw new Error(`useAnalytics must be used within an ${ANALYTICS_CONTEXT_NAME}`);
-  }
-  return context;
-};
-
-export { AnalyticsProvider, useAnalytics };
+export default AnalyticsProvider;

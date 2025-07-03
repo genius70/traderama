@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
@@ -7,27 +7,12 @@ import {
   AUTH_ENDPOINTS, 
   AUTH_ERRORS, 
   AUTH_STATES, 
-  AUTH_CONTEXT_NAME,
   type AuthStorageKey,
   type AuthEndpoint,
   type AuthError,
   type AuthState
 } from '@/constants';
-
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  updatePassword: (password: string) => Promise<void>;
-  state: AuthState;
-  error: AuthError | null;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from './auth-context';
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -286,7 +271,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const value: AuthContextType = {
+  const value = {
     user,
     session,
     loading,
@@ -306,12 +291,4 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 };
 
-const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error(`useAuth must be used within an ${AUTH_CONTEXT_NAME}`);
-  }
-  return context;
-};
-
-export { AuthProvider, useAuth };
+export default AuthProvider;
