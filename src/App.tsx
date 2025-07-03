@@ -1,3 +1,4 @@
+
 import React, { Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -27,12 +28,12 @@ const PaymentSuccess = React.lazy(() => import("./pages/PaymentSuccess"));
 const PaymentCancel = React.lazy(() => import("./pages/PaymentCancel"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 
-// Loading component
+// Enhanced loading component with better visual feedback
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
     <div className="text-center">
-      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-      <p className="text-gray-600">Loading page...</p>
+      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mb-4"></div>
+      <p className="text-gray-600 text-lg">Loading Traderama...</p>
     </div>
   </div>
 );
