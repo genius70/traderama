@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,11 +41,8 @@ const Profile = () => {
 
   const isOwnProfile = !userId || userId === user?.id;
 
-  useEffect(() => {
-    fetchProfile();
-  }, [userId, user]);
-
-  const fetchProfile = async () => {
+  // Wrap fetchProfile in useCallback to prevent unnecessary re-renders
+  const fetchProfile = useCallback(async () => {
     try {
       const targetUserId = userId || user?.id;
       if (!targetUserId) return;
@@ -71,7 +67,11 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, user?.id, toast]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleSaveProfile = async () => {
     if (!user || !profile) return;
