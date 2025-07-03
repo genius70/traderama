@@ -22,7 +22,7 @@ export const useErrorTracking = () => {
     };
 
     // Track React errors (if using error boundary)
-    const handleReactError = (error: Error, errorInfo: any) => {
+    const handleReactError = (error: Error, errorInfo: React.ErrorInfo) => {
       trackError(error, 'react');
     };
 
@@ -30,12 +30,12 @@ export const useErrorTracking = () => {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     // Global error handler for React (optional)
-    (window as any).__REACT_ERROR_HANDLER__ = handleReactError;
+    (window as unknown as { __REACT_ERROR_HANDLER__?: typeof handleReactError }).__REACT_ERROR_HANDLER__ = handleReactError;
 
     return () => {
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-      delete (window as any).__REACT_ERROR_HANDLER__;
+      delete (window as unknown as { __REACT_ERROR_HANDLER__?: typeof handleReactError }).__REACT_ERROR_HANDLER__;
     };
   }, [trackError]);
 };

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -89,10 +90,14 @@ const OptionsChainPanel: React.FC<OptionsChainPanelProps> = ({
 
   useEffect(() => {
     refreshOptionsData();
-    autoRefreshTimeout.current && clearTimeout(autoRefreshTimeout.current);
+    if (autoRefreshTimeout.current) {
+      clearTimeout(autoRefreshTimeout.current);
+    }
     autoRefreshTimeout.current = window.setTimeout(refreshOptionsData, 20000);
     return () => {
-      autoRefreshTimeout.current && clearTimeout(autoRefreshTimeout.current);
+      if (autoRefreshTimeout.current) {
+        clearTimeout(autoRefreshTimeout.current);
+      }
     };
   }, [refreshOptionsData]);
 
@@ -100,10 +105,14 @@ const OptionsChainPanel: React.FC<OptionsChainPanelProps> = ({
   useEffect(() => {
     refreshOptionsData();
     // Handling timeout restart
-    autoRefreshTimeout.current && clearTimeout(autoRefreshTimeout.current);
+    if (autoRefreshTimeout.current) {
+      clearTimeout(autoRefreshTimeout.current);
+    }
     autoRefreshTimeout.current = window.setTimeout(refreshOptionsData, 20000);
     return () => {
-      autoRefreshTimeout.current && clearTimeout(autoRefreshTimeout.current);
+      if (autoRefreshTimeout.current) {
+        clearTimeout(autoRefreshTimeout.current);
+      }
     };
   }, [selectedExpiry, refreshOptionsData]);
 

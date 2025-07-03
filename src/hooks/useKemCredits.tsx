@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -10,13 +10,7 @@ export const useKemCredits = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (user) {
-      fetchCredits();
-    }
-  }, [user]);
-
-  const fetchCredits = async () => {
+  const fetchCredits = useCallback(async () => {
     if (!user) return;
 
     const { data, error } = await supabase
@@ -37,7 +31,13 @@ export const useKemCredits = () => {
         available: data.credits_earned - data.credits_spent
       });
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchCredits();
+    }
+  }, [user, fetchCredits]);
 
   const awardCredits = async (activityType: string, creditsAmount: number, targetId?: string, referredBy?: string) => {
     if (!user) return;
@@ -114,7 +114,7 @@ export const useKemCredits = () => {
         description: `You earned ${creditsAmount} KEM credits for ${activityType.replace('_', ' ')}.`,
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error awarding credits:', error);
       toast({
         title: "Error",

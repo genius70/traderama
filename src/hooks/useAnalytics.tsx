@@ -116,7 +116,7 @@ export const useAnalytics = () => {
   }, [user]);
 
   // Track user engagement
-  const trackEngagement = useCallback((actionType: string, elementId?: string, elementType?: string, metadata?: any) => {
+  const trackEngagement = useCallback((actionType: string, elementId?: string, elementType?: string, metadata?: Record<string, unknown>) => {
     if (!user || !sessionIdRef.current) return;
 
     supabase.from('user_engagement').insert({
