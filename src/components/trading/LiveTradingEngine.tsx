@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,7 +71,7 @@ const LiveTradingEngine: React.FC = () => {
         .from('iron_condor_trades')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'open')
+        .in('status', ['pending', 'executed']) // Fetch active positions
         .order('opened_at', { ascending: false });
 
       if (error) throw error;
@@ -84,7 +83,7 @@ const LiveTradingEngine: React.FC = () => {
         size: trade.contracts,
         entry_price: trade.entry_price || 0,
         current_pnl: trade.current_pnl || 0,
-        status: trade.status === 'open' ? 'open' : 'closed'
+        status: (trade.status === 'executed' || trade.status === 'pending') ? 'open' : 'closed'
       })) || [];
 
       setPositions(formattedPositions);
