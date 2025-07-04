@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,7 +67,6 @@ const AssetManagement = () => {
     if (!newAsset.symbol || !newAsset.name || !newAsset.exchange) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
@@ -92,7 +90,6 @@ const AssetManagement = () => {
 
     toast({
       title: "Asset added successfully",
-      description: `${newAsset.symbol} has been added to the platform`,
     });
   };
 
@@ -106,7 +103,6 @@ const AssetManagement = () => {
 
     toast({
       title: "Asset updated successfully",
-      description: `${editingAsset.symbol} has been updated`,
     });
   };
 
@@ -114,7 +110,6 @@ const AssetManagement = () => {
     setAssets(assets.filter(asset => asset.id !== assetId));
     toast({
       title: "Asset removed",
-      description: "Asset has been removed from the platform",
     });
   };
 

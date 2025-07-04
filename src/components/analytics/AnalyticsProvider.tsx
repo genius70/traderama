@@ -104,7 +104,7 @@ const AnalyticsProvider: React.FC<AnalyticsProviderProps> = ({
   };
 
   const trackFeatureUsage = (featureName: string, timeSpent = 0, success = true) => {
-    trackEvent(ANALYTICS_EVENTS.FEATURE_USED, { 
+    trackEvent(ANALYTICS_EVENTS.FEATURE_USAGE, { 
       feature: featureName,
       timeSpent,
       success

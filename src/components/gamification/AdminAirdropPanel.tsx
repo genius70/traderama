@@ -30,9 +30,9 @@ const isValidMilestone = (
     "id" in milestone &&
     "name" in milestone &&
     "kem_bonus" in milestone &&
-    typeof (milestone as unknown).id === "string" &&
-    typeof (milestone as unknown).name === "string" &&
-    typeof (milestone as unknown).kem_bonus === "number"
+    typeof (milestone as any).id === "string" &&
+    typeof (milestone as any).name === "string" &&
+    typeof (milestone as any).kem_bonus === "number"
   );
 };
 
@@ -43,42 +43,38 @@ const AdminAirdropPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchMilestones = useCallback(
-    async () => {
-      const { data, error } = await supabase
-        .from("airdrop_milestones")
-        .select("*")
-        .order("created_at");
+  const fetchMilestones = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("airdrop_milestones")
+      .select("*")
+      .order("created_at");
 
-      if (error) {
-        toast({
-          title: "Error fetching milestones",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
+    if (error) {
+      toast({
+        title: "Error fetching milestones",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (data && Array.isArray(data)) {
-        // Transform and validate the data with proper type checking
-        const validMilestones = data
-          .filter(isValidMilestone)
-          .map(milestone => ({
-            id: String(milestone.id),
-            name: String(milestone.name),
-            kem_bonus: Number(milestone.kem_bonus),
-            created_at: milestone.created_at
-              ? String(milestone.created_at)
-              : undefined,
-          }));
+    if (data && Array.isArray(data)) {
+      // Transform and validate the data with proper type checking
+      const validMilestones = data
+        .filter(isValidMilestone)
+        .map(milestone => ({
+          id: String(milestone.id),
+          name: String(milestone.name),
+          kem_bonus: Number(milestone.kem_bonus),
+          created_at: milestone.created_at
+            ? String(milestone.created_at)
+            : undefined,
+        }));
 
-        setMilestones(validMilestones);
-      } else {
-        setMilestones([]);
-      }
-    },
-    [toast],
-  );
+      setMilestones(validMilestones);
+    } else {
+      setMilestones([]);
+    }
+  }, [toast]);
 
   useEffect(
     () => {
@@ -91,7 +87,6 @@ const AdminAirdropPanel: React.FC = () => {
     if (!newMilestoneName.trim() || !newMilestoneBonus.trim()) {
       toast({
         title: "Validation Error",
-        description: "Please fill in both name and bonus amount.",
         variant: "destructive",
       });
       return;
@@ -128,7 +123,6 @@ const AdminAirdropPanel: React.FC = () => {
 
         toast({
           title: "Success",
-          description: "Milestone added successfully!",
         });
       }
     } catch (error) {
@@ -136,7 +130,6 @@ const AdminAirdropPanel: React.FC = () => {
         error instanceof Error ? error.message : "An unknown error occurred";
       toast({
         title: "Error",
-        description: errorMessage,
         variant: "destructive",
       });
     } finally {

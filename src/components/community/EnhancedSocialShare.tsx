@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -37,7 +36,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
     if (file.size > maxSize) {
       toast({
         title: "File too large",
-        description: "Please select a file smaller than 10MB.",
         variant: "destructive",
       });
       return;
@@ -47,7 +45,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: "Unsupported file type",
-        description: "Please select an image (JPEG, PNG, GIF) or video (MP4, WebM) file.",
         variant: "destructive",
       });
       return;
@@ -93,19 +90,17 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
       await navigator.clipboard.writeText(shareUrl);
       toast({
         title: "Link copied",
-        description: "Share link copied to clipboard",
       });
     } catch {
       toast({
         title: "Failed to copy",
-        description: "Could not copy link to clipboard",
         variant: "destructive",
       });
     }
   };
 
   const handleNativeShare = async () => {
-    if (navigator.share) {
+    if (navigator.share && typeof navigator.share === 'function') {
       try {
         await navigator.share({
           title: `Post by ${postData.author}`,

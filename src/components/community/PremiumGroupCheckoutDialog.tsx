@@ -45,21 +45,18 @@ export default function PremiumGroupCheckoutDialog({ open, onOpenChange }: Premi
           window.open(checkoutData.url, "_blank");
           toast({
             title: "Redirecting to Stripe...",
-            description: "Complete your payment in the new tab.",
           });
         }
       } else {
         // Placeholder for other methods
         toast({
           title: "Alternative Payment",
-          description: `Payment provider (${paymentMethod}) is coming soon or handled manually.`,
         });
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to initiate payment.";
       toast({
         title: "Payment Error",
-        description: errorMessage,
         variant: "destructive"
       });
     }

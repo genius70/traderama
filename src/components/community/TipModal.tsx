@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,6 @@ export default function TipModal({ open, onOpenChange }: TipModalProps) {
       onOpenChange(false);
       toast({
         title: "Thank you for your tip!",
-        description: `You've sent ${TIP_AMOUNTS[selected].label}!`,
       });
     }, 1500);
   }

@@ -34,7 +34,6 @@ const InviteFriend = () => {
     } else {
       toast({
         title: "Web Share API not supported",
-        description: "Please copy the referral link manually.",
       });
     }
   };
@@ -44,7 +43,6 @@ const InviteFriend = () => {
     setCopied(true);
     toast({
       title: "Referral link copied!",
-      description: "Share it with your friends!",
     });
     setTimeout(() => {
       setCopied(false);
