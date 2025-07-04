@@ -27,6 +27,7 @@ import ProductOffers from "./pages/ProductOffers";
 import TradePositions from "./pages/TradePositions";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
+import OptionsTrading from "./pages/OptionsTrading";
 import NotFound from "./pages/NotFound";
 
 // Create QueryClient instance with proper configuration
@@ -66,6 +67,7 @@ const App: React.FC = () => {
                   <Route path="/product-offers" element={<ProductOffers />} />
                   <Route path="/trade-positions" element={<TradePositions />} />
                   <Route path="/notifications" element={<NotificationManager />} />
+                  <Route path="/options-trading" element={<OptionsTrading />} />
                   <Route path="/success" element={<PaymentSuccess />} />
                   <Route path="/cancel" element={<PaymentCancel />} />
                   <Route path="*" element={<NotFound />} />
