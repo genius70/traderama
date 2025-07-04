@@ -1,10 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { Gift, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Gift, Star, CheckCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import CreditsOverview from './airdrop/CreditsOverview';
 import MilestoneProgress from './airdrop/MilestoneProgress';

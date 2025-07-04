@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Card, CardHeader, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Heart, MessageSquare } from "lucide-react";
@@ -30,10 +30,9 @@ interface CommunityPost {
 interface CommunityPostCardProps {
   post: CommunityPost;
   onLike?: () => void;
-  onCommentAdded?: () => void;
 }
 
-const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike, onCommentAdded }) => {
+const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [likes, setLikes] = useState<number>(post.likes_count ?? 0);

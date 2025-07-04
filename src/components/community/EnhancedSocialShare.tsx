@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Share2, Twitter, Facebook, Linkedin, Link, MessageSquare, Image, Video } from 'lucide-react';
+import { Share2, Twitter, Facebook, Linkedin, Link, MessageSquare, Image } from 'lucide-react';
 
 interface EnhancedSocialShareProps {
   postData: {
@@ -23,7 +22,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
   const [isOpen, setIsOpen] = useState(false);
   const [customMessage, setCustomMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
   const shareUrl = `${window.location.origin}/posts/${postData.id}`;
@@ -96,7 +94,7 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
         title: "Link copied",
         description: "Share link copied to clipboard",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Failed to copy",
         description: "Could not copy link to clipboard",
@@ -114,7 +112,7 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
           url: shareUrl,
         });
         onShare?.('native');
-      } catch (error) {
+      } catch {
         console.log('Native share cancelled or failed');
       }
     }
@@ -159,7 +157,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
                 variant="outline"
                 size="sm"
                 onClick={() => document.getElementById('media-upload')?.click()}
-                disabled={isUploading}
               >
                 <Image className="h-4 w-4 mr-2" />
                 Add Media

@@ -20,14 +20,6 @@ type AirdropMilestoneRow = {
   created_at?: string;
 };
 
-// Type for database row with unknown structure
-type DatabaseMilestone = {
-  id: unknown;
-  name: unknown;
-  kem_bonus: unknown;
-  created_at?: unknown;
-};
-
 // Fixed type guard that matches the expected return type
 const isValidMilestone = (
   milestone: unknown,

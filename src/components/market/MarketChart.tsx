@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 
@@ -11,11 +10,10 @@ interface ChartData {
 }
 
 interface MarketChartProps {
-  symbol: string;
   data: ChartData[];
 }
 
-const MarketChart: React.FC<MarketChartProps> = ({ symbol, data }) => {
+const MarketChart: React.FC<MarketChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
     return (
       <div className="h-64 sm:h-80 w-full flex items-center justify-center">

@@ -9,7 +9,7 @@ interface Post {
   content?: string;
   author?: string;
   created_at?: string;
-  [key: string]: unknown; // Allow for other post properties
+  [key: string]: unknown;
 }
 
 interface TipModalProps {
@@ -24,7 +24,7 @@ const TIP_AMOUNTS = [
   { label: "🪙 Send me a gold coin", amount: 25 },
 ];
 
-export default function TipModal({ open, onOpenChange, post }: TipModalProps) {
+export default function TipModal({ open, onOpenChange }: TipModalProps) {
   const [selected, setSelected] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();

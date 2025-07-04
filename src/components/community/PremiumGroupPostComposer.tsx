@@ -2,22 +2,18 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-// import YouTube icon
 import { Youtube } from "lucide-react";
 
 interface PremiumGroupPostComposerProps {
-  groupId: string;
   onPost?: () => void;
 }
 
-export default function PremiumGroupPostComposer({ groupId, onPost }: PremiumGroupPostComposerProps) {
+export default function PremiumGroupPostComposer({ onPost }: PremiumGroupPostComposerProps) {
   const [content, setContent] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
   const [background, setBackground] = useState("");
-  const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const { toast } = useToast();
@@ -25,7 +21,6 @@ export default function PremiumGroupPostComposer({ groupId, onPost }: PremiumGro
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
-      setImage(file);
       setImagePreview(URL.createObjectURL(file));
     }
   }
@@ -39,7 +34,6 @@ export default function PremiumGroupPostComposer({ groupId, onPost }: PremiumGro
       setYoutubeUrl("");
       setShowYoutubeInput(false);
       setBackground("");
-      setImage(null);
       setImagePreview(null);
       setPosting(false);
       onPost?.();

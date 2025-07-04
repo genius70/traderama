@@ -3,12 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  AUTH_STORAGE_KEYS, 
-  AUTH_ENDPOINTS, 
   AUTH_ERRORS, 
   AUTH_STATES, 
-  type AuthStorageKey,
-  type AuthEndpoint,
   type AuthError,
   type AuthState
 } from '@/constants';

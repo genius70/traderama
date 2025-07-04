@@ -1,41 +1,56 @@
+import React, { createContext, useContext, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
-import { useEffect } from 'react';
-import { useAnalytics } from './useAnalytics';
+interface ErrorContext {
+  componentStack?: string;
+  [key: string]: any;
+}
 
-export const useErrorTracking = () => {
-  const { trackError } = useAnalytics();
+interface ErrorTrackingContextType {
+  trackError: (error: Error, context?: ErrorContext) => Promise<void>;
+}
 
-  useEffect(() => {
-    // Track JavaScript errors
-    const handleError = (event: ErrorEvent) => {
-      const error = new Error(event.message);
-      error.stack = `${event.filename}:${event.lineno}:${event.colno}`;
-      trackError(error, 'javascript');
-    };
+interface ErrorTrackingProviderProps {
+  children: React.ReactNode;
+}
 
-    // Track unhandled promise rejections
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      const error = event.reason instanceof Error 
-        ? event.reason 
-        : new Error(String(event.reason));
-      trackError(error, 'promise_rejection');
-    };
+const ErrorTrackingContext = createContext<ErrorTrackingContextType | undefined>(undefined);
 
-    // Track React errors (if using error boundary)
-    const handleReactError = (error: Error, errorInfo: React.ErrorInfo) => {
-      trackError(error, 'react');
-    };
+export const ErrorTrackingProvider: React.FC<ErrorTrackingProviderProps> = ({ children }) => {
+  const { user } = useAuth();
 
-    window.addEventListener('error', handleError);
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+  const trackError = useCallback(async (error: Error, context?: ErrorContext) => {
+    try {
+      const errorData = {
+        message: error.message,
+        stack: error.stack,
+        user_id: user?.id,
+        context: context ? JSON.stringify(context) : null,
+        timestamp: new Date().toISOString(),
+      };
 
-    // Global error handler for React (optional)
-    (window as unknown as { __REACT_ERROR_HANDLER__?: typeof handleReactError }).__REACT_ERROR_HANDLER__ = handleReactError;
+      await supabase.from('error_logs').insert([errorData]);
+    } catch (trackingError) {
+      console.error('Failed to track error:', trackingError);
+    }
+  }, [user]);
 
-    return () => {
-      window.removeEventListener('error', handleError);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-      delete (window as unknown as { __REACT_ERROR_HANDLER__?: typeof handleReactError }).__REACT_ERROR_HANDLER__;
-    };
-  }, [trackError]);
+  const value: ErrorTrackingContextType = {
+    trackError,
+  };
+
+  return (
+    <ErrorTrackingContext.Provider value={value}>
+      {children}
+    </ErrorTrackingContext.Provider>
+  );
+};
+
+export const useErrorTracking = (): ErrorTrackingContextType => {
+  const context = useContext(ErrorTrackingContext);
+  if (!context) {
+    throw new Error('useErrorTracking must be used within an ErrorTrackingProvider');
+  }
+  return context;
 };

@@ -1,389 +1,350 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { MapPin, Globe, Linkedin, Users, Calendar, Edit3, Save, X, Phone, Wallet } from "lucide-react";
-import { supabase } from '@/integrations/supabase/client';
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { User, Mail, Save, Trophy, Target, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-interface SocialProfile {
+interface Profile {
   id: string;
-  name: string | null;
+  name: string;
   email: string;
-  bio: string | null;
-  location: string | null;
-  website_url: string | null;
-  linkedin_url: string | null;
-  profile_image_url: string | null;
-  cover_image_url: string | null;
-  followers_count: number | null;
-  following_count: number | null;
-  specialties: string[] | null;
+  bio?: string;
+  role: string;
+  referral_code: string;
   created_at: string;
-  whatsapp_number: string | null;
-  ethereum_wallet: string | null;
+}
+
+interface ProfileStats {
+  totalTrades: number;
+  winRate: number;
+  totalPnL: number;
+  activeStrategies: number;
 }
 
 const Profile = () => {
-  const { userId } = useParams();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<SocialProfile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [stats, setStats] = useState<ProfileStats>({
+    totalTrades: 0,
+    winRate: 0,
+    totalPnL: 0,
+    activeStrategies: 0
+  });
+  const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<SocialProfile>>({});
+  const [saving, setSaving] = useState(false);
 
-  const isOwnProfile = !userId || userId === user?.id;
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+      fetchStats();
+    }
+  }, [user]);
 
-  // Wrap fetchProfile in useCallback to prevent unnecessary re-renders
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = async () => {
+    if (!user) return;
+
     try {
-      const targetUserId = userId || user?.id;
-      if (!targetUserId) return;
-
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', targetUserId)
+        .eq('id', user.id)
         .single();
 
       if (error) throw error;
-      
       setProfile(data);
-      setEditForm(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast({
         title: "Error loading profile",
-        description: "Failed to load user profile",
+        description: "Failed to load profile data",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  }, [userId, user?.id, toast]);
+  };
 
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+  const fetchStats = async () => {
+    if (!user) return;
 
-  const handleSaveProfile = async () => {
-    if (!user || !profile) return;
+    try {
+      // Mock stats - in real app, these would come from actual trade data
+      setStats({
+        totalTrades: 127,
+        winRate: 68.5,
+        totalPnL: 15420.50,
+        activeStrategies: 3
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
 
+  const handleSave = async () => {
+    if (!profile || !user) return;
+
+    setSaving(true);
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          name: editForm.name,
-          bio: editForm.bio,
-          location: editForm.location,
-          website_url: editForm.website_url,
-          linkedin_url: editForm.linkedin_url,
-          whatsapp_number: editForm.whatsapp_number,
-          ethereum_wallet: editForm.ethereum_wallet,
-          specialties: editForm.specialties
+          name: profile.name,
+          bio: profile.bio
         })
         .eq('id', user.id);
 
       if (error) throw error;
 
-      setProfile({ ...profile, ...editForm });
-      setEditing(false);
-      
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated",
       });
+      setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
-        title: "Error updating profile",
+        title: "Update failed",
         description: "Failed to update profile",
         variant: "destructive",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <div className="flex items-center justify-center p-8">Loading...</div>;
   }
 
   if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Profile Not Found</CardTitle>
-            <CardDescription>The requested profile could not be found.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
+    return <div className="flex items-center justify-center p-8">Profile not found</div>;
   }
 
-  // Check if profile is complete (required fields)
-  const isProfileComplete = profile.location && profile.whatsapp_number && profile.ethereum_wallet;
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      {/* Profile completion warning */}
-      {isOwnProfile && !isProfileComplete && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-          <div className="flex">
-            <div className="ml-3">
-              <p className="text-sm text-yellow-700">
-                Please complete your profile by adding your location, WhatsApp number, and Ethereum wallet to access all features.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Profile</h1>
+        <Button 
+          onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+          disabled={saving}
+        >
+          <Save className="h-4 w-4 mr-2" />
+          {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Edit Profile'}
+        </Button>
+      </div>
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Cover Image */}
-        <div className="relative h-48 md:h-64 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg mb-6 overflow-hidden">
-          {profile.cover_image_url && (
-            <img 
-              src={profile.cover_image_url} 
-              alt="Cover" 
-              className="w-full h-full object-cover"
-            />
-          )}
-          
-          {/* Profile Picture */}
-          <div className="absolute -bottom-16 left-6">
-            <Avatar className="h-32 w-32 border-4 border-white shadow-lg">
-              <AvatarImage src={profile.profile_image_url || ''} />
-              <AvatarFallback className="text-2xl bg-white text-blue-600">
-                {profile.name?.[0] || 'U'}
-              </AvatarFallback>
-            </Avatar>
-          </div>
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="stats">Statistics</TabsTrigger>
+          <TabsTrigger value="achievements">Achievements</TabsTrigger>
+        </TabsList>
 
-          {/* Edit Button */}
-          {isOwnProfile && (
-            <div className="absolute top-4 right-4">
-              {editing ? (
-                <div className="space-x-2">
-                  <Button size="sm" onClick={handleSaveProfile} className="bg-green-600 hover:bg-green-700">
-                    <Save className="h-4 w-4 mr-1" />
-                    Save
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
-                    <X className="h-4 w-4 mr-1" />
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button size="sm" onClick={() => setEditing(true)} variant="outline" className="bg-white">
-                  <Edit3 className="h-4 w-4 mr-1" />
-                  Edit Profile
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Profile Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-20">
-          {/* Left Column - Profile Info */}
-          <div className="lg:col-span-2 space-y-6">
+        <TabsContent value="profile">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    {editing ? (
-                      <Input
-                        value={editForm.name || ''}
-                        onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                        className="text-2xl font-bold mb-2"
-                        placeholder="Your name"
-                      />
-                    ) : (
-                      <CardTitle className="text-2xl">{profile.name || 'No name'}</CardTitle>
-                    )}
-                    <p className="text-gray-600">{profile.email}</p>
-                  </div>
-                </div>
+                <CardTitle>Avatar</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Bio</Label>
-                  {editing ? (
-                    <Textarea
-                      value={editForm.bio || ''}
-                      onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
-                      placeholder="Tell us about yourself..."
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-gray-600 mt-1">{profile.bio || 'No bio provided'}</p>
-                  )}
-                </div>
-
-                {/* Contact Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      Location
-                    </Label>
-                    {editing ? (
-                      <Input
-                        value={editForm.location || ''}
-                        onChange={(e) => setEditForm({...editForm, location: e.target.value})}
-                        placeholder="Your location"
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-gray-600 mt-1">{profile.location || 'Not specified'}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
-                      <Phone className="h-4 w-4 mr-1" />
-                      WhatsApp
-                    </Label>
-                    {editing ? (
-                      <Input
-                        value={editForm.whatsapp_number || ''}
-                        onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
-                        placeholder="Your WhatsApp number"
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-gray-600 mt-1">{profile.whatsapp_number || 'Not specified'}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
-                      <Wallet className="h-4 w-4 mr-1" />
-                      Ethereum Wallet
-                    </Label>
-                    {editing ? (
-                      <Input
-                        value={editForm.ethereum_wallet || ''}
-                        onChange={(e) => setEditForm({...editForm, ethereum_wallet: e.target.value})}
-                        placeholder="Your Ethereum wallet address"
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-gray-600 mt-1 text-sm break-all">
-                        {profile.ethereum_wallet || 'Not specified'}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
-                      <Globe className="h-4 w-4 mr-1" />
-                      Website
-                    </Label>
-                    {editing ? (
-                      <Input
-                        value={editForm.website_url || ''}
-                        onChange={(e) => setEditForm({...editForm, website_url: e.target.value})}
-                        placeholder="Your website"
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-gray-600 mt-1">
-                        {profile.website_url ? (
-                          <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                            {profile.website_url}
-                          </a>
-                        ) : (
-                          'Not specified'
-                        )}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center">
-                      <Linkedin className="h-4 w-4 mr-1" />
-                      LinkedIn
-                    </Label>
-                    {editing ? (
-                      <Input
-                        value={editForm.linkedin_url || ''}
-                        onChange={(e) => setEditForm({...editForm, linkedin_url: e.target.value})}
-                        placeholder="Your LinkedIn profile"
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-gray-600 mt-1">
-                        {profile.linkedin_url ? (
-                          <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                            LinkedIn Profile
-                          </a>
-                        ) : (
-                          'Not specified'
-                        )}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Specialties */}
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Specialties</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {profile.specialties?.map((specialty, index) => (
-                      <Badge key={index} variant="secondary">
-                        {specialty}
-                      </Badge>
-                    ))}
-                    {(!profile.specialties || profile.specialties.length === 0) && (
-                      <p className="text-gray-500 text-sm">No specialties added</p>
-                    )}
-                  </div>
-                </div>
+              <CardContent className="text-center space-y-4">
+                <Avatar className="h-24 w-24 mx-auto">
+                  <AvatarImage src="" />
+                  <AvatarFallback className="text-2xl">
+                    {profile.name?.[0]?.toUpperCase() || profile.email[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <Button variant="outline" size="sm">Change Photo</Button>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Right Column - Stats */}
-          <div className="space-y-6">
-            <Card>
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <Users className="h-5 w-5 mr-2" />
-                  Social Stats
+                  <User className="h-5 w-5 mr-2" />
+                  Personal Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Followers</span>
-                  <span className="font-semibold">{profile.followers_count || 0}</span>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={profile.name || ''}
+                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                    disabled={!isEditing}
+                  />
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Following</span>
-                  <span className="font-semibold">{profile.following_count || 0}</span>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={profile.email}
+                    disabled
+                    className="bg-gray-50"
+                  />
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Joined</span>
-                  <span className="font-semibold">
-                    {new Date(profile.created_at).toLocaleDateString()}
-                  </span>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={profile.bio || ''}
+                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    disabled={!isEditing}
+                    placeholder="Tell us about yourself..."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <Label>Role</Label>
+                    <Badge variant="secondary" className="ml-2">
+                      {profile.role}
+                    </Badge>
+                  </div>
+                  <div>
+                    <Label>Member since</Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {new Date(profile.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Referral Code</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input value={profile.referral_code} disabled className="bg-gray-50" />
+                    <Button variant="outline" size="sm">Copy</Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="stats">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Target className="h-4 w-4 mr-2" />
+                  Total Trades
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalTrades}</div>
+                <p className="text-xs text-gray-600">All time</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Win Rate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats.winRate}%</div>
+                <p className="text-xs text-gray-600">Success rate</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Total P&L
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  ${stats.totalPnL.toLocaleString()}
+                </div>
+                <p className="text-xs text-gray-600">All time profit</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Active Strategies</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.activeStrategies}</div>
+                <p className="text-xs text-gray-600">Currently following</p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="achievements">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Trophy className="h-5 w-5 mr-2 text-yellow-500" />
+                Achievements
+              </CardTitle>
+              <CardDescription>Your trading milestones and accomplishments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Trophy className="h-8 w-8 text-yellow-500" />
+                    <div>
+                      <h3 className="font-semibold">First Trade</h3>
+                      <p className="text-sm text-gray-600">Executed your first successful trade</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Trophy className="h-8 w-8 text-yellow-500" />
+                    <div>
+                      <h3 className="font-semibold">Profit Milestone</h3>
+                      <p className="text-sm text-gray-600">Achieved $10,000 in total profits</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg opacity-50">
+                  <div className="flex items-center space-x-3">
+                    <Trophy className="h-8 w-8 text-gray-400" />
+                    <div>
+                      <h3 className="font-semibold">Strategy Creator</h3>
+                      <p className="text-sm text-gray-600">Create your first trading strategy</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg opacity-50">
+                  <div className="flex items-center space-x-3">
+                    <Trophy className="h-8 w-8 text-gray-400" />
+                    <div>
+                      <h3 className="font-semibold">Community Leader</h3>
+                      <p className="text-sm text-gray-600">Get 100 followers in the community</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

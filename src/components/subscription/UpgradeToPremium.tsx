@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check, Crown, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -25,12 +25,6 @@ const UpgradeToPremium = () => {
   const plans = {
     monthly: { price: 30, period: 'month', savings: 0 },
     annual: { price: 200, period: 'year', savings: 160 }
-  };
-
-  const paymentProviders = {
-    stripe: 'Stripe (Credit/Debit Cards)',
-    wise: 'Wise (Bank Transfer)',
-    airtm: 'AirTM (Multiple Options)'
   };
 
   const premiumFeatures = [

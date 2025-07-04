@@ -1,353 +1,216 @@
-
-import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Link } from 'react-router-dom';
-import TradingChart from '@/components/trading/TradingChart';
-import IronCondorBuilder from '@/components/trading/IronCondorBuilder';
-import StrategyMarketplace from '@/components/strategies/StrategyMarketplace';
-import BrokerConnections from '@/components/brokers/BrokerConnections';
-import UpgradeToPremium from '@/components/subscription/UpgradeToPremium';
-import InviteFriend from '@/components/community/InviteFriend';
-import { FeatureTracker } from '@/components/analytics/FeatureTracker';
-import { useAnalyticsContext } from '@/components/analytics/AnalyticsProvider';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, Target, Plus, UserPlus, Gift, Mail, CreditCard, Link as LinkIcon } from 'lucide-react';
-import IGBrokerConnect from '@/components/brokers/IGBrokerConnect';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, Target, Users, AlertTriangle, Trophy, Clock, Activity } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 
 const UserDashboard = () => {
   const { user } = useAuth();
-  const { trackFeatureUsage, trackActivity } = useAnalyticsContext();
-  const [showIGConnect, setShowIGConnect] = useState(false);
+  const { toast } = useToast();
+  const { isPremium, subscriptionTier, expiresAt, loading: loadingPremium } = usePremiumStatus();
+  const [stats, setStats] = useState({
+    totalTrades: 0,
+    winRate: 0,
+    totalPnL: 0,
+    activeStrategies: 0,
+  });
+  const [dailyPnL] = useState([
+    { date: '2024-01-01', pnl: 450 },
+    { date: '2024-01-02', pnl: -200 },
+    { date: '2024-01-03', pnl: 800 },
+    { date: '2024-01-04', pnl: 320 },
+    { date: '2024-01-05', pnl: -150 },
+    { date: '2024-01-06', pnl: 600 },
+    { date: '2024-01-07', pnl: 920 },
+  ]);
 
-  // Mock subscription tier - in real app this would come from profiles table
-  const isPremiumUser = false; // This would be fetched from user profile
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!user) return;
 
-  const handleIGSignup = () => {
-    trackFeatureUsage('ig_broker_signup');
-    trackActivity('external_link_click', 'ig_broker');
-    window.open('https://refer.ig.com/royanuriens-3', '_blank');
-  };
+      try {
+        // Mock stats - in real app, these would come from actual trade data
+        setStats({
+          totalTrades: 127,
+          winRate: 68.5,
+          totalPnL: 15420.50,
+          activeStrategies: 3,
+        });
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        toast({
+          title: "Error loading stats",
+          description: "Failed to load dashboard statistics",
+          variant: "destructive",
+        });
+      }
+    };
 
-  const tradViewSignup = () => {
-    trackFeatureUsage('tradingview_signup');
-    trackActivity('external_link_click', 'tradingview');
-    window.open('https://www.tradingview.com/?aff_id=154029', '_blank');
-  };
-
-  const handleConnectBroker = () => {
-    trackFeatureUsage('broker_connect_modal');
-    setShowIGConnect(true);
-  };
-
-  const handleIGConnectSuccess = () => {
-    trackActivity('broker_connected', 'ig', 10); // Award 10 credits for connecting broker
-    console.log('IG Broker connected successfully');
-  };
-
-  const handleCloseIGConnect = () => {
-    setShowIGConnect(false);
-  };
-
-  const handleTabChange = (tabValue: string) => {
-    trackFeatureUsage(`dashboard_tab_${tabValue}`);
-  };
+    fetchStats();
+  }, [user, toast]);
 
   return (
-    <FeatureTracker featureName="user_dashboard" trackOnUnmount>
-      <div className="space-y-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.email?.split('@')[0]}!
-          </h1>
-          <p className="text-gray-600">Manage your iron condor strategies and connect with the trading community</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold">User Dashboard</h2>
+          <p className="text-gray-600">Your trading overview and analytics</p>
         </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <Plus className="h-5 w-5 mr-2 text-blue-600" />
-                Create Strategy
-              </CardTitle>
-              <CardDescription>Build and publish new trading strategies</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link to="/create-strategy">
-                <Button 
-                  className="w-full bg-blue-600 border-red-800 text-white hover:bg-red-600 transition-colors mt-5"
-                  onClick={() => {
-                    trackFeatureUsage('create_strategy_click');
-                    trackActivity('navigation', 'create_strategy');
-                  }}
-                >
-                  Get Started
-                </Button>
-              </Link>
-              <Button
-                onClick={tradViewSignup}
-                className="w-full bg-red-600 border-red-800 text-white hover:bg-blue-600 transition-colors mt-5"
-                type="button"
-              > 
-                <span className="mr-2 inline-flex">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </span> 
-                Join TradingView            
-              </Button>           
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <Gift className="h-5 w-5 mr-2 text-purple-600" />
-                KEM Airdrop
-              </CardTitle>
-              <CardDescription>Claim your KEM tokens from earned credits</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link to="/airdrop">
-                <Button 
-                  variant="outline" 
-                  className="w-full border-purple-200"
-                  onClick={() => {
-                    trackFeatureUsage('airdrop_click');
-                    trackActivity('navigation', 'airdrop');
-                  }}
-                >
-                  Claim Tokens
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow border-green-200 bg-gradient-to-br from-green-50 to-blue-50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <CreditCard className="h-5 w-5 mr-2 text-green-600" />
-                Premium Plans
-              </CardTitle>
-              <CardDescription>Upgrade to unlock advanced features</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link to="/product-offers">
-                <Button 
-                  variant="outline" 
-                  className="w-full border-green-200"
-                  onClick={() => {
-                    trackFeatureUsage('premium_plans_click');
-                    trackActivity('navigation', 'premium_plans');
-                  }}
-                >
-                  View Plans
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          {/* IG Brokers Connect Card */}
-          <Card className="hover:shadow-md transition-shadow border-red-400 bg-gradient-to-br from-red-50 to-orange-50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <span className="mr-2 inline-flex">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-red-600"><path d="M12 17.3L18.2 21l-1.7-7.2L22 9.3l-7.3-.6L12 2 9.3 8.7 2 9.3l5.5 4.5L5.8 21z" fill="currentColor"/></svg>
-                </span>
-                Connect to IG Broker
-              </CardTitle>
-              <CardDescription>
-                Professional options trading platform—unbeatable for iron condors.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                onClick={handleConnectBroker}
-                className="w-full bg-blue-700 text-white hover:bg-red-600 transition-colors font-medium"
-                type="button"
-              >
-                <LinkIcon className="h-4 w-4 mr-2" />
-                Connect Broker Account
-              </Button>
-              <Button
-                onClick={handleIGSignup}
-                className="w-full bg-red-600 border-red-800 text-white hover:bg-blue-600 transition-colors"
-                type="button"
-              >
-                <span className="mr-2 inline-flex">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </span>
-                Open IG Account
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Upgrade to Premium Card - Only for non-premium users */}
-          {!isPremiumUser && (
-            <Card className="hover:shadow-md transition-shadow border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2 text-purple-600" />
-                  Go Premium
-                </CardTitle>
-                <CardDescription>Unlock advanced features and analytics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <UpgradeToPremium />
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <Users className="h-5 w-5 mr-2 text-green-600" />
-                Community
-              </CardTitle>
-              <CardDescription>Connect with fellow traders</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link to="/community">
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => {
-                    trackFeatureUsage('community_click');
-                    trackActivity('navigation', 'community');
-                  }}
-                >
-                  Join Discussion
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <Target className="h-5 w-5 mr-2 text-purple-600" />
-                Start Trading
-              </CardTitle>
-              <CardDescription>Begin your trading journey</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link to="/trade-positions">
-                <Button 
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  onClick={() => {
-                    trackFeatureUsage('start_trading_click');
-                    trackActivity('navigation', 'trade_positions');
-                  }}
-                >
-                  Start Trading
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          {/* Strategy Creator Notifications */}
-          {isPremiumUser && (
-            <Card className="hover:shadow-md transition-shadow border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center">
-                  <Mail className="h-5 w-5 mr-2 text-blue-600" />
-                  Notifications
-                </CardTitle>
-                <CardDescription>Send targeted messages to traders</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link to="/notifications">
-                  <Button 
-                    variant="outline" 
-                    className="w-full border-blue-200"
-                    onClick={() => {
-                      trackFeatureUsage('notifications_click');
-                      trackActivity('navigation', 'notifications');
-                    }}
-                  >
-                    Manage Notifications
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+        <div className="flex items-center space-x-2">
+          {isPremium ? (
+            <Badge variant="default">Premium Account</Badge>
+          ) : loadingPremium ? (
+            <Badge variant="secondary">Checking Premium...</Badge>
+          ) : (
+            <Button>Upgrade to Premium</Button>
           )}
         </div>
-
-        <Tabs defaultValue="trading" className="space-y-6" onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
-            <TabsTrigger value="trading">Trading</TabsTrigger>
-            <TabsTrigger value="strategies">Strategies</TabsTrigger>
-            <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
-            <TabsTrigger value="brokers">Brokers</TabsTrigger>
-            <TabsTrigger value="invite">Invite Friends</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="trading" className="space-y-6">
-            <FeatureTracker featureName="trading_tab">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <FeatureTracker featureName="trading_chart">
-                    <TradingChart symbol="SPY" />
-                  </FeatureTracker>
-                </div>
-                <div>
-                  <FeatureTracker featureName="iron_condor_builder">
-                    <IronCondorBuilder />
-                  </FeatureTracker>
-                </div>
-              </div>
-            </FeatureTracker>
-          </TabsContent>
-
-          <TabsContent value="strategies">
-            <FeatureTracker featureName="strategies_tab">
-              <StrategyMarketplace />
-            </FeatureTracker>
-          </TabsContent>
-
-          <TabsContent value="portfolio">
-            <FeatureTracker featureName="portfolio_tab">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Portfolio Management</CardTitle>
-                  <CardDescription>Track your trading performance and positions</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center p-8 text-gray-500">
-                    <Target className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium mb-2">Portfolio tracking coming soon</p>
-                    <p>We're building advanced portfolio management tools for you.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </FeatureTracker>
-          </TabsContent>
-
-          <TabsContent value="brokers">
-            <FeatureTracker featureName="brokers_tab">
-              <BrokerConnections />
-            </FeatureTracker>
-          </TabsContent>
-
-          <TabsContent value="invite">
-            <FeatureTracker featureName="invite_tab">
-              <div className="flex justify-center">
-                <InviteFriend />
-              </div>
-            </FeatureTracker>
-          </TabsContent>
-        </Tabs>
-
-        {/* IG Broker Connect Modal */}
-        {showIGConnect && (
-          <IGBrokerConnect
-            onClose={handleCloseIGConnect}
-            onConnect={handleIGConnectSuccess}
-          />
-        )}
       </div>
-    </FeatureTracker>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center">
+              <Target className="h-4 w-4 mr-2" />
+              Total Trades
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalTrades}</div>
+            <p className="text-xs text-gray-600">All time</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center">
+              <Trophy className="h-4 w-4 mr-2" />
+              Win Rate
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.winRate}%</div>
+            <p className="text-xs text-gray-600">Success rate</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Total P&L
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              ${stats.totalPnL.toLocaleString()}
+            </div>
+            <p className="text-xs text-gray-600">All time profit</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Active Strategies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.activeStrategies}</div>
+            <p className="text-xs text-gray-600">Currently following</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>P&L Chart</CardTitle>
+            <CardDescription>Daily profit and loss over the last week</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyPnL}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line
+                    type="monotone"
+                    dataKey="pnl"
+                    stroke="#3B82F6"
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Trading Insights</CardTitle>
+            <CardDescription>Key metrics and insights</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between">
+              <span>Avg. Daily Profit</span>
+              <span className="font-medium text-green-600">+$325</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Best Performing Strategy</span>
+              <span className="font-medium">Iron Condor</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Risk Score</span>
+              <span className="font-medium">72/100</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center">
+                <AlertTriangle className="h-5 w-5 mr-2" />
+                Risk Assessment
+              </CardTitle>
+              <CardDescription>Your current risk exposure</CardDescription>
+            </div>
+            <Badge variant="destructive">High Risk</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between mb-2">
+                <span>Portfolio Utilization</span>
+                <span className="font-medium">78%</span>
+              </div>
+              <Progress value={78} className="h-2" />
+            </div>
+            <div>
+              <div className="flex justify-between mb-2">
+                <span>Max Drawdown</span>
+                <span className="font-medium">12.5%</span>
+              </div>
+              <Progress value={12.5} className="h-2" />
+            </div>
+            <p className="text-sm text-gray-600">
+              Consider reducing your exposure or diversifying your portfolio to
+              lower your risk.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

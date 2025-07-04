@@ -1,18 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Target, Calendar, Share2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Target, Share2 } from 'lucide-react';
 import SocialShareModal from './SocialShareModal';
 
 interface ProfitLossPanelProps {
-  userId: string;
   userName: string;
 }
 
-const ProfitLossPanel: React.FC<ProfitLossPanelProps> = ({ userId, userName }) => {
+const ProfitLossPanel: React.FC<ProfitLossPanelProps> = ({ userName }) => {
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [showShareModal, setShowShareModal] = useState(false);
 

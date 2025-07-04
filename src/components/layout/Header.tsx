@@ -1,318 +1,92 @@
-import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { TrendingUp, User, Settings, Users, BarChart3, Plus, Menu, X } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { useAnalyticsContext } from "@/components/analytics/AnalyticsProvider";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Bell, Menu, LogOut, User, Settings } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const Header = () => {
   const { user, signOut } = useAuth();
-  const { trackFeatureUsage, trackActivity } = useAnalyticsContext();
-  const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  const handleSignOut = async () => {
-    trackActivity('sign_out');
-    await signOut();
-    navigate('/auth');
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
-
-  const handleNavigation = (path: string, feature: string) => {
-    trackFeatureUsage(`navigation_${feature}`);
-    trackActivity('navigation', feature);
-  };
-
-  const isAdmin = user?.email === 'royan.shaw@gmail.com';
-
-  const NavigationItems = ({ mobile = false, onItemClick = () => {} }) => (
-    <div className={`${mobile ? 'flex flex-col space-y-4' : 'hidden xl:flex items-center justify-center space-x-1 min-w-0 flex-1'}`}>
-      <Link 
-        to="/market-trends" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={() => {
-          handleNavigation('/market-trends', 'markets');
-          onItemClick();
-        }}
-      > 
-        Markets
-      </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
-      
-      <Link 
-        to="/dashboard" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={() => {
-          handleNavigation('/dashboard', 'dashboard');
-          onItemClick();
-        }}
-      >
-        Dashboard
-      </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
-      
-      <Link 
-        to="/trade-positions" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={() => {
-          handleNavigation('/trade-positions', 'positions');
-          onItemClick();
-        }}
-      >
-        Positions
-      </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
-      
-      <Link 
-        to="/auto-trading" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={() => {
-          handleNavigation('/auto-trading', 'auto_trading');
-          onItemClick();
-        }}
-      >
-        Auto Trading
-      </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
-      
-      <Link 
-        to="/community" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={() => {
-          handleNavigation('/community', 'community');
-          onItemClick();
-        }}
-      >
-        Community
-      </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
-      
-      <Link 
-        to="/create-strategy" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-        onClick={() => {
-          handleNavigation('/create-strategy', 'create_strategy');
-          onItemClick();
-        }}
-      >
-        Create Strategy
-      </Link>
-      
-      {isAdmin && (
-        <>
-          <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
-          <Link 
-            to="/admin" 
-            className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
-            onClick={() => {
-              handleNavigation('/admin', 'admin_analytics');
-              onItemClick();
-            }}
-          >
-            Analytics
-          </Link>
-        </>
-      )}
-    </div>
-  );
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-      <div className="container mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16 min-w-0">
-          {/* Logo */}
-          <Link 
-            to="/" 
-            className="flex items-center space-x-3 flex-shrink-0"
-            onClick={() => trackActivity('logo_click')}
-          >
-            <TrendingUp className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900 hidden sm:block">Traderama</span>
-            <span className="text-lg font-bold text-gray-900 sm:hidden">TR</span>
-          </Link>
+    <header className="bg-white shadow-md sticky top-0 z-50">
+      <div className="container mx-auto py-4 px-6 flex items-center justify-between">
+        {/* Logo and Brand */}
+        <div className="text-xl font-bold">Traderama</div>
 
-          {/* Desktop Navigation - Flexible and responsive */}
-          {user && (
-            <div className="flex-1 flex justify-center px-4 xl:px-8 min-w-0 overflow-hidden">
-              <NavigationItems />
-            </div>
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center space-x-4">
+          <Button variant="ghost">Strategies</Button>
+          <Button variant="ghost">Community</Button>
+          <Button variant="ghost">Market</Button>
+        </nav>
+
+        {/* User Profile and Dropdown (Desktop) */}
+        <div className="hidden md:flex items-center space-x-4">
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>
+                      {user?.email?.[0]?.toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  <User className="h-4 w-4 mr-2" />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="outline">Sign In</Button>
           )}
+          <Button variant="ghost" className="relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500"></span>
+          </Button>
+        </div>
 
-          {/* Right Side - User Menu and Mobile Menu */}
-          <div className="flex items-center space-x-2 flex-shrink-0">
+        {/* Mobile Menu Button */}
+        <Button variant="ghost" className="md:hidden" onClick={toggleMobileMenu}>
+          <Menu className="h-6 w-6" />
+        </Button>
+      </div>
+
+      {/* Mobile Menu (Conditional Rendering) */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-gray-50 border-b">
+          <nav className="flex flex-col p-4 space-y-3">
+            <Button variant="ghost" className="justify-start">Strategies</Button>
+            <Button variant="ghost" className="justify-start">Community</Button>
+            <Button variant="ghost" className="justify-start">Market</Button>
             {user ? (
               <>
-                {/* Mobile/Tablet Menu Button */}
-                <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-                  <SheetTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="xl:hidden"
-                      onClick={() => trackFeatureUsage('mobile_menu')}
-                    >
-                      <Menu className="h-6 w-6" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-80 sm:w-96">
-                    <div className="flex flex-col space-y-6 mt-6">
-                      <div className="flex items-center space-x-3 pb-4 border-b">
-                        <TrendingUp className="h-6 w-6 text-blue-600" />
-                        <span className="text-lg font-bold text-gray-900">Traderama</span>
-                      </div>
-                      
-                      <NavigationItems mobile onItemClick={() => setIsMenuOpen(false)} />
-                      
-                      <div className="border-t pt-6">
-                        <div className="flex items-center space-x-3 mb-6">
-                          <Avatar className="h-12 w-12">
-                            <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                              {user?.email?.[0]?.toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{user?.email}</p>
-                            {isAdmin && <Badge variant="secondary" className="text-xs mt-1">Admin</Badge>}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <Link 
-                            to="/profile" 
-                            className="flex items-center space-x-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors px-3 py-2 rounded-md"
-                            onClick={() => {
-                              trackFeatureUsage('profile_access');
-                              setIsMenuOpen(false);
-                            }}
-                          >
-                            <User className="h-5 w-5" />
-                            <span>Profile</span>
-                          </Link>
-                          <Link 
-                            to="/settings" 
-                            className="flex items-center space-x-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors px-3 py-2 rounded-md"
-                            onClick={() => {
-                              trackFeatureUsage('settings_access');
-                              setIsMenuOpen(false);
-                            }}
-                          >
-                            <Settings className="h-5 w-5" />
-                            <span>Settings</span>
-                          </Link>
-                          {isAdmin && (
-                            <Link 
-                              to="/admin" 
-                              className="flex items-center space-x-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors px-3 py-2 rounded-md"
-                              onClick={() => {
-                                trackFeatureUsage('admin_access');
-                                setIsMenuOpen(false);
-                              }}
-                            >
-                              <BarChart3 className="h-5 w-5" />
-                              <span>Admin Analytics</span>
-                            </Link>
-                          )}
-                          <button 
-                            onClick={() => {
-                              handleSignOut();
-                              setIsMenuOpen(false);
-                            }}
-                            className="flex items-center space-x-3 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors w-full text-left px-3 py-2 rounded-md"
-                          >
-                            <span>Sign Out</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-
-                {/* Desktop User Menu - Hidden on mobile/tablet */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      className="relative h-10 w-10 rounded-full hidden xl:flex"
-                      onClick={() => trackFeatureUsage('user_menu')}
-                    >
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                          {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-64 bg-white" align="end" forceMount>
-                    <div className="flex items-center justify-start gap-2 p-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                          {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col space-y-1 leading-none flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{user?.email}</p>
-                        {isAdmin && <Badge variant="secondary" className="text-xs w-fit">Admin</Badge>}
-                      </div>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link 
-                        to="/profile" 
-                        className="flex items-center"
-                        onClick={() => trackFeatureUsage('profile_access')}
-                      >
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Profile</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link 
-                        to="/settings" 
-                        className="flex items-center"
-                        onClick={() => trackFeatureUsage('settings_access')}
-                      >
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Settings</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    {isAdmin && (
-                      <DropdownMenuItem asChild>
-                        <Link 
-                          to="/admin" 
-                          className="flex items-center"
-                          onClick={() => trackFeatureUsage('admin_access')}
-                        >
-                          <BarChart3 className="mr-2 h-4 w-4" />
-                          <span>Admin Analytics</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={handleSignOut} 
-                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                    >
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button variant="ghost" className="justify-start">Profile</Button>
+                <Button variant="ghost" className="justify-start" onClick={() => signOut()}>Logout</Button>
               </>
             ) : (
-              <Link to="/auth">
-                <Button 
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={() => trackActivity('sign_in_click')}
-                >
-                  Sign In
-                </Button>
-              </Link>
+              <Button variant="outline" className="justify-start">Sign In</Button>
             )}
-          </div>
+          </nav>
         </div>
-      </div>
+      )}
     </header>
   );
 };
