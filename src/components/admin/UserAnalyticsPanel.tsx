@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -79,12 +80,18 @@ export default function UserAnalyticsPanel() {
 
         const errorRate = totalPageViews ? ((totalErrors || 0) / totalPageViews * 100) : 0;
 
-        // Get top features
-        const { data: topFeatures } = await supabase
+        // Get top features with proper null handling
+        const { data: topFeaturesData } = await supabase
           .from('feature_usage')
           .select('feature_name, usage_count, success_rate')
           .order('usage_count', { ascending: false })
           .limit(5);
+
+        const topFeatures = (topFeaturesData || []).map(feature => ({
+          feature_name: feature.feature_name,
+          usage_count: feature.usage_count || 0,
+          success_rate: feature.success_rate || 0
+        }));
 
         setAnalytics({
           totalUsers: totalUsers || 0,
@@ -94,7 +101,7 @@ export default function UserAnalyticsPanel() {
           avgSessionDuration,
           totalEngagements: totalEngagements || 0,
           errorRate: Math.round(errorRate * 100) / 100,
-          topFeatures: topFeatures || []
+          topFeatures
         });
 
       } catch (error) {

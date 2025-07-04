@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -52,7 +53,10 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike }) =
       onLike?.();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      toast({ title: "Error liking post", description: errorMessage, variant: "destructive" });
+      toast({ 
+        title: "Error liking post", 
+        variant: "destructive" 
+      });
     }
     setLikeDisabled(false);
   }

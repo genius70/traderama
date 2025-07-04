@@ -1,4 +1,5 @@
-import React, { createContext, useEffect, useState } from 'react';
+
+import React, { createContext, useEffect, useState, useContext } from 'react';
 import { 
   ANALYTICS_EVENTS, 
   ANALYTICS_PROVIDERS, 
@@ -6,14 +7,32 @@ import {
   type AnalyticsProvider as AnalyticsProviderType
 } from '@/constants';
 
+// Extend Window interface for analytics properties
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+    mixpanel?: any;
+    amplitude?: any;
+  }
+}
+
 interface AnalyticsContextType {
   trackEvent: (event: AnalyticsEvent, properties?: Record<string, unknown>) => void;
   trackPageView: (page: string) => void;
   setUserId: (userId: string) => void;
   provider: AnalyticsProviderType;
+  trackFeatureUsage: (featureName: string, timeSpent?: number, success?: boolean) => void;
 }
 
 export const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
+
+export const useAnalyticsContext = (): AnalyticsContextType => {
+  const context = useContext(AnalyticsContext);
+  if (!context) {
+    throw new Error('useAnalyticsContext must be used within an AnalyticsProvider');
+  }
+  return context;
+};
 
 interface AnalyticsProviderProps {
   children: React.ReactNode;
@@ -84,13 +103,21 @@ const AnalyticsProvider: React.FC<AnalyticsProviderProps> = ({
     trackEvent(ANALYTICS_EVENTS.PAGE_VIEW, { page });
   };
 
+  const trackFeatureUsage = (featureName: string, timeSpent = 0, success = true) => {
+    trackEvent(ANALYTICS_EVENTS.FEATURE_USED, { 
+      feature: featureName,
+      timeSpent,
+      success
+    });
+  };
+
   const handleSetUserId = (newUserId: string) => {
     setUserId(newUserId);
     
     // Set user ID in analytics provider
     switch (provider) {
       case ANALYTICS_PROVIDERS.GOOGLE_ANALYTICS:
-        if (typeof window !== 'undefined' && window.gtag) {
+        if (typeof window !== 'undefined' && window.gtag && apiKey) {
           window.gtag('config', apiKey, { user_id: newUserId });
         }
         break;
@@ -116,6 +143,7 @@ const AnalyticsProvider: React.FC<AnalyticsProviderProps> = ({
     trackPageView,
     setUserId: handleSetUserId,
     provider,
+    trackFeatureUsage,
   };
 
   return (
