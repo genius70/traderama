@@ -10,6 +10,10 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [
+    build: {
+    rollupOptions: {
+      external: ['react-share'],
+    },
     react(),
     mode === 'development' &&
     componentTagger(),
