@@ -1,205 +1,101 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
-import Header from '@/components/layout/Header';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bot, TrendingUp, Users, Settings, Play, Pause, AlertCircle } from 'lucide-react';
-import CopyTradingComponent from '@/components/trading/CopyTradingComponent';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { AlertTriangle, Settings, TrendingUp } from 'lucide-react';
 import LiveTradingEngine from '@/components/trading/LiveTradingEngine';
 
 const AutoTrading = () => {
-  const { user, loading } = useAuth();
-  const [activeStrategies, setActiveStrategies] = useState([]);
-  const [isAutoTradingEnabled, setIsAutoTradingEnabled] = useState(false);
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  const [strategies] = useState([
+    { id: 1, name: 'Iron Condor Weekly', status: 'active', pnl: 450.25 },
+    { id: 2, name: 'Momentum Scalping', status: 'paused', pnl: -125.50 },
+    { id: 3, name: 'Mean Reversion', status: 'active', pnl: 280.75 },
+  ]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-
-      <main className="container mx-auto p-4 sm:p-6">
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center">
-            <Bot className="h-8 w-8 mr-3 text-blue-600" />
-            Auto Trading
-          </h1>
-          <p className="text-gray-600">Automated trading strategies and copy trading features</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Auto Trading</h1>
+          <p className="text-gray-600">Automated trading strategies and live execution</p>
         </div>
+        <Button variant="outline">
+          <Settings className="h-4 w-4 mr-2" />
+          Settings
+        </Button>
+      </div>
 
-        <Tabs defaultValue="live-trading" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="live-trading">Live Trading</TabsTrigger>
-            <TabsTrigger value="strategies">My Strategies</TabsTrigger>
-            <TabsTrigger value="copy-trading">Copy Trading</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+      {/* Live Trading Engine */}
+      <LiveTradingEngine />
 
-          <TabsContent value="live-trading">
-            <div className="grid grid-cols-1 gap-6">
-              <LiveTradingEngine />
+      {/* Strategy Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Strategies</CardTitle>
+          <CardDescription>
+            Monitor and manage your automated trading strategies
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {strategies.map((strategy) => (
+              <div key={strategy.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-4">
+                  <Switch defaultChecked={strategy.status === 'active'} />
+                  <div>
+                    <p className="font-medium">{strategy.name}</p>
+                    <Badge variant={strategy.status === 'active' ? 'default' : 'secondary'}>
+                      {strategy.status}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-4 w-4" />
+                    <span className={`font-medium ${
+                      strategy.pnl >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Risk Management */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            Risk Management
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Daily Loss Limit</Label>
+              <p className="text-2xl font-bold text-red-600">$500</p>
+              <p className="text-sm text-gray-500">Current: $125</p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="strategies">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
-                    Iron Condor Strategy
-                  </CardTitle>
-                  <CardDescription>Automated iron condor trades on SPY</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Status</span>
-                      <Badge variant="default">Active</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">P&L This Month</span>
-                      <span className="font-medium text-green-600">+$1,250</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Success Rate</span>
-                      <span className="font-medium">78%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Next Trade</span>
-                      <span className="text-sm">In 2 hours</span>
-                    </div>
-                    <Button variant="outline" className="w-full">
-                      View Details
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <AlertCircle className="h-5 w-5 mr-2 text-yellow-600" />
-                    Credit Spread Strategy
-                  </CardTitle>
-                  <CardDescription>Weekly credit spreads on QQQ</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Status</span>
-                      <Badge variant="secondary">Paused</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">P&L This Month</span>
-                      <span className="font-medium text-red-600">-$320</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Success Rate</span>
-                      <span className="font-medium">65%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Last Trade</span>
-                      <span className="text-sm">Yesterday</span>
-                    </div>
-                    <Button variant="outline" className="w-full">
-                      Resume Strategy
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="space-y-2">
+              <Label>Max Position Size</Label>
+              <p className="text-2xl font-bold">$5,000</p>
+              <p className="text-sm text-gray-500">Per trade</p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="copy-trading">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <CopyTradingComponent />
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>My Copy Trades</CardTitle>
-                  <CardDescription>Strategies you're currently copying</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center p-8 text-gray-500">
-                    <Users className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium mb-2">No Active Copy Trades</p>
-                    <p>Start copying successful traders to diversify your portfolio.</p>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="space-y-2">
+              <Label>Open Positions</Label>
+              <p className="text-2xl font-bold">7/10</p>
+              <p className="text-sm text-gray-500">Maximum allowed</p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="settings">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Settings className="h-5 w-5 mr-2 text-gray-600" />
-                    Risk Management
-                  </CardTitle>
-                  <CardDescription>Configure your risk parameters</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Max Position Size</span>
-                      <span className="font-medium">$5,000</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Daily Loss Limit</span>
-                      <span className="font-medium">$500</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Max Open Positions</span>
-                      <span className="font-medium">10</span>
-                    </div>
-                    <Button variant="outline" className="w-full">
-                      Modify Settings
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Broker Connection</CardTitle>
-                  <CardDescription>Manage your broker integrations</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">IG Broker</span>
-                      <Badge variant="default">Connected</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Account Balance</span>
-                      <span className="font-medium">$25,000</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Last Sync</span>
-                      <span className="text-sm">2 minutes ago</span>
-                    </div>
-                    <Button variant="outline" className="w-full">
-                      Manage Connection
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

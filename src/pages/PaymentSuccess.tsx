@@ -1,72 +1,63 @@
 
-import { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, ArrowLeft, Crown } from 'lucide-react';
-import Header from '@/components/layout/Header';
+import { CheckCircle } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
-  const sessionId = searchParams.get('session_id');
-  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Optional: Verify payment status here if needed
-    if (sessionId) {
-      console.log('Payment session ID:', sessionId);
+    const sessionId = searchParams.get('session_id');
+    const success = searchParams.get('success');
+
+    if (success === 'true' && sessionId) {
+      toast({
+        title: "Payment Successful!",
+        description: "Your premium subscription has been activated.",
+      });
     }
-  }, [sessionId]);
+  }, [searchParams, toast]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <main className="container mx-auto p-4 sm:p-6 flex items-center justify-center min-h-[calc(100vh-80px)]">
-        <Card className="max-w-md w-full text-center">
-          <CardHeader>
-            <div className="mx-auto mb-4">
-              <CheckCircle className="h-16 w-16 text-green-500" />
-            </div>
-            <CardTitle className="text-2xl text-green-700">
-              Payment Successful!
-            </CardTitle>
-            <CardDescription>
-              Thank you for your purchase. Your payment has been processed successfully.
-            </CardDescription>
-          </CardHeader>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+          <CardTitle className="text-2xl">Payment Successful!</CardTitle>
+          <CardDescription>
+            Your premium subscription has been activated and you now have access to all premium features.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-center">
+            <p className="text-sm text-gray-600 mb-4">
+              You can now enjoy:
+            </p>
+            <ul className="text-sm space-y-1 text-left">
+              <li>✓ Unlimited strategy subscriptions</li>
+              <li>✓ Advanced analytics dashboard</li>
+              <li>✓ Real-time market data</li>
+              <li>✓ Premium broker integrations</li>
+              <li>✓ Priority customer support</li>
+            </ul>
+          </div>
           
-          <CardContent className="space-y-4">
-            {sessionId && (
-              <div className="text-sm text-gray-600">
-                <p>Session ID: {sessionId}</p>
-              </div>
-            )}
-            
-            <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
-              <Crown className="h-5 w-5 text-blue-600 mr-2" />
-              <span className="text-blue-800 font-medium">
-                Your premium features are now active!
-              </span>
-            </div>
-            
-            <div className="space-y-2">
-              <Button asChild className="w-full">
-                <Link to="/dashboard">
-                  Go to Dashboard
-                </Link>
-              </Button>
-              
-              <Button variant="outline" asChild className="w-full">
-                <Link to="/">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Home
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+          <div className="flex space-x-2">
+            <Button asChild className="flex-1">
+              <Link to="/dashboard">Go to Dashboard</Link>
+            </Button>
+            <Button variant="outline" asChild className="flex-1">
+              <Link to="/strategies">Browse Strategies</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

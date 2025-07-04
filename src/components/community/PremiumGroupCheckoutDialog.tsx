@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Crown, CreditCard, Building, Banknote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -45,21 +45,18 @@ export default function PremiumGroupCheckoutDialog({ open, onOpenChange }: Premi
           window.open(checkoutData.url, "_blank");
           toast({
             title: "Redirecting to Stripe...",
-            description: "Complete your payment in the new tab.",
           });
         }
       } else {
         // Placeholder for other methods
         toast({
           title: "Alternative Payment",
-          description: `Payment provider (${paymentMethod}) is coming soon or handled manually.`,
         });
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to initiate payment.";
       toast({
         title: "Payment Error",
-        description: errorMessage,
         variant: "destructive"
       });
     }

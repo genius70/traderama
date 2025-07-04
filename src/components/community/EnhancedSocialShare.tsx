@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Share2, Twitter, Facebook, Linkedin, Link, MessageSquare, Image, Video } from 'lucide-react';
+import { Share2, Twitter, Facebook, Linkedin, Link, MessageSquare, Image } from 'lucide-react';
 
 interface EnhancedSocialShareProps {
   postData: {
@@ -23,7 +23,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
   const [isOpen, setIsOpen] = useState(false);
   const [customMessage, setCustomMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
   const shareUrl = `${window.location.origin}/posts/${postData.id}`;
@@ -38,7 +37,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
     if (file.size > maxSize) {
       toast({
         title: "File too large",
-        description: "Please select a file smaller than 10MB.",
         variant: "destructive",
       });
       return;
@@ -48,7 +46,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: "Unsupported file type",
-        description: "Please select an image (JPEG, PNG, GIF) or video (MP4, WebM) file.",
         variant: "destructive",
       });
       return;
@@ -83,7 +80,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
     
     toast({
       title: "Shared successfully",
-      description: `Content shared to ${platform.charAt(0).toUpperCase() + platform.slice(1)}`,
     });
     
     setIsOpen(false);
@@ -94,19 +90,17 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
       await navigator.clipboard.writeText(shareUrl);
       toast({
         title: "Link copied",
-        description: "Share link copied to clipboard",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Failed to copy",
-        description: "Could not copy link to clipboard",
         variant: "destructive",
       });
     }
   };
 
   const handleNativeShare = async () => {
-    if (navigator.share) {
+    if (navigator.share && typeof navigator.share === 'function') {
       try {
         await navigator.share({
           title: `Post by ${postData.author}`,
@@ -114,7 +108,7 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
           url: shareUrl,
         });
         onShare?.('native');
-      } catch (error) {
+      } catch {
         console.log('Native share cancelled or failed');
       }
     }
@@ -159,7 +153,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
                 variant="outline"
                 size="sm"
                 onClick={() => document.getElementById('media-upload')?.click()}
-                disabled={isUploading}
               >
                 <Image className="h-4 w-4 mr-2" />
                 Add Media
@@ -208,7 +201,7 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
 
           {/* Native Share and Copy Link */}
           <div className="flex space-x-2">
-            {navigator.share && (
+            {typeof navigator !== 'undefined' && navigator.share && (
               <Button
                 variant="outline"
                 onClick={handleNativeShare}

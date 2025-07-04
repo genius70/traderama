@@ -1,43 +1,65 @@
 
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
-import Header from '@/components/layout/Header';
-import { FeatureTracker } from '@/components/analytics/FeatureTracker';
 import UserDashboard from '@/components/dashboard/UserDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setUserRole(data?.role || 'user');
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        setUserRole('user'); // Default to user role
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
+
+  if (authLoading || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p>Please sign in to view your dashboard.</p>
+      </div>
+    );
   }
 
-  // Check if user is admin
-  const isAdmin = user?.email === 'royan.shaw@gmail.com';
-  
-  // Check if user has premium subscription (this would come from profiles table in real app)
-  const isPremiumUser = false; // This would be fetched from user profile based on subscription_tier
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
   return (
-    <FeatureTracker featureName="dashboard" trackOnUnmount>
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        
-        <main className="container mx-auto p-4 sm:p-6">
-          {/* Conditional Dashboard Rendering */}
-          {isAdmin ? (
-            <AdminDashboard />
-          ) : (
-            <UserDashboard />
-          )}
-        </main>
-      </div>
-    </FeatureTracker>
+    <div className="space-y-6">
+      {isAdmin ? <AdminDashboard /> : <UserDashboard />}
+    </div>
   );
 };
 

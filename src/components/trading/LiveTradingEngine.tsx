@@ -28,7 +28,7 @@ const LiveTradingEngine: React.FC = () => {
   const { toast } = useToast();
   const [isActive, setIsActive] = useState(false);
   const [positions, setPositions] = useState<TradingPosition[]>([]);
-  const [riskParams, setRiskParams] = useState<RiskParameters>({
+  const [riskParams] = useState<RiskParameters>({
     maxPositionSize: 5000,
     dailyLossLimit: 500,
     maxOpenPositions: 10
@@ -118,21 +118,6 @@ const LiveTradingEngine: React.FC = () => {
         variant: "destructive",
       });
     }
-  };
-
-  const checkRiskLimits = (): boolean => {
-    const openPositions = positions.filter(p => p.status === 'open');
-    const totalPnL = openPositions.reduce((sum, pos) => sum + pos.current_pnl, 0);
-    
-    if (openPositions.length >= riskParams.maxOpenPositions) {
-      return false;
-    }
-    
-    if (totalPnL <= -riskParams.dailyLossLimit) {
-      return false;
-    }
-    
-    return true;
   };
 
   const getRiskStatus = () => {

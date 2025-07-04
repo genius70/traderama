@@ -1,10 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { Gift, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Gift, Star, CheckCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import CreditsOverview from './airdrop/CreditsOverview';
 import MilestoneProgress from './airdrop/MilestoneProgress';
@@ -38,19 +48,6 @@ type UserProfile = {
   [key: string]: unknown;
 };
 
-// Type for database row with unknown structure
-type DatabaseMilestone = {
-  id: unknown;
-  name: unknown;
-  kem_bonus: unknown;
-  created_at?: unknown;
-};
-
-type DatabaseUserMilestone = {
-  milestone_id: unknown;
-  user_id: unknown;
-};
-
 // Fixed type guards with proper return types
 const isValidMilestone = (milestone: unknown): milestone is AirdropMilestoneRow => {
   return (
@@ -59,9 +56,9 @@ const isValidMilestone = (milestone: unknown): milestone is AirdropMilestoneRow 
     'id' in milestone &&
     'name' in milestone &&
     'kem_bonus' in milestone &&
-    (typeof (milestone as unknown).id === 'string' || typeof (milestone as unknown).id === 'number') &&
-    typeof (milestone as unknown).name === 'string' &&
-    typeof (milestone as unknown).kem_bonus === 'number'
+    (typeof (milestone as any).id === 'string' || typeof (milestone as any).id === 'number') &&
+    typeof (milestone as any).name === 'string' &&
+    typeof (milestone as any).kem_bonus === 'number'
   );
 };
 
@@ -71,8 +68,8 @@ const isValidUserMilestone = (milestone: unknown): milestone is UserMilestoneRow
     typeof milestone === 'object' &&
     'milestone_id' in milestone &&
     'user_id' in milestone &&
-    (typeof (milestone as unknown).milestone_id === 'string' || typeof (milestone as unknown).milestone_id === 'number') &&
-    typeof (milestone as unknown).user_id === 'string'
+    (typeof (milestone as any).milestone_id === 'string' || typeof (milestone as any).milestone_id === 'number') &&
+    typeof (milestone as any).user_id === 'string'
   );
 };
 
@@ -97,8 +94,13 @@ const Airdrop: React.FC = () => {
       .maybeSingle();
     if (error) return;
     if (data) {
-      setKemCredits(data);
-      setAvailableCredits(data.credits_earned - data.credits_spent);
+      const credits = {
+        credits_earned: data.credits_earned || 0,
+        credits_spent: data.credits_spent || 0,
+        total_airdrops_received: data.total_airdrops_received || 0
+      };
+      setKemCredits(credits);
+      setAvailableCredits((data.credits_earned || 0) - (data.credits_spent || 0));
     } else {
       const { data: newCredits } = await supabase
         .from('kem_credits')
@@ -106,7 +108,12 @@ const Airdrop: React.FC = () => {
         .select()
         .maybeSingle();
       if (newCredits) {
-        setKemCredits(newCredits);
+        const credits = {
+          credits_earned: newCredits.credits_earned || 0,
+          credits_spent: newCredits.credits_spent || 0,
+          total_airdrops_received: newCredits.total_airdrops_received || 0
+        };
+        setKemCredits(credits);
         setAvailableCredits(0);
       }
     }
@@ -142,15 +149,12 @@ const Airdrop: React.FC = () => {
         .eq('user_id', user.id);
       toast({
         title: "Airdrop Request Submitted!",
-        description: `${kemAmount} KEM tokens will be sent to your wallet within 24 hours.`,
       });
       await fetchKemCredits();
       setEthereumWallet('');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({
         title: "Error",
-        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -170,7 +174,6 @@ const Airdrop: React.FC = () => {
     if (error) {
       toast({
         title: "Error fetching milestones",
-        description: error.message,
         variant: "destructive",
       });
       setMilestones([]);

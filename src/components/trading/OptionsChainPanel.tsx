@@ -1,7 +1,5 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import OptionsChainTable from "./OptionsChainTable";
 import type { ContractRow } from "./types";

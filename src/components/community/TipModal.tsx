@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ interface Post {
   content?: string;
   author?: string;
   created_at?: string;
-  [key: string]: unknown; // Allow for other post properties
+  [key: string]: unknown;
 }
 
 interface TipModalProps {
@@ -24,7 +25,7 @@ const TIP_AMOUNTS = [
   { label: "🪙 Send me a gold coin", amount: 25 },
 ];
 
-export default function TipModal({ open, onOpenChange, post }: TipModalProps) {
+export default function TipModal({ open, onOpenChange }: TipModalProps) {
   const [selected, setSelected] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -37,7 +38,6 @@ export default function TipModal({ open, onOpenChange, post }: TipModalProps) {
       onOpenChange(false);
       toast({
         title: "Thank you for your tip!",
-        description: `You've sent ${TIP_AMOUNTS[selected].label}!`,
       });
     }, 1500);
   }

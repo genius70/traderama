@@ -1,123 +1,96 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-interface NotificationRequest {
-  notificationId: string;
-  targetAudience: {
-    country?: string;
-    region?: string;
-    lastLoginDays?: number;
-    lastCommentDays?: number;
-    activityPeriod?: string;
-  };
-  title: string;
-  content: string;
-  notificationType: string;
 }
 
-serve(async (req: Request) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    )
 
-    const { notificationId, targetAudience, title, content, notificationType }: NotificationRequest = await req.json();
+    const { notificationType, userIds, filters } = await req.json()
 
-    console.log('Processing notification:', { notificationId, notificationType });
-
-    // Build user query based on target audience
-    let query = supabase.from('profiles').select('id, email, name');
-
-    if (targetAudience.country) {
-      query = query.eq('location', targetAudience.country);
-    }
-
-    if (targetAudience.lastLoginDays) {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - targetAudience.lastLoginDays);
-      
-      // Join with user_sessions to check last login
-      query = supabase
+    // Get target users based on filters
+    let targetUsers = []
+    
+    if (userIds && userIds.length > 0) {
+      // Send to specific users
+      const { data } = await supabaseClient
         .from('profiles')
-        .select(`
-          id, email, name,
-          user_sessions!inner(started_at)
-        `)
-        .gte('user_sessions.started_at', cutoffDate.toISOString());
-    }
-
-    const { data: targetUsers, error: usersError } = await query;
-
-    if (usersError) {
-      console.error('Error fetching target users:', usersError);
-      throw usersError;
-    }
-
-    console.log(`Found ${targetUsers?.length || 0} target users`);
-
-    // Create notification recipients
-    const recipients = targetUsers?.map(user => ({
-      notification_id: notificationId,
-      user_id: user.id,
-      delivered_at: new Date().toISOString()
-    })) || [];
-
-    if (recipients.length > 0) {
-      const { error: recipientsError } = await supabase
-        .from('notification_recipients')
-        .insert(recipients);
-
-      if (recipientsError) {
-        console.error('Error creating recipients:', recipientsError);
-        throw recipientsError;
+        .select('id, email, name')
+        .in('id', userIds)
+      
+      targetUsers = data || []
+    } else if (filters) {
+      // Apply filters to get target users
+      let query = supabaseClient.from('profiles').select('id, email, name')
+      
+      if (filters.role) {
+        query = query.eq('role', filters.role)
       }
+      if (filters.isPremium) {
+        // Join with premium_subscriptions to filter premium users
+        query = supabaseClient
+          .from('profiles')
+          .select(`
+            id, email, name,
+            premium_subscriptions!inner(status)
+          `)
+          .eq('premium_subscriptions.status', 'active')
+      }
+      
+      const { data } = await query
+      targetUsers = data || []
+    }
 
-      // Update notification status
-      const { error: updateError } = await supabase
+    console.log(`Sending notifications to ${targetUsers.length} users`)
+
+    // Create notification records
+    const notifications = targetUsers.map(user => ({
+      user_id: user.id,
+      type: notificationType || 'general',
+      created_at: new Date().toISOString()
+    }))
+
+    if (notifications.length > 0) {
+      const { error: insertError } = await supabaseClient
         .from('notifications')
-        .update({
-          status: 'sent',
-          sent_at: new Date().toISOString()
-        })
-        .eq('id', notificationId);
+        .insert(notifications)
 
-      if (updateError) {
-        console.error('Error updating notification:', updateError);
-        throw updateError;
+      if (insertError) {
+        console.error('Error inserting notifications:', insertError)
+        throw insertError
       }
     }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        recipientsCount: recipients.length,
-        message: 'Notification sent successfully'
+      JSON.stringify({ 
+        success: true, 
+        message: `Notifications sent to ${targetUsers.length} users` 
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
-    );
+    )
 
   } catch (error) {
-    console.error('Error in send-notifications function:', error);
+    console.error('Error in send-notifications:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+      { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
-    );
+    )
   }
-});
+})

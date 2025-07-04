@@ -1,291 +1,284 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Activity } from 'lucide-react';
-import Header from '@/components/layout/Header';
-import ETFCard from '@/components/market/ETFCard';
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { TrendingUp, TrendingDown, Activity, Target, AlertTriangle } from 'lucide-react';
 import MarketChart from '@/components/market/MarketChart';
-import CategoryFilter from '@/components/market/CategoryFilter';
-import MarketSummaryStats from '@/components/market/MarketSummaryStats';
+import SpyReturnsDistribution from '@/components/strategies/SpyReturnsDistribution';
 
-// ETF data configuration - Comprehensive list for trade research
-const ETF_SYMBOLS = [
-  // Core Market ETFs
-  { symbol: 'SPY', name: 'SPDR S&P 500', description: 'S&P 500 ETF', category: 'Core' },
-  { symbol: 'QQQ', name: 'Invesco QQQ', description: 'NASDAQ-100 ETF', category: 'Core' },
-  { symbol: 'IWM', name: 'iShares Russell 2000', description: 'Small Cap ETF', category: 'Core' },
-  { symbol: 'VTI', name: 'Vanguard Total Stock', description: 'Total Stock Market ETF', category: 'Core' },
-  { symbol: 'DIA', name: 'SPDR Dow Jones', description: 'Dow Jones ETF', category: 'Core' },
-  { symbol: 'VOO', name: 'Vanguard S&P 500', description: 'Low-cost S&P 500 ETF', category: 'Core' },
-  
-  // Sector ETFs
-  { symbol: 'XLF', name: 'Financial Select', description: 'Financial Sector ETF', category: 'Sector' },
-  { symbol: 'XLK', name: 'Technology Select', description: 'Technology Sector ETF', category: 'Sector' },
-  { symbol: 'XLE', name: 'Energy Select', description: 'Energy Sector ETF', category: 'Sector' },
-  { symbol: 'XLV', name: 'Health Care Select', description: 'Healthcare Sector ETF', category: 'Sector' },
-  { symbol: 'XLI', name: 'Industrial Select', description: 'Industrial Sector ETF', category: 'Sector' },
-  { symbol: 'XLY', name: 'Consumer Discretionary', description: 'Consumer Discretionary ETF', category: 'Sector' },
-  { symbol: 'XLP', name: 'Consumer Staples', description: 'Consumer Staples ETF', category: 'Sector' },
-  { symbol: 'XLU', name: 'Utilities Select', description: 'Utilities Sector ETF', category: 'Sector' },
-  { symbol: 'XLB', name: 'Materials Select', description: 'Materials Sector ETF', category: 'Sector' },
-  { symbol: 'XLRE', name: 'Real Estate Select', description: 'Real Estate Sector ETF', category: 'Sector' },
-  
-  // International ETFs
-  { symbol: 'EFA', name: 'iShares MSCI EAFE', description: 'Developed Markets ETF', category: 'International' },
-  { symbol: 'EEM', name: 'iShares MSCI Emerging', description: 'Emerging Markets ETF', category: 'International' },
-  { symbol: 'VEA', name: 'Vanguard FTSE Developed', description: 'Developed Markets ETF', category: 'International' },
-  { symbol: 'VWO', name: 'Vanguard FTSE Emerging', description: 'Emerging Markets ETF', category: 'International' },
-  { symbol: 'IEFA', name: 'iShares Core MSCI EAFE', description: 'Core Developed Markets', category: 'International' },
-  
-  // Bond ETFs
-  { symbol: 'AGG', name: 'iShares Core Aggregate', description: 'US Aggregate Bond ETF', category: 'Bonds' },
-  { symbol: 'BND', name: 'Vanguard Total Bond', description: 'Total Bond Market ETF', category: 'Bonds' },
-  { symbol: 'TLT', name: 'iShares 20+ Year Treasury', description: 'Long-term Treasury ETF', category: 'Bonds' },
-  { symbol: 'IEF', name: 'iShares 7-10 Year Treasury', description: 'Intermediate Treasury ETF', category: 'Bonds' },
-  { symbol: 'SHY', name: 'iShares 1-3 Year Treasury', description: 'Short-term Treasury ETF', category: 'Bonds' },
-  
-  // Growth & Value ETFs
-  { symbol: 'VUG', name: 'Vanguard Growth', description: 'Large Cap Growth ETF', category: 'Style' },
-  { symbol: 'VTV', name: 'Vanguard Value', description: 'Large Cap Value ETF', category: 'Style' },
-  { symbol: 'IWF', name: 'iShares Russell 1000 Growth', description: 'Large Cap Growth ETF', category: 'Style' },
-  { symbol: 'IWD', name: 'iShares Russell 1000 Value', description: 'Large Cap Value ETF', category: 'Style' },
-  
-  // Commodity & Alternative ETFs
-  { symbol: 'GLD', name: 'SPDR Gold Shares', description: 'Gold ETF', category: 'Commodities' },
-  { symbol: 'SLV', name: 'iShares Silver Trust', description: 'Silver ETF', category: 'Commodities' },
-  { symbol: 'USO', name: 'United States Oil Fund', description: 'Crude Oil ETF', category: 'Commodities' },
-  { symbol: 'VNQ', name: 'Vanguard Real Estate', description: 'REIT ETF', category: 'Real Estate' },
-  { symbol: 'ARKK', name: 'ARK Innovation', description: 'Innovation ETF', category: 'Thematic' },
-  { symbol: 'ICLN', name: 'iShares Global Clean Energy', description: 'Clean Energy ETF', category: 'Thematic' }
-];
+interface MarketData {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  marketCap?: number;
+}
 
-// Time period options for analysis
-const TIME_PERIODS = [
-  { key: '1M', label: '1 Month', days: 30 },
-  { key: '3M', label: '3 Months', days: 90 },
-  { key: '6M', label: '6 Months', days: 180 },
-  { key: '1Y', label: '1 Year', days: 365 },
-  { key: '3Y', label: '3 Years', days: 1095 },
-  { key: '5Y', label: '5 Years', days: 1825 }
-];
+interface ChartData {
+  date: string;
+  price: number;
+  volume: number;
+  sma20: number;
+  rsi: number;
+}
 
-// Mock API function (replace with actual Alpha Vantage API calls)
-const fetchETFData = async (symbol: string) => {
-  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
-  
-  const basePrice = Math.random() * 400 + 100;
-  const change = (Math.random() - 0.5) * 20;
-  const changePercent = (change / basePrice) * 100;
-  
-  return {
-    symbol,
-    price: basePrice.toFixed(2),
-    change: change.toFixed(2),
-    changePercent: changePercent.toFixed(2),
-    volume: Math.floor(Math.random() * 10000000),
-    high: (basePrice + Math.abs(change) * 0.5).toFixed(2),
-    low: (basePrice - Math.abs(change) * 0.5).toFixed(2),
-    timestamp: new Date().toISOString()
-  };
-};
-
-// Generate mock historical data for charts with different time periods
-const generateHistoricalData = (symbol: string, days = 30) => {
-  const data = [];
-  const basePrice = Math.random() * 400 + 100;
-  let currentPrice = basePrice;
-  
-  const volatility = days > 365 ? 0.02 : days > 90 ? 0.015 : 0.01;
-  const trend = (Math.random() - 0.5) * 0.001;
-  
-  for (let i = days; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    
-    const dailyChange = (Math.random() - 0.5) * volatility * currentPrice;
-    const trendChange = trend * currentPrice;
-    currentPrice = Math.max(10, currentPrice + dailyChange + trendChange);
-    
-    if (days > 365 && Math.random() < 0.02) {
-      currentPrice *= (0.9 + Math.random() * 0.2);
-    }
-    
-    data.push({
-      date: date.toISOString().split('T')[0],
-      price: parseFloat(currentPrice.toFixed(2)),
-      volume: Math.floor(Math.random() * 5000000) + 500000,
-      sma20: data.length >= 20 ? 
-        data.slice(-20).reduce((sum, item) => sum + item.price, 0) / 20 : 
-        currentPrice,
-      rsi: 30 + Math.random() * 40
-    });
-  }
-  
-  return data;
-};
-
-// Main Dashboard Component
 const MarketTrends = () => {
-  const [etfData, setEtfData] = useState<Record<string, unknown>>({});
   const [selectedSymbol, setSelectedSymbol] = useState('SPY');
-  const [selectedPeriod, setSelectedPeriod] = useState('3M');
-  const [chartData, setChartData] = useState<Record<string, unknown>>({});
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [marketData, setMarketData] = useState<MarketData[]>([]);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
 
-  // Get unique categories for filtering
-  const categories = ['All', ...new Set(ETF_SYMBOLS.map(etf => etf.category))];
-  
-  // Filter ETFs by category
-  const filteredETFs = categoryFilter === 'All' 
-    ? ETF_SYMBOLS 
-    : ETF_SYMBOLS.filter(etf => etf.category === categoryFilter);
+  // Mock data - in real app this would come from a market data API
+  const mockMarketData: MarketData[] = [
+    { symbol: 'SPY', price: 423.45, change: 2.34, changePercent: 0.56, volume: 45234567 },
+    { symbol: 'QQQ', price: 367.23, change: -1.45, changePercent: -0.39, volume: 32456789 },
+    { symbol: 'IWM', price: 198.76, change: 0.89, changePercent: 0.45, volume: 23456789 },
+    { symbol: 'VIX', price: 18.43, change: -2.34, changePercent: -11.25, volume: 0 },
+    { symbol: 'GLD', price: 189.45, change: 1.23, changePercent: 0.65, volume: 12345678 }
+  ];
 
-  // Calculate ETF counts for filter
-  const etfCounts = categories.reduce((acc, category) => {
-    acc[category] = category === 'All' 
-      ? ETF_SYMBOLS.length 
-      : ETF_SYMBOLS.filter(etf => etf.category === category).length;
-    return acc;
-  }, {} as Record<string, number>);
+  const mockChartData: ChartData[] = Array.from({ length: 30 }, (_, i) => ({
+    date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    price: 420 + Math.random() * 20 - 10,
+    volume: 40000000 + Math.random() * 20000000,
+    sma20: 422 + Math.random() * 6 - 3,
+    rsi: 30 + Math.random() * 40
+  }));
 
-  // Fetch ETF data
   useEffect(() => {
-    const fetchAllETFData = async () => {
-      setLoading(true);
-      try {
-        const promises = ETF_SYMBOLS.map(etf => fetchETFData(etf.symbol));
-        const results = await Promise.all(promises);
-        
-        const dataMap: Record<string, unknown> = {};
-        results.forEach(result => {
-          dataMap[result.symbol] = result;
-        });
-        
-        setEtfData(dataMap);
-        setLastUpdate(new Date());
-      } catch (error) {
-        console.error('Error fetching ETF data:', error);
-      }
-      setLoading(false);
-    };
-
-    fetchAllETFData();
-    
-    // Update data every 30 seconds
-    const interval = setInterval(fetchAllETFData, 30000);
-    return () => clearInterval(interval);
+    setMarketData(mockMarketData);
+    setChartData(mockChartData);
   }, []);
 
-  // Fetch chart data for selected symbol and period
-  useEffect(() => {
-    if (selectedSymbol && selectedPeriod) {
-      const period = TIME_PERIODS.find(p => p.key === selectedPeriod);
-      if (period) {
-        const data = generateHistoricalData(selectedSymbol, period.days);
-        setChartData(prev => ({
-          ...prev,
-          [`${selectedSymbol}_${selectedPeriod}`]: data
-        }));
-      }
-    }
-  }, [selectedSymbol, selectedPeriod]);
+  const topMovers = marketData
+    .filter(item => item.symbol !== 'VIX')
+    .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+    .slice(0, 5);
 
-  const currentChartData = chartData[`${selectedSymbol}_${selectedPeriod}`] || [];
+  const marketSentiment = () => {
+    const vixData = marketData.find(item => item.symbol === 'VIX');
+    if (!vixData) return 'neutral';
+    
+    if (vixData.price < 20) return 'bullish';
+    if (vixData.price > 30) return 'bearish';
+    return 'neutral';
+  };
+
+  const sentiment = marketSentiment();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <Header />
-      
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
-          <div className="w-full sm:w-auto">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">ETF Market Overview</h2>
-            <p className="text-gray-600">
-              Last updated: {lastUpdate.toLocaleTimeString()} • 
-              <span className="ml-1 text-green-600">● Live Data</span>
-            </p>
-          </div>
-          <div className="flex items-center space-x-4 text-sm text-gray-600 w-full sm:w-auto justify-start sm:justify-end">
-            <div className="flex items-center">
-              <Activity className="w-4 h-4 mr-1" />
-              <span>Powered by Alpha Vantage</span>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Market Trends</h1>
+          <p className="text-gray-600">Real-time market analysis and trading opportunities</p>
         </div>
-
-        <CategoryFilter 
-          categories={categories}
-          selectedCategory={categoryFilter}
-          onCategoryChange={setCategoryFilter}
-          etfCounts={etfCounts}
-        />
-
-        {/* ETF Cards Grid */}
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
-          {filteredETFs.map(etf => (
-            <ETFCard
-              key={etf.symbol}
-              etf={etf}
-              data={etfData[etf.symbol]}
-              onSelect={setSelectedSymbol}
-              isSelected={selectedSymbol === etf.symbol}
-            />
-          ))}
-        </div>
-
-        {/* Selected ETF Chart */}
-        <div className="w-full bg-white rounded-xl shadow-lg p-4 sm:p-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 w-full">
-            <div className="w-full lg:w-auto">
-              <h3 className="text-xl font-bold text-gray-900">
-                {ETF_SYMBOLS.find(etf => etf.symbol === selectedSymbol)?.name || selectedSymbol}
-              </h3>
-              <p className="text-gray-600">
-                {TIME_PERIODS.find(p => p.key === selectedPeriod)?.label} Price Chart
-              </p>
-            </div>
-            
-            {/* Time Period Selector */}
-            <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-              {TIME_PERIODS.map(period => (
-                <button
-                  key={period.key}
-                  onClick={() => setSelectedPeriod(period.key)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    selectedPeriod === period.key
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {period.key}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          <MarketChart symbol={selectedSymbol} data={currentChartData} />
-        </div>
-
-        <MarketSummaryStats 
-          categories={categories.slice(1, 5)}
-          etfData={etfData}
-          etfSymbols={ETF_SYMBOLS}
-        />
-
-        {/* API Integration Instructions */}
-        <div className="mt-8 w-full bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
-          <h4 className="font-bold text-blue-900 mb-2">🔧 Alpha Vantage Integration</h4>
-          <p className="text-blue-800 text-sm mb-2">
-            To use real data, replace the mock API function with actual Alpha Vantage calls:
-          </p>
-          <code className="bg-blue-100 px-2 py-1 rounded text-xs text-blue-900 block w-full overflow-x-auto">
-            https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&apikey=$API_KEY
-          </code>
-          <p className="text-blue-700 text-xs mt-2">
-            Sign up at alphavantage.co for free API access (500 calls/day) • Use TIME_SERIES_Daily for historical data
-          </p>
+        <div className="flex items-center space-x-2">
+          <Badge variant={sentiment === 'bullish' ? 'default' : sentiment === 'bearish' ? 'destructive' : 'secondary'}>
+            Market Sentiment: {sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}
+          </Badge>
         </div>
       </div>
+
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analysis">Technical Analysis</TabsTrigger>
+          <TabsTrigger value="distribution">Returns Distribution</TabsTrigger>
+          <TabsTrigger value="sectors">Sectors</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Market Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {marketData.slice(0, 4).map((item) => (
+              <Card key={item.symbol} className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{item.symbol}</CardTitle>
+                    {item.changePercent > 0 ? (
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 text-red-600" />
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-1">
+                    <p className="text-2xl font-bold">${item.price.toFixed(2)}</p>
+                    <p className={`text-sm ${item.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {item.change > 0 ? '+' : ''}{item.change.toFixed(2)} ({item.changePercent > 0 ? '+' : ''}{item.changePercent.toFixed(2)}%)
+                    </p>
+                    {item.volume > 0 && (
+                      <p className="text-xs text-gray-500">
+                        Vol: {(item.volume / 1000000).toFixed(1)}M
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Top Movers */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Activity className="h-5 w-5 mr-2" />
+                Top Movers
+              </CardTitle>
+              <CardDescription>Stocks with the highest volatility today</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {topMovers.map((item) => (
+                  <div key={item.symbol} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <span className="font-medium">{item.symbol}</span>
+                      <span className="text-lg font-bold">${item.price.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {item.changePercent > 0 ? (
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-red-600" />
+                      )}
+                      <span className={`font-medium ${item.changePercent > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {item.changePercent > 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Market Chart */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Market Chart - {selectedSymbol}</CardTitle>
+                  <CardDescription>30-day price movement</CardDescription>
+                </div>
+                <div className="flex space-x-2">
+                  {['SPY', 'QQQ', 'IWM'].map((symbol) => (
+                    <Button
+                      key={symbol}
+                      variant={selectedSymbol === symbol ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedSymbol(symbol)}
+                    >
+                      {symbol}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <MarketChart data={chartData} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analysis">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Target className="h-5 w-5 mr-2" />
+                  Technical Indicators
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span>RSI (14)</span>
+                    <Badge variant="secondary">45.2</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>MACD</span>
+                    <Badge variant="default">Bullish</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Moving Average (20)</span>
+                    <Badge variant="secondary">$422.15</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Support Level</span>
+                    <Badge variant="outline">$415.00</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Resistance Level</span>
+                    <Badge variant="outline">$430.00</Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <AlertTriangle className="h-5 w-5 mr-2" />
+                  Market Alerts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="p-3 border-l-4 border-yellow-500 bg-yellow-50">
+                    <p className="font-medium">Volume Spike</p>
+                    <p className="text-sm text-gray-600">SPY volume 50% above average</p>
+                  </div>
+                  <div className="p-3 border-l-4 border-green-500 bg-green-50">
+                    <p className="font-medium">Breakout Alert</p>
+                    <p className="text-sm text-gray-600">QQQ broke above resistance at $365</p>
+                  </div>
+                  <div className="p-3 border-l-4 border-red-500 bg-red-50">
+                    <p className="font-medium">Support Test</p>
+                    <p className="text-sm text-gray-600">IWM testing key support at $195</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="distribution">
+          <SpyReturnsDistribution />
+        </TabsContent>
+
+        <TabsContent value="sectors">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sector Performance</CardTitle>
+              <CardDescription>Today's sector rotation and performance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[
+                    { sector: 'Technology', performance: 1.2 },
+                    { sector: 'Healthcare', performance: 0.8 },
+                    { sector: 'Finance', performance: -0.3 },
+                    { sector: 'Energy', performance: 2.1 },
+                    { sector: 'Consumer', performance: 0.5 },
+                    { sector: 'Industrial', performance: -0.1 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="sector" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="performance" fill="#3B82F6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

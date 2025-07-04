@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,13 +82,13 @@ const AirdropDistributionTemplate: React.FC = () => {
 
           if (parsedEntries.length > 0) {
             setEntries(parsedEntries);
-            toast({ title: "CSV Imported", description: `${parsedEntries.length} entries loaded.` });
+            toast({ title: "CSV Imported" });
           } else {
-            toast({ title: "CSV Import Failed", description: "No valid entries found in the CSV file. Ensure columns 'wallet' and 'kemAmount' are present.", variant: "destructive" });
+            toast({ title: "CSV Import Failed", variant: "destructive" });
           }
         },
         error: (error: Error) => {
-          toast({ title: "CSV Parsing Error", description: error.message, variant: "destructive" });
+          toast({ title: "CSV Parsing Error", variant: "destructive" });
         },
       });
       // Reset file input
@@ -113,7 +114,7 @@ const AirdropDistributionTemplate: React.FC = () => {
     const entriesToSubmit = validatedEntries.filter(e => e.status === 'pending');
 
     if (entriesToSubmit.length === 0) {
-        toast({ title: "No valid entries to submit", description: "Please fix the errors before distributing.", variant: "destructive" });
+        toast({ title: "No valid entries to submit", variant: "destructive" });
         setProcessing(false);
         return;
     }
@@ -128,11 +129,11 @@ const AirdropDistributionTemplate: React.FC = () => {
     const { error } = await supabase.from('airdrops').insert(airdropRecords);
 
     if (error) {
-        toast({ title: "Error saving airdrop requests", description: error.message, variant: "destructive" });
+        toast({ title: "Error saving airdrop requests", variant: "destructive" });
         const errorEntries = validatedEntries.map(e => entriesToSubmit.some(s => s.wallet === e.wallet) ? {...e, status: 'error' as const, errorMsg: 'DB write failed'} : e);
         setEntries(errorEntries);
     } else {
-        toast({ title: "Airdrop distribution queued!", description: `${entriesToSubmit.length} requests have been recorded.` });
+        toast({ title: "Airdrop distribution queued!" });
         const sentEntries = validatedEntries.map(e => entriesToSubmit.some(s => s.wallet === e.wallet) ? {...e, status: 'sent' as const} : e);
         setEntries(sentEntries);
     }

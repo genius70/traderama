@@ -1,9 +1,8 @@
 
-import { useEffect, useState } from "react";
-import { Users, Activity, Eye, Clock, AlertTriangle, TrendingUp } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Users } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AnalyticsData {
   totalUsers: number;
@@ -17,7 +16,6 @@ interface AnalyticsData {
 }
 
 export default function UserAnalyticsPanel() {
-  const { user } = useAuth();
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalUsers: 0,
     activeUsers: 0,
@@ -31,8 +29,6 @@ export default function UserAnalyticsPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-
     const fetchAnalytics = async () => {
       try {
         setLoading(true);
@@ -84,12 +80,18 @@ export default function UserAnalyticsPanel() {
 
         const errorRate = totalPageViews ? ((totalErrors || 0) / totalPageViews * 100) : 0;
 
-        // Get top features
-        const { data: topFeatures } = await supabase
+        // Get top features with proper null handling
+        const { data: topFeaturesData } = await supabase
           .from('feature_usage')
           .select('feature_name, usage_count, success_rate')
           .order('usage_count', { ascending: false })
           .limit(5);
+
+        const topFeatures = (topFeaturesData || []).map(feature => ({
+          feature_name: feature.feature_name,
+          usage_count: feature.usage_count || 0,
+          success_rate: feature.success_rate || 0
+        }));
 
         setAnalytics({
           totalUsers: totalUsers || 0,
@@ -99,7 +101,7 @@ export default function UserAnalyticsPanel() {
           avgSessionDuration,
           totalEngagements: totalEngagements || 0,
           errorRate: Math.round(errorRate * 100) / 100,
-          topFeatures: topFeatures || []
+          topFeatures
         });
 
       } catch (error) {
@@ -110,7 +112,7 @@ export default function UserAnalyticsPanel() {
     };
 
     fetchAnalytics();
-  }, [user]);
+  }, []);
 
   if (loading) {
     return (
@@ -164,7 +166,6 @@ export default function UserAnalyticsPanel() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Session</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{Math.floor(analytics.avgSessionDuration / 60)}m {analytics.avgSessionDuration % 60}s</div>
@@ -175,7 +176,6 @@ export default function UserAnalyticsPanel() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Engagements</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{analytics.totalEngagements}</div>
@@ -186,7 +186,6 @@ export default function UserAnalyticsPanel() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{analytics.errorRate}%</div>
@@ -197,7 +196,6 @@ export default function UserAnalyticsPanel() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-sky-600">

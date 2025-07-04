@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,10 @@ export default function CommunityCommentModal({ postId, open, onOpenChange }: Co
       .eq("post_id", postId)
       .order("created_at", { ascending: false });
     if (error) {
-      toast({ title: "Error fetching comments", variant: "destructive" });
+      toast({ 
+        title: "Error fetching comments", 
+        variant: "destructive" 
+      });
       setComments([]);
     } else {
       setComments(data as Comment[] ?? []);
@@ -63,7 +67,10 @@ export default function CommunityCommentModal({ postId, open, onOpenChange }: Co
       });
     setSubmitting(false);
     if (error) {
-      toast({ title: "Error adding comment", description: error.message, variant: "destructive" });
+      toast({ 
+        title: "Error adding comment", 
+        variant: "destructive" 
+      });
     } else {
       setNewComment("");
       fetchComments();

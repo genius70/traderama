@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TradingOption {
@@ -213,14 +213,13 @@ const tradingOptions: TradingOption[] = [
 
 interface TradingOptionsSelectorProps {
   onSelectOption: (option: TradingOption) => void;
-  filter?: string; // ADDED
+  filter?: string;
 }
 
 const TradingOptionsSelector: React.FC<TradingOptionsSelectorProps> = ({ onSelectOption, filter }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const visibleOptions = 4;
 
-  // Filter strategies based on filter prop (bull, bear, neutral). By default show all.
   const getFilteredOptions = () => {
     if (!filter) return tradingOptions;
     switch (filter) {
@@ -237,7 +236,6 @@ const TradingOptionsSelector: React.FC<TradingOptionsSelectorProps> = ({ onSelec
 
   const filteredOptions = getFilteredOptions();
 
-  // Reset index if filter changes and would create an out-of-bounds view
   React.useEffect(() => {
     setCurrentIndex(0);
   }, [filter]);

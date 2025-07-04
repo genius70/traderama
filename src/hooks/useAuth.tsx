@@ -1,14 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  AUTH_STORAGE_KEYS, 
-  AUTH_ENDPOINTS, 
   AUTH_ERRORS, 
   AUTH_STATES, 
-  type AuthStorageKey,
-  type AuthEndpoint,
   type AuthError,
   type AuthState
 } from '@/constants';
@@ -290,5 +287,8 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+// Export the useAuth hook from auth-context
+export { useAuth } from './auth-context';
 
 export default AuthProvider;

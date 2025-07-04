@@ -1,46 +1,54 @@
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
-type PremiumStatus = {
-  isPremium: boolean;
-  subscriptionTier?: string | null;
-  expiresAt?: string | null;
-};
-
-export function usePremiumStatus(): PremiumStatus & { loading: boolean } {
+export const usePremiumStatus = () => {
   const { user } = useAuth();
-  const [status, setStatus] = useState<PremiumStatus>({ isPremium: false, subscriptionTier: null, expiresAt: null });
+  const [isPremium, setIsPremium] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      setStatus({ isPremium: false, subscriptionTier: null, expiresAt: null });
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    supabase
-      .from("profiles")
-      .select("subscription_tier, subscription_expires_at")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setStatus({ isPremium: false, subscriptionTier: null, expiresAt: null });
-        } else {
-          const now = new Date();
-          const expires = data.subscription_expires_at ? new Date(data.subscription_expires_at) : null;
-          setStatus({
-            isPremium: ["premium", "pro", "enterprise"].includes((data.subscription_tier || "").toLowerCase()),
-            subscriptionTier: data.subscription_tier || null,
-            expiresAt: expires ? expires.toISOString() : null,
-          });
-        }
+    const checkPremiumStatus = async () => {
+      if (!user) {
         setLoading(false);
-      });
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('premium_subscriptions')
+          .select('tier, expires_at')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking premium status:', error);
+          setLoading(false);
+          return;
+        }
+
+        if (data) {
+          setIsPremium(true);
+          setSubscriptionTier(data.tier);
+          setExpiresAt(data.expires_at);
+        } else {
+          setIsPremium(false);
+          setSubscriptionTier(null);
+          setExpiresAt(null);
+        }
+      } catch (error) {
+        console.error('Error in checkPremiumStatus:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkPremiumStatus();
   }, [user]);
 
-  return { ...status, loading };
-}
+  return { isPremium, subscriptionTier, expiresAt, loading };
+};

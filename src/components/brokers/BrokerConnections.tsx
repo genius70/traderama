@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,7 +40,6 @@ const BrokerConnections = () => {
     if (!newConnection.broker || !newConnection.account_id) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
@@ -66,7 +64,6 @@ const BrokerConnections = () => {
 
     toast({
       title: "Broker connected successfully",
-      description: `Connected to ${availableBrokers.find(b => b.value === newConnection.broker)?.label}`,
     });
   };
 
@@ -74,7 +71,6 @@ const BrokerConnections = () => {
     setConnections(connections.filter(conn => conn.id !== connectionId));
     toast({
       title: "Broker disconnected",
-      description: "Broker connection has been removed",
     });
   };
 
