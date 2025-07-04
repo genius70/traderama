@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +7,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { TrendingUp, TrendingDown, Activity, Target, AlertTriangle } from 'lucide-react';
 import MarketChart from '@/components/market/MarketChart';
 import SpyReturnsDistribution from '@/components/strategies/SpyReturnsDistribution';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface MarketData {
   symbol: string;
@@ -26,32 +27,137 @@ interface ChartData {
   rsi: number;
 }
 
+// Mock data constants moved outside component to prevent recreating on every render
+const MOCK_MARKET_DATA: MarketData[] = [
+  { symbol: 'SPY', price: 423.45, change: 2.34, changePercent: 0.56, volume: 45234567 },
+  { symbol: 'QQQ', price: 367.23, change: -1.45, changePercent: -0.39, volume: 32456789 },
+  { symbol: 'IWM', price: 198.76, change: 0.89, changePercent: 0.45, volume: 23456789 },
+  { symbol: 'VIX', price: 18.43, change: -2.34, changePercent: -11.25, volume: 0 },
+  { symbol: 'GLD', price: 189.45, change: 1.23, changePercent: 0.65, volume: 12345678 }
+];
+
+const MOCK_CHART_DATA: ChartData[] = Array.from({ length: 30 }, (_, i) => ({
+  date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  price: 420 + Math.random() * 20 - 10,
+  volume: 40000000 + Math.random() * 20000000,
+  sma20: 422 + Math.random() * 6 - 3,
+  rsi: 30 + Math.random() * 40
+}));
+
 const MarketTrends = () => {
   const [selectedSymbol, setSelectedSymbol] = useState('SPY');
   const [marketData, setMarketData] = useState<MarketData[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  // Mock data - in real app this would come from a market data API
-  const mockMarketData: MarketData[] = [
-    { symbol: 'SPY', price: 423.45, change: 2.34, changePercent: 0.56, volume: 45234567 },
-    { symbol: 'QQQ', price: 367.23, change: -1.45, changePercent: -0.39, volume: 32456789 },
-    { symbol: 'IWM', price: 198.76, change: 0.89, changePercent: 0.45, volume: 23456789 },
-    { symbol: 'VIX', price: 18.43, change: -2.34, changePercent: -11.25, volume: 0 },
-    { symbol: 'GLD', price: 189.45, change: 1.23, changePercent: 0.65, volume: 12345678 }
-  ];
+  // Fetch live market data from database
+  const fetchMarketData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const mockChartData: ChartData[] = Array.from({ length: 30 }, (_, i) => ({
-    date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    price: 420 + Math.random() * 20 - 10,
-    volume: 40000000 + Math.random() * 20000000,
-    sma20: 422 + Math.random() * 6 - 3,
-    rsi: 30 + Math.random() * 40
-  }));
+      // Try to fetch from market_data table
+      const { data: liveData, error: marketError } = await supabase
+        .from('market_data')
+        .select('*')
+        .in('symbol', ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'])
+        .order('updated_at', { ascending: false });
 
-  useEffect(() => {
-    setMarketData(mockMarketData);
-    setChartData(mockChartData);
+      if (marketError) {
+        console.warn('Failed to fetch live market data:', marketError);
+        throw new Error('Database fetch failed');
+      }
+
+      if (liveData && liveData.length > 0) {
+        // Transform database data to match our interface
+        const transformedData: MarketData[] = liveData.map(item => ({
+          symbol: item.symbol,
+          price: item.price || 0,
+          change: item.change || 0,
+          changePercent: item.change_percent || 0,
+          volume: item.volume || 0,
+          marketCap: item.market_cap
+        }));
+        setMarketData(transformedData);
+      } else {
+        // Fallback to mock data if no live data available
+        console.info('No live market data available, using mock data');
+        setMarketData(MOCK_MARKET_DATA);
+      }
+    } catch (err) {
+      console.error('Error fetching market data:', err);
+      setError('Failed to fetch market data');
+      // Fallback to mock data on error
+      setMarketData(MOCK_MARKET_DATA);
+      toast({
+        title: "Using Demo Data",
+        description: "Live market data unavailable, showing demo data instead.",
+        variant: "default",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  // Fetch historical chart data
+  const fetchChartData = useCallback(async (symbol: string) => {
+    try {
+      // Try to fetch from price_history table
+      const { data: historyData, error: historyError } = await supabase
+        .from('price_history')
+        .select('*')
+        .eq('symbol', symbol)
+        .order('date', { ascending: true })
+        .limit(30);
+
+      if (historyError) {
+        console.warn('Failed to fetch chart data:', historyError);
+        throw new Error('Chart data fetch failed');
+      }
+
+      if (historyData && historyData.length > 0) {
+        // Transform database data to match our interface
+        const transformedChartData: ChartData[] = historyData.map(item => ({
+          date: item.date,
+          price: item.price || 0,
+          volume: item.volume || 0,
+          sma20: item.sma20 || 0,
+          rsi: item.rsi || 50
+        }));
+        setChartData(transformedChartData);
+      } else {
+        // Fallback to mock data
+        console.info('No chart data available, using mock data');
+        setChartData(MOCK_CHART_DATA);
+      }
+    } catch (err) {
+      console.error('Error fetching chart data:', err);
+      // Fallback to mock data on error
+      setChartData(MOCK_CHART_DATA);
+    }
   }, []);
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchMarketData();
+  }, [fetchMarketData]);
+
+  // Fetch chart data when symbol changes
+  useEffect(() => {
+    fetchChartData(selectedSymbol);
+  }, [selectedSymbol, fetchChartData]);
+
+  // Auto-refresh data every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchMarketData();
+      fetchChartData(selectedSymbol);
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [fetchMarketData, fetchChartData, selectedSymbol]);
 
   const topMovers = marketData
     .filter(item => item.symbol !== 'VIX')
@@ -69,17 +175,43 @@ const MarketTrends = () => {
 
   const sentiment = marketSentiment();
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading market data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Market Trends</h1>
           <p className="text-gray-600">Real-time market analysis and trading opportunities</p>
+          {error && (
+            <p className="text-sm text-amber-600 mt-1">
+              ⚠️ Using demo data - Live data connection unavailable
+            </p>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           <Badge variant={sentiment === 'bullish' ? 'default' : sentiment === 'bearish' ? 'destructive' : 'secondary'}>
             Market Sentiment: {sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              fetchMarketData();
+              fetchChartData(selectedSymbol);
+            }}
+          >
+            Refresh
+          </Button>
         </div>
       </div>
 
@@ -197,7 +329,9 @@ const MarketTrends = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span>RSI (14)</span>
-                    <Badge variant="secondary">45.2</Badge>
+                    <Badge variant="secondary">
+                      {chartData.length > 0 ? chartData[chartData.length - 1].rsi.toFixed(1) : '45.2'}
+                    </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>MACD</span>
@@ -205,7 +339,9 @@ const MarketTrends = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Moving Average (20)</span>
-                    <Badge variant="secondary">$422.15</Badge>
+                    <Badge variant="secondary">
+                      ${chartData.length > 0 ? chartData[chartData.length - 1].sma20.toFixed(2) : '422.15'}
+                    </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Support Level</span>

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -26,7 +25,7 @@ const UserDashboard = () => {
     }
   }, [kemCredits]);
 
-  const fetchUserKemCredits = async () => {
+  const fetchUserKemCredits = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -49,11 +48,11 @@ const UserDashboard = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [user, toast]);
 
   useEffect(() => {
     fetchUserKemCredits();
-  }, [user]);
+  }, [fetchUserKemCredits]);
 
   const nextMilestone = kemCredits ? Math.ceil(kemCredits.credits_earned / 100) * 100 : 100;
 
