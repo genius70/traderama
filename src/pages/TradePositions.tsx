@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,16 +52,7 @@ const TradePositions = () => {
     { date: '2024-01-07', pnl: 920 }
   ]);
 
-  useEffect(() => {
-    if (user) {
-      fetchPositions();
-      // Set up real-time updates
-      const interval = setInterval(updatePositionValues, 30000); // Update every 30 seconds
-      return () => clearInterval(interval);
-    }
-  }, [user]);
-
-  const fetchPositions = async () => {
+  const fetchPositions = useCallback(async () => {
     try {
       // Mock positions data - in real app, this would come from your broker API
       const mockPositions: Position[] = [
@@ -109,7 +99,16 @@ const TradePositions = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (user) {
+      fetchPositions();
+      // Set up real-time updates
+      const interval = setInterval(updatePositionValues, 30000); // Update every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchPositions]);
 
   const updatePositionValues = () => {
     // Mock real-time price updates

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,14 +43,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchStats();
-    }
-  }, [user]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -73,9 +65,9 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -89,7 +81,14 @@ const Profile = () => {
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+      fetchStats();
+    }
+  }, [user, fetchProfile, fetchStats]);
 
   const handleSave = async () => {
     if (!profile || !user) return;

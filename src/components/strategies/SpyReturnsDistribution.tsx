@@ -57,7 +57,7 @@ const SpyReturnsDistribution: React.FC = () => {
     }, 1500);
   };
 
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) => {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: unknown[]; label?: string }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border rounded shadow">
