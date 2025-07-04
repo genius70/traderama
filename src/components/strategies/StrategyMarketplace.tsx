@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Star, TrendingUp, Users, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from "@/hooks/useAuth";
 
 interface PerformanceMetrics {
   total_return?: number;
@@ -31,6 +32,7 @@ const StrategyMarketplace = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const fetchStrategies = useCallback(async () => {
     try {
@@ -58,7 +60,6 @@ const StrategyMarketplace = () => {
       console.error('Error fetching strategies:', error);
       toast({
         title: "Error loading strategies",
-        description: "Failed to load trading strategies",
         variant: "destructive",
       });
     } finally {
@@ -71,25 +72,31 @@ const StrategyMarketplace = () => {
   }, [fetchStrategies]);
 
   const subscribeToStrategy = async (strategyId: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('strategy_subscriptions')
         .insert({
           strategy_id: strategyId,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: user.id,
         });
 
       if (error) throw error;
       
       toast({
         title: "Strategy subscribed!",
-        description: "You can now copy trades from this strategy",
       });
     } catch (error) {
       console.error('Error subscribing to strategy:', error);
       toast({
         title: "Subscription failed",
-        description: "Failed to subscribe to strategy",
         variant: "destructive",
       });
     }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,11 @@ const UserDashboard = () => {
         .maybeSingle();
       
       if (!error && data) {
-        setKemCredits(data);
+        setKemCredits({
+          credits_earned: data.credits_earned || 0,
+          credits_spent: data.credits_spent || 0,
+          total_airdrops_received: data.total_airdrops_received || 0
+        });
       }
     } catch (error) {
       toast({

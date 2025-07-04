@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
@@ -47,19 +48,6 @@ type UserProfile = {
   [key: string]: unknown;
 };
 
-// Type for database row with unknown structure
-type DatabaseMilestone = {
-  id: unknown;
-  name: unknown;
-  kem_bonus: unknown;
-  created_at?: unknown;
-};
-
-type DatabaseUserMilestone = {
-  milestone_id: unknown;
-  user_id: unknown;
-};
-
 // Fixed type guards with proper return types
 const isValidMilestone = (milestone: unknown): milestone is AirdropMilestoneRow => {
   return (
@@ -106,8 +94,13 @@ const Airdrop: React.FC = () => {
       .maybeSingle();
     if (error) return;
     if (data) {
-      setKemCredits(data);
-      setAvailableCredits(data.credits_earned - data.credits_spent);
+      const credits = {
+        credits_earned: data.credits_earned || 0,
+        credits_spent: data.credits_spent || 0,
+        total_airdrops_received: data.total_airdrops_received || 0
+      };
+      setKemCredits(credits);
+      setAvailableCredits((data.credits_earned || 0) - (data.credits_spent || 0));
     } else {
       const { data: newCredits } = await supabase
         .from('kem_credits')
@@ -115,7 +108,12 @@ const Airdrop: React.FC = () => {
         .select()
         .maybeSingle();
       if (newCredits) {
-        setKemCredits(newCredits);
+        const credits = {
+          credits_earned: newCredits.credits_earned || 0,
+          credits_spent: newCredits.credits_spent || 0,
+          total_airdrops_received: newCredits.total_airdrops_received || 0
+        };
+        setKemCredits(credits);
         setAvailableCredits(0);
       }
     }
@@ -155,7 +153,6 @@ const Airdrop: React.FC = () => {
       await fetchKemCredits();
       setEthereumWallet('');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({
         title: "Error",
         variant: "destructive",

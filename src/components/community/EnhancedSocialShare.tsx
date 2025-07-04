@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -79,7 +80,6 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
     
     toast({
       title: "Shared successfully",
-      description: `Content shared to ${platform.charAt(0).toUpperCase() + platform.slice(1)}`,
     });
     
     setIsOpen(false);
@@ -201,7 +201,7 @@ const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onS
 
           {/* Native Share and Copy Link */}
           <div className="flex space-x-2">
-            {navigator.share && (
+            {typeof navigator !== 'undefined' && navigator.share && (
               <Button
                 variant="outline"
                 onClick={handleNativeShare}
