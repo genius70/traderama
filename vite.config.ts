@@ -9,21 +9,20 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  plugins: [
-    build: {
+  build: {
     rollupOptions: {
-      external: ['react-share'],
+      external: ["react-share"],
     },
-    react(),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
+  },
+  plugins: [react(), mode === "development" && componentTagger()].filter(
+    Boolean,
+  ),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
   optimizeDeps: {
-    exclude: ['svelte/internal']
+    exclude: ["svelte/internal"],
   },
 }));
