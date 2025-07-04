@@ -1,228 +1,100 @@
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { Share2, Twitter, Facebook, Linkedin, Link, MessageSquare, Image } from 'lucide-react';
+import React from 'react';
+import { useToast } from "@/components/ui/use-toast";
+import { FacebookShareButton, FacebookIcon, TwitterShareButton, TwitterIcon, WhatsappShareButton, WhatsappIcon, LinkedinShareButton, LinkedinIcon, TelegramShareButton, TelegramIcon, EmailShareButton, EmailIcon } from 'react-share';
 
 interface EnhancedSocialShareProps {
-  postData: {
-    id: string;
-    content: string;
-    author: string;
-    type?: 'post' | 'strategy' | 'trade';
-    imageUrl?: string;
-    videoUrl?: string;
-  };
-  onShare?: (platform: string) => void;
+  url: string;
+  title: string;
+  description: string;
+  hashtags?: string[];
 }
 
-const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ postData, onShare }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [customMessage, setCustomMessage] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ 
+  url, 
+  title, 
+  description, 
+  hashtags = [] 
+}) => {
   const { toast } = useToast();
 
-  const shareUrl = `${window.location.origin}/posts/${postData.id}`;
-  const baseMessage = `Check out this ${postData.type} by ${postData.author}: ${postData.content.substring(0, 100)}...`;
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type and size
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      toast({
-        title: "File too large",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Unsupported file type",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSelectedFile(file);
+  const shareOnFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
   };
 
-  const handlePlatformShare = (platform: string) => {
-    const message = customMessage || baseMessage;
-    let shareUrl = '';
-
-    switch (platform) {
-      case 'twitter':
-        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(shareUrl)}`;
-        break;
-      case 'facebook':
-        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(message)}`;
-        break;
-      case 'linkedin':
-        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}&summary=${encodeURIComponent(message)}`;
-        break;
-      case 'whatsapp':
-        shareUrl = `https://wa.me/?text=${encodeURIComponent(message + ' ' + shareUrl)}`;
-        break;
-      default:
-        return;
-    }
-
-    window.open(shareUrl, '_blank', 'width=600,height=400');
-    onShare?.(platform);
-    
-    toast({
-      title: "Shared successfully",
-    });
-    
-    setIsOpen(false);
+  const shareOnTwitter = () => {
+    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}&hashtags=${hashtags.join(',')}`, '_blank');
   };
 
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      toast({
-        title: "Link copied",
-      });
-    } catch {
-      toast({
-        title: "Failed to copy",
-        variant: "destructive",
-      });
-    }
+  const shareOnLinkedIn = () => {
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank');
+  };
+
+  const shareOnWhatsApp = () => {
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${title} - ${url}`)}`, '_blank');
+  };
+
+  const shareViaTelegram = () => {
+    window.open(`https://telegram.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`, '_blank');
+  };
+
+  const shareViaEmail = () => {
+    window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${description}\n\n${url}`)}`;
   };
 
   const handleNativeShare = async () => {
     if (navigator.share && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title: `Post by ${postData.author}`,
-          text: customMessage || baseMessage,
-          url: shareUrl,
+          title,
+          text: description,
+          url,
         });
-        onShare?.('native');
-      } catch {
-        console.log('Native share cancelled or failed');
+        toast({
+          title: "Shared successfully!"
+        });
+      } catch (error) {
+        toast({
+          title: "Share failed"
+        });
       }
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-          <Share2 className="h-4 w-4" />
-          <span>Share</span>
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Share this post</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {/* Custom Message */}
-          <div>
-            <label className="text-sm font-medium">Custom message (optional)</label>
-            <Textarea
-              placeholder="Add your own message..."
-              value={customMessage}
-              onChange={(e) => setCustomMessage(e.target.value)}
-              className="mt-1"
-            />
-          </div>
+    <div className="flex items-center space-x-3">
+      <FacebookShareButton url={url} title={title} hashtags={hashtags}>
+        <FacebookIcon size={32} round />
+      </FacebookShareButton>
 
-          {/* File Upload */}
-          <div>
-            <label className="text-sm font-medium">Add image or video (optional)</label>
-            <div className="mt-1 flex items-center space-x-2">
-              <Input
-                type="file"
-                accept="image/*,video/*"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="media-upload"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => document.getElementById('media-upload')?.click()}
-              >
-                <Image className="h-4 w-4 mr-2" />
-                Add Media
-              </Button>
-              {selectedFile && (
-                <span className="text-sm text-gray-600">{selectedFile.name}</span>
-              )}
-            </div>
-          </div>
+      <TwitterShareButton url={url} title={title} hashtags={hashtags}>
+        <TwitterIcon size={32} round />
+      </TwitterShareButton>
 
-          {/* Share Platforms */}
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant="outline"
-              onClick={() => handlePlatformShare('twitter')}
-              className="flex items-center justify-center space-x-2"
-            >
-              <Twitter className="h-4 w-4" />
-              <span>Twitter</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handlePlatformShare('facebook')}
-              className="flex items-center justify-center space-x-2"
-            >
-              <Facebook className="h-4 w-4" />
-              <span>Facebook</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handlePlatformShare('linkedin')}
-              className="flex items-center justify-center space-x-2"
-            >
-              <Linkedin className="h-4 w-4" />
-              <span>LinkedIn</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handlePlatformShare('whatsapp')}
-              className="flex items-center justify-center space-x-2"
-            >
-              <MessageSquare className="h-4 w-4" />
-              <span>WhatsApp</span>
-            </Button>
-          </div>
+      <LinkedinShareButton url={url} title={title}>
+        <LinkedinIcon size={32} round />
+      </LinkedinShareButton>
 
-          {/* Native Share and Copy Link */}
-          <div className="flex space-x-2">
-            {typeof navigator !== 'undefined' && navigator.share && (
-              <Button
-                variant="outline"
-                onClick={handleNativeShare}
-                className="flex-1"
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                Native Share
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={copyToClipboard}
-              className="flex-1"
-            >
-              <Link className="h-4 w-4 mr-2" />
-              Copy Link
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <WhatsappShareButton url={url} title={title} separator=" - ">
+        <WhatsappIcon size={32} round />
+      </WhatsappShareButton>
+
+      <TelegramShareButton url={url} title={title}>
+        <TelegramIcon size={32} round />
+      </TelegramShareButton>
+
+      <EmailShareButton url={url} subject={title} body={description}>
+        <EmailIcon size={32} round />
+      </EmailShareButton>
+
+      {navigator.share && typeof navigator.share === 'function' && (
+        <button
+          onClick={handleNativeShare}
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+        >
+          Share
+        </button>
+      )}
+    </div>
   );
 };
 

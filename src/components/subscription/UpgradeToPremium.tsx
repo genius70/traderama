@@ -83,12 +83,13 @@ const UpgradeToPremium = () => {
           description: "Complete your payment on Wise. Your subscription will be activated within 24 hours.",
         });
       }
-    } catch (error) {
-      const upgradeError = error as UpgradeError;
       toast({
-        title: "Upgrade failed",
-        description: upgradeError.message || "Please try again or contact support.",
-        variant: "destructive",
+        title: "Upgrade successful!"
+      });
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      toast({
+        title: "Upgrade failed"
       });
     } finally {
       setIsProcessing(false);

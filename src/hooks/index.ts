@@ -1,3 +1,7 @@
-// Re-export everything from auth context and provider
-export { AuthContext, useAuth } from "./auth-context";
-export { default as AuthProvider } from "./useAuth";
+
+export { useAuth, AuthContext } from './auth-context';
+export { default as AuthProvider } from './useAuth';
+export { useAnalytics } from './useAnalytics';
+export { useErrorTracking, ErrorTrackingProvider } from './useErrorTracking';
+export { usePageTracking } from './usePageTracking';
+export { useToast } from './use-toast';

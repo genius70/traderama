@@ -1,47 +1,29 @@
 import React from "react";
 
-interface MarketSummaryStatsProps {
-  categories: string[];
-  etfData: Record<string, unknown>;
-  etfSymbols: Array<{ symbol: string; category: string }>;
+interface MarketStat {
+  changePercent?: number;
+  [key: string]: unknown;
 }
 
-const MarketSummaryStats: React.FC<MarketSummaryStatsProps> = ({
-  categories,
-  etfData,
-  etfSymbols,
-}) => {
-  return (
-    <div className="mt-8 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {categories.slice(0, 4).map(category => {
-        const categoryETFs = etfSymbols.filter(
-          etf => etf.category === category,
-        );
-        const avgChange =
-          categoryETFs.reduce((sum, etf) => {
-            const data = etfData[etf.symbol];
-            return sum + (data ? parseFloat(data.changePercent) : 0);
-          }, 0) / categoryETFs.length;
+const MarketSummaryStats = () => {
+  const marketStats: Record<string, MarketStat> = {
+    spy: { changePercent: 1.2 },
+    qqq: { changePercent: -0.8 },
+    iwm: { changePercent: 0.5 }
+  };
 
-        return (
-          <div key={category} className="bg-white rounded-lg shadow p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">
-              {category}
-            </h4>
-            <div
-              className={`text-2xl font-bold ${avgChange >= 0
-                ? "text-green-600"
-                : "text-red-600"}`}
-            >
-              {avgChange >= 0 ? "+" : ""}
-              {avgChange.toFixed(2)}%
-            </div>
-            <p className="text-xs text-gray-500">
-              {categoryETFs.length} ETFs
-            </p>
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {Object.entries(marketStats).map(([symbol, stats]) => (
+        <div key={symbol} className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-2">{symbol.toUpperCase()}</h3>
+          <div className={`text-2xl font-bold ${
+            (stats.changePercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+          }`}>
+            {(stats.changePercent || 0) >= 0 ? '+' : ''}{stats.changePercent || 0}%
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 };

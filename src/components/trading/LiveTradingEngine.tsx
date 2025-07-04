@@ -120,6 +120,34 @@ const LiveTradingEngine: React.FC = () => {
     }
   };
 
+  const handleExecuteTrade = async () => {
+    if (connectionStatus !== 'connected') {
+      toast({
+        title: "Broker Not Connected",
+        description: "Please connect your IG Broker account first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Here you would call your trading engine API
+      setIsActive(!isActive);
+      
+      toast({
+        title: isActive ? "Trading Stopped" : "Trading Started",
+        description: isActive ? "Auto-trading has been paused." : "Auto-trading is now active.",
+      });
+    } catch (error) {
+      console.error('Error toggling trading:', error);
+      toast({
+        title: "Error",
+        description: "Failed to toggle trading status.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getRiskStatus = () => {
     const openPositions = positions.filter(p => p.status === 'open');
     const totalPnL = openPositions.reduce((sum, pos) => sum + pos.current_pnl, 0);

@@ -1,43 +1,11 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
-
-// Define proper types for analytics services
-interface GTAGFunction {
-  (command: 'config', targetId: string, config?: Record<string, unknown>): void;
-  (command: 'event', eventName: string, parameters?: Record<string, unknown>): void;
-}
-
-interface MixpanelInstance {
-  track: (eventName: string, properties?: Record<string, unknown>) => void;
-  identify: (userId: string) => void;
-}
-
-interface AmplitudeInstance {
-  track: (eventName: string, properties?: Record<string, unknown>) => void;
-  setUserId: (userId: string) => void;
-}
-
-// Extend Window interface with analytics properties
-declare global {
-  interface Window {
-    gtag?: GTAGFunction;
-    mixpanel?: MixpanelInstance;
-    amplitude?: AmplitudeInstance;
-  }
-}
-
-const ANALYTICS_EVENTS = {
-  PAGE_VIEW: 'page_view',
-  USER_INTERACTION: 'user_interaction', 
-  FEATURE_USAGE: 'feature_usage',
-  ERROR: 'error'
-} as const;
-
-type AnalyticsEvent = typeof ANALYTICS_EVENTS[keyof typeof ANALYTICS_EVENTS];
+import { ANALYTICS_EVENTS, type AnalyticsEvent } from '@/constants';
 
 interface AnalyticsContextType {
   trackEvent: (event: AnalyticsEvent, properties?: Record<string, unknown>) => void;
   trackPageView: (page: string, properties?: Record<string, unknown>) => void;
+  trackFeatureUsage: (featureName: string, timeSpent?: number, success?: boolean) => void;
 }
 
 const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
@@ -91,9 +59,18 @@ export const AnalyticsProvider: React.FC<AnalyticsProviderProps> = ({ children }
     console.log('Page View:', page, pageViewProperties);
   };
 
+  const trackFeatureUsage = (featureName: string, timeSpent: number = 0, success: boolean = true) => {
+    trackEvent(ANALYTICS_EVENTS.FEATURE_USAGE, {
+      feature_name: featureName,
+      time_spent: timeSpent,
+      success
+    });
+  };
+
   const contextValue: AnalyticsContextType = {
     trackEvent,
-    trackPageView
+    trackPageView,
+    trackFeatureUsage
   };
 
   return (
