@@ -151,6 +151,7 @@ const ChartTooltip = React.forwardRef<
       payload,
       hideLabel,
       labelKey,
+      config,
     ])
 
     if (!active || !payload?.length) {
