@@ -1,25 +1,33 @@
 
-// Analytics Events
 export const ANALYTICS_EVENTS = {
   PAGE_VIEW: 'page_view',
   USER_INTERACTION: 'user_interaction',
   FEATURE_USAGE: 'feature_usage',
-  ERROR: 'error',
+  ERROR: 'error'
 } as const;
 
 export type AnalyticsEvent = typeof ANALYTICS_EVENTS[keyof typeof ANALYTICS_EVENTS];
 
-// Analytics Providers
-export const ANALYTICS_PROVIDERS = {
-  GOOGLE_ANALYTICS: 'google_analytics',
-  MIXPANEL: 'mixpanel',
-  AMPLITUDE: 'amplitude',
-  CUSTOM: 'custom',
-} as const;
+// Global type definitions for analytics services
+export interface GTAGFunction {
+  (command: 'config', targetId: string, config?: Record<string, unknown>): void;
+  (command: 'event', eventName: string, parameters?: Record<string, unknown>): void;
+}
 
-export type AnalyticsProvider = typeof ANALYTICS_PROVIDERS[keyof typeof ANALYTICS_PROVIDERS];
+export interface MixpanelInstance {
+  track: (eventName: string, properties?: Record<string, unknown>) => void;
+  identify: (userId: string) => void;
+}
 
-// Toaster variants for Sonner
-export const toasterVariants = () => {
-  return "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg";
-};
+export interface AmplitudeInstance {
+  track: (eventName: string, properties?: Record<string, unknown>) => void;
+  setUserId: (userId: string) => void;
+}
+
+declare global {
+  interface Window {
+    gtag?: GTAGFunction;
+    mixpanel?: MixpanelInstance;
+    amplitude?: AmplitudeInstance;
+  }
+}

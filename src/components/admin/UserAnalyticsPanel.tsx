@@ -1,240 +1,250 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Users } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-interface AnalyticsData {
+// Define proper types for analytics data
+interface FeatureUsageData {
+  feature_name: string;
+  usage_count: number;
+  success_rate: number;
+}
+
+interface AnalyticsMetrics {
   totalUsers: number;
   activeUsers: number;
   newSignups: number;
-  totalPageViews: number;
+  totalSessions: number;
   avgSessionDuration: number;
-  totalEngagements: number;
-  errorRate: number;
-  topFeatures: Array<{ feature_name: string; usage_count: number; success_rate: number }>;
+  bounceRate: number;
 }
 
-export default function UserAnalyticsPanel() {
-  const [analytics, setAnalytics] = useState<AnalyticsData>({
+interface PageViewData {
+  page_path: string;
+  views: number;
+  unique_users: number;
+}
+
+const UserAnalyticsPanel: React.FC = () => {
+  const [metrics, setMetrics] = useState<AnalyticsMetrics>({
     totalUsers: 0,
     activeUsers: 0,
     newSignups: 0,
-    totalPageViews: 0,
+    totalSessions: 0,
     avgSessionDuration: 0,
-    totalEngagements: 0,
-    errorRate: 0,
-    topFeatures: []
+    bounceRate: 0,
   });
-  const [loading, setLoading] = useState(true);
+  const [featureUsage, setFeatureUsage] = useState<FeatureUsageData[]>([]);
+  const [topPages, setTopPages] = useState<PageViewData[]>([]);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setLoading(true);
-
-        // Get total users
-        const { count: totalUsers } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true });
-
-        // Get active users (users with activity in last 30 days)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
-        const { count: activeUsers } = await supabase
-          .from('user_sessions')
-          .select('user_id', { count: 'exact', head: true })
-          .gte('started_at', thirtyDaysAgo.toISOString());
-
-        // Get new signups (last 30 days)
-        const { count: newSignups } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', thirtyDaysAgo.toISOString());
-
-        // Get total page views
-        const { count: totalPageViews } = await supabase
-          .from('page_views')
-          .select('*', { count: 'exact', head: true });
-
-        // Get average session duration
-        const { data: avgSessionData } = await supabase
-          .from('user_sessions')
-          .select('duration_seconds')
-          .not('duration_seconds', 'is', null);
-
-        const avgSessionDuration = avgSessionData?.length 
-          ? Math.round(avgSessionData.reduce((sum, session) => sum + (session.duration_seconds || 0), 0) / avgSessionData.length)
-          : 0;
-
-        // Get total engagements
-        const { count: totalEngagements } = await supabase
-          .from('user_engagement')
-          .select('*', { count: 'exact', head: true });
-
-        // Get error rate
-        const { count: totalErrors } = await supabase
-          .from('error_logs')
-          .select('*', { count: 'exact', head: true });
-
-        const errorRate = totalPageViews ? ((totalErrors || 0) / totalPageViews * 100) : 0;
-
-        // Get top features with proper null handling
-        const { data: topFeaturesData } = await supabase
-          .from('feature_usage')
-          .select('feature_name, usage_count, success_rate')
-          .order('usage_count', { ascending: false })
-          .limit(5);
-
-        const topFeatures = (topFeaturesData || []).map(feature => ({
-          feature_name: feature.feature_name,
-          usage_count: feature.usage_count || 0,
-          success_rate: feature.success_rate || 0
-        }));
-
-        setAnalytics({
-          totalUsers: totalUsers || 0,
-          activeUsers: activeUsers || 0,
-          newSignups: newSignups || 0,
-          totalPageViews: totalPageViews || 0,
-          avgSessionDuration,
-          totalEngagements: totalEngagements || 0,
-          errorRate: Math.round(errorRate * 100) / 100,
-          topFeatures
-        });
-
-      } catch (error) {
-        console.error('Failed to fetch analytics:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchAnalytics();
   }, []);
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-medium">User Analytics</CardTitle>
-          <CardDescription>Loading analytics data...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const fetchAnalytics = async () => {
+    try {
+      // Fetch feature usage data
+      const { data: featureData } = await supabase
+        .from("feature_usage")
+        .select("feature_name, usage_count, success_rate")
+        .order("usage_count", { ascending: false })
+        .limit(10);
+
+      if (featureData) {
+        // Transform and validate the data
+        const validFeatureData: FeatureUsageData[] = featureData
+          .filter(item => 
+            item && 
+            typeof item === 'object' && 
+            'feature_name' in item &&
+            'usage_count' in item &&
+            'success_rate' in item
+          )
+          .map(item => ({
+            feature_name: String(item.feature_name),
+            usage_count: Number(item.usage_count) || 0,
+            success_rate: Number(item.success_rate) || 0,
+          }));
+        
+        setFeatureUsage(validFeatureData);
+      }
+
+      // Fetch page views data
+      const { data: pageData } = await supabase
+        .from("page_views")
+        .select("page_path")
+        .order("created_at", { ascending: false });
+
+      if (pageData) {
+        // Process page views to get top pages
+        const pageViewCounts: Record<string, { views: number; users: Set<string> }> = {};
+        
+        pageData.forEach(view => {
+          if (view && typeof view === 'object' && 'page_path' in view) {
+            const pagePath = String(view.page_path);
+            if (!pageViewCounts[pagePath]) {
+              pageViewCounts[pagePath] = { views: 0, users: new Set() };
+            }
+            pageViewCounts[pagePath].views++;
+          }
+        });
+
+        const topPagesData: PageViewData[] = Object.entries(pageViewCounts)
+          .map(([path, data]) => ({
+            page_path: path,
+            views: data.views,
+            unique_users: data.users.size,
+          }))
+          .sort((a, b) => b.views - a.views)
+          .slice(0, 5);
+
+        setTopPages(topPagesData);
+      }
+
+      // Fetch user metrics
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("created_at")
+        .order("created_at", { ascending: false });
+
+      if (profilesData) {
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        const newSignupsCount = profilesData.filter(profile => {
+          if (profile && typeof profile === 'object' && 'created_at' in profile) {
+            const createdAt = new Date(String(profile.created_at));
+            return createdAt >= oneWeekAgo;
+          }
+          return false;
+        }).length;
+
+        setMetrics(prev => ({
+          ...prev,
+          totalUsers: profilesData.length,
+          newSignups: newSignupsCount,
+        }));
+      }
+
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {/* Key Metrics */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div>
-            <CardTitle className="text-lg font-medium">User Analytics Overview</CardTitle>
-            <CardDescription>Comprehensive user behavior and engagement metrics</CardDescription>
-          </div>
-          <Users className="h-6 w-6 text-muted-foreground" />
+        <CardHeader>
+          <CardTitle>User Analytics Overview</CardTitle>
+          <CardDescription>Key metrics and user engagement data</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <div>
-              <div className="text-2xl font-bold text-blue-600">{analytics.totalUsers}</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{metrics.totalUsers}</div>
               <div className="text-sm text-gray-500">Total Users</div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-green-600">{analytics.activeUsers}</div>
-              <div className="text-sm text-gray-500">Active Users (30d)</div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{metrics.activeUsers}</div>
+              <div className="text-sm text-gray-500">Active Users</div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-emerald-600">+{analytics.newSignups}</div>
-              <div className="text-sm text-gray-500">New Signups (30d)</div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{metrics.newSignups}</div>
+              <div className="text-sm text-gray-500">New Signups (7d)</div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-purple-600">{analytics.totalPageViews}</div>
-              <div className="text-sm text-gray-500">Page Views</div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">{metrics.totalSessions}</div>
+              <div className="text-sm text-gray-500">Total Sessions</div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Session</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Math.floor(analytics.avgSessionDuration / 60)}m {analytics.avgSessionDuration % 60}s</div>
-            <p className="text-xs text-muted-foreground">Average session duration</p>
-          </CardContent>
-        </Card>
+      {/* Feature Usage Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Feature Usage</CardTitle>
+          <CardDescription>Most used features and their success rates</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={featureUsage}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="feature_name" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="usage_count" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Engagements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{analytics.totalEngagements}</div>
-            <p className="text-xs text-muted-foreground">Total user interactions</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{analytics.errorRate}%</div>
-            <p className="text-xs text-muted-foreground">Errors per page view</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-sky-600">
-              {analytics.totalPageViews ? Math.round((analytics.totalEngagements / analytics.totalPageViews) * 100) : 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">Interactions per page view</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {analytics.topFeatures.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-medium">Top Features</CardTitle>
-            <CardDescription>Most used features and their success rates</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {analytics.topFeatures.map((feature, index) => (
-                <div key={feature.feature_name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center text-sm font-semibold">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="font-medium">{feature.feature_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
-                      <p className="text-sm text-gray-500">{feature.usage_count} uses</p>
-                    </div>
+      {/* Top Pages */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Top Pages</CardTitle>
+          <CardDescription>Most visited pages by view count</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {topPages.map((page, index) => (
+              <div key={page.page_path} className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium">
+                    {index + 1}
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-green-600">{Math.round(feature.success_rate)}%</div>
-                    <div className="text-xs text-gray-500">Success Rate</div>
+                  <div>
+                    <div className="font-medium">{page.page_path}</div>
+                    <div className="text-sm text-gray-500">{page.views} views</div>
                   </div>
                 </div>
-              ))}
+                <div className="text-right">
+                  <div className="font-medium">{page.unique_users}</div>
+                  <div className="text-sm text-gray-500">unique users</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Engagement Metrics */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Engagement Metrics</CardTitle>
+          <CardDescription>User engagement and retention indicators</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span>Average Session Duration</span>
+                <span>{Math.round(metrics.avgSessionDuration / 60)} min</span>
+              </div>
+              <Progress value={Math.min(metrics.avgSessionDuration / 10, 100)} />
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span>Bounce Rate</span>
+                <span>{metrics.bounceRate.toFixed(1)}%</span>
+              </div>
+              <Progress value={metrics.bounceRate} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default UserAnalyticsPanel;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
@@ -20,19 +21,20 @@ type AirdropMilestoneRow = {
   created_at?: string;
 };
 
-// Fixed type guard that matches the expected return type
+// Type guard for database milestone data
 const isValidMilestone = (
   milestone: unknown,
 ): milestone is AirdropMilestoneRow => {
   return (
     milestone !== null &&
     typeof milestone === "object" &&
+    milestone !== undefined &&
     "id" in milestone &&
     "name" in milestone &&
     "kem_bonus" in milestone &&
-    typeof (milestone as any).id === "string" &&
-    typeof (milestone as any).name === "string" &&
-    typeof (milestone as any).kem_bonus === "number"
+    typeof (milestone as Record<string, unknown>).id === "string" &&
+    typeof (milestone as Record<string, unknown>).name === "string" &&
+    typeof (milestone as Record<string, unknown>).kem_bonus === "number"
   );
 };
 

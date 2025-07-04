@@ -1,10 +1,11 @@
+
 import React, { createContext, useContext, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ErrorContext {
   componentStack?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface ErrorTrackingContextType {
@@ -23,10 +24,11 @@ export const ErrorTrackingProvider: React.FC<ErrorTrackingProviderProps> = ({ ch
   const trackError = useCallback(async (error: Error, context?: ErrorContext) => {
     try {
       const errorData = {
-        message: error.message,
-        stack: error.stack,
-        user_id: user?.id,
-        context: context ? JSON.stringify(context) : null,
+        error_type: error.name || 'Error',
+        error_message: error.message,
+        error_stack: error.stack || null,
+        user_id: user?.id || null,
+        page_path: context?.componentStack || null,
         timestamp: new Date().toISOString(),
       };
 
