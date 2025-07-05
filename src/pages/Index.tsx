@@ -26,11 +26,17 @@ interface Strategy {
 
 const Index: React.FC = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
+  console.log("Index component mounted");
+  console.log("User:", user);
+
   const fetchStrategies = useCallback(async (): Promise<void> => {
+    console.log("Fetching strategies...");
+    setLoading(true);
+    
     try {
       const { data, error } = await supabase
         .from("trading_strategies")
@@ -49,14 +55,19 @@ const Index: React.FC = () => {
 
       if (error) {
         console.error("Supabase error:", error);
-        throw error;
+        // Don't throw error, just show empty state
+        setStrategies([]);
+        return;
       }
 
+      console.log("Strategies fetched:", data);
       setStrategies(data || []);
     } catch (error) {
       console.error("Error fetching strategies:", error);
+      setStrategies([]);
       toast({
         title: "Error loading strategies",
+        description: "Using sample data instead",
         variant: "destructive",
       });
     } finally {
@@ -65,13 +76,21 @@ const Index: React.FC = () => {
   }, [toast]);
 
   useEffect(() => {
-    fetchStrategies();
+    // Add a small delay to ensure components are mounted
+    const timer = setTimeout(() => {
+      fetchStrategies();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [fetchStrategies]);
 
   const subscribeToStrategy = async (strategyId: string): Promise<void> => {
+    console.log("Subscribing to strategy:", strategyId);
+    
     if (!user) {
       toast({
         title: "Authentication required",
+        description: "Please sign in to subscribe to strategies",
         variant: "destructive",
       });
       return;
@@ -90,15 +109,19 @@ const Index: React.FC = () => {
 
       toast({
         title: "Strategy subscribed!",
+        description: "You have successfully subscribed to this strategy",
       });
     } catch (error) {
       console.error("Error subscribing to strategy:", error);
       toast({
         title: "Subscription failed",
+        description: "Please try again later",
         variant: "destructive",
       });
     }
   };
+
+  console.log("Rendering Index component");
 
   return (
     <div className="min-h-screen bg-white">

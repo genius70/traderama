@@ -15,14 +15,114 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@fbmony" />
     <meta name="twitter:image" content="/android-chrome-512x512.png" />
+    
+    <!-- Favicon -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">    </head>
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    
+    <style>
+      /* Ensure the root div takes full height */
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+      }
+      
+      #root {
+        height: 100vh;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      /* Loading state styling */
+      .loading-fallback {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100%;
+        background: white;
+        font-family: Arial, sans-serif;
+      }
+      
+      /* Debug helper */
+      .debug-info {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 9999;
+        display: none;
+      }
+    </style>
+  </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Fallback content while React loads -->
+      <div class="loading-fallback" id="fallback-loading">
+        <div>
+          <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+          <p>Loading Traderama...</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Debug info -->
+    <div class="debug-info" id="debug-info">
+      React Status: Loading...
+    </div>
+    
+    <style>
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+    
+    <script>
+      // Debug helper
+      console.log('HTML loaded, waiting for React...');
+      
+      // Remove fallback once React takes over
+      window.addEventListener('load', function() {
+        console.log('Window loaded');
+        setTimeout(function() {
+          const fallback = document.getElementById('fallback-loading');
+          if (fallback && document.querySelector('[data-reactroot], .min-h-screen')) {
+            fallback.style.display = 'none';
+            console.log('React app detected, hiding fallback');
+          }
+        }, 1000);
+      });
+      
+      // Show debug info in development
+      if (window.location.hostname === 'localhost' || window.location.hostname.includes('lovableproject.com')) {
+        document.getElementById('debug-info').style.display = 'block';
+        
+        const updateDebug = () => {
+          const debugEl = document.getElementById('debug-info');
+          const reactRoot = document.querySelector('[data-reactroot], .min-h-screen');
+          if (debugEl) {
+            debugEl.textContent = `React: ${reactRoot ? 'Loaded' : 'Loading...'} | Scripts: ${document.scripts.length}`;
+          }
+        };
+        
+        setInterval(updateDebug, 1000);
+        updateDebug();
+      }
+    </script>
+    
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>       
-     <script type="module" src="/src/main.tsx"></script>
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>       
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
