@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { AlertTriangle, Settings, TrendingUp } from 'lucide-react';
 import { LiveTradingEngine } from '@/components/trading';
+import Header from '@/components/layout/Header';
 
 const AutoTrading = () => {
   const [strategies] = useState([
@@ -17,6 +18,7 @@ const AutoTrading = () => {
 
   return (
     <div className="space-y-6">
+    <Header />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Auto Trading</h1>
