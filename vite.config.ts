@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -15,7 +16,6 @@ export default defineConfig(({ mode }) => ({
     sourcemap: mode === "development",
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
-      external: ["@emotion/react/jsx-runtime"],
       output: {
         manualChunks: {
           vendor: ["react", "react-dom"],
@@ -29,10 +29,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react({
-      jsxImportSource: "@emotion/react",
-      babel: {
-        plugins: ["@emotion/babel-plugin"],
-      },
+      // Remove the problematic jsxImportSource and babel config
     }),
     mode === "development" && componentTagger(),
   ].filter(Boolean),

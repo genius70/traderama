@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { AlertTriangle, Settings, TrendingUp } from 'lucide-react';
-import LiveTradingEngine from '@/components/trading/LiveTradingEngine';
+import { LiveTradingEngine } from '@/components/trading';
 
 const AutoTrading = () => {
   const [strategies] = useState([
