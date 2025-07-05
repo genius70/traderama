@@ -50,7 +50,16 @@ const Header = () => {
       <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
       
       <Link 
-        to="/copy-trading" 
+        to="/options-trading" 
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        onClick={onItemClick}
+      >
+        Training
+      </Link>
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
+      
+      <Link 
+        to="/auto-trading" 
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
