@@ -9,6 +9,8 @@ import MarketChart from '@/components/market/MarketChart';
 import SpyReturnsDistribution from '@/components/strategies/SpyReturnsDistribution';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import Header from '@/components/layout/Header';
+
 
 interface MarketData {
   symbol: string;
@@ -188,6 +190,7 @@ const MarketTrends = () => {
 
   return (
     <div className="space-y-6">
+    <Header />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Market Trends</h1>
