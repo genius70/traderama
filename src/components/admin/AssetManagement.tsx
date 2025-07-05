@@ -19,6 +19,14 @@ interface Asset {
   is_active: boolean;
 }
 
+interface AssetFormData {
+  symbol: string;
+  name: string;
+  asset_type: AssetType;
+  exchange: string;
+  is_options_available: boolean;
+}
+
 const AssetManagement = () => {
   const { toast } = useToast();
   const [assets, setAssets] = useState<Asset[]>([
@@ -52,7 +60,7 @@ const AssetManagement = () => {
   ]);
 
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
-  const [newAsset, setNewAsset] = useState({
+  const [newAsset, setNewAsset] = useState<AssetFormData>({
     symbol: '',
     name: '',
     asset_type: 'stock' as AssetType,
@@ -111,6 +119,15 @@ const AssetManagement = () => {
     });
   };
 
+  const handleEditAssetChange = (updatedAsset: AssetFormData) => {
+    if (editingAsset) {
+      setEditingAsset({
+        ...editingAsset,
+        ...updatedAsset
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -150,8 +167,14 @@ const AssetManagement = () => {
             <CardContent className="p-4">
               {editingAsset?.id === asset.id ? (
                 <AssetForm
-                  asset={editingAsset}
-                  onAssetChange={setEditingAsset}
+                  asset={{
+                    symbol: editingAsset.symbol,
+                    name: editingAsset.name,
+                    asset_type: editingAsset.asset_type,
+                    exchange: editingAsset.exchange,
+                    is_options_available: editingAsset.is_options_available
+                  }}
+                  onAssetChange={handleEditAssetChange}
                   onSave={handleUpdateAsset}
                   onCancel={() => setEditingAsset(null)}
                   isEditing={true}

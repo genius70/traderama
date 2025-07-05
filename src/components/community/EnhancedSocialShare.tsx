@@ -1,99 +1,98 @@
+
 import React from 'react';
-import { useToast } from "@/components/ui/use-toast";
-import { FacebookShareButton, FacebookIcon, TwitterShareButton, TwitterIcon, WhatsappShareButton, WhatsappIcon, LinkedinShareButton, LinkedinIcon, TelegramShareButton, TelegramIcon, EmailShareButton, EmailIcon } from 'react-share';
+import { Button } from '@/components/ui/button';
+import { Share2 } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 interface EnhancedSocialShareProps {
-  url: string;
-  title: string;
-  description: string;
-  hashtags?: string[];
+  postData: {
+    id: string;
+    content: string;
+    author: string;
+    type?: 'post' | 'strategy' | 'trade';
+    imageUrl?: string;
+  };
+  onShare: (platform: string) => void;
 }
 
 const EnhancedSocialShare: React.FC<EnhancedSocialShareProps> = ({ 
-  url, 
-  title, 
-  description, 
-  hashtags = [] 
+  postData, 
+  onShare 
 }) => {
   const { toast } = useToast();
 
-  const shareOnFacebook = () => {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
-  };
-
-  const shareOnTwitter = () => {
-    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}&hashtags=${hashtags.join(',')}`, '_blank');
-  };
-
-  const shareOnLinkedIn = () => {
-    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank');
-  };
-
-  const shareOnWhatsApp = () => {
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${title} - ${url}`)}`, '_blank');
-  };
-
-  const shareViaTelegram = () => {
-    window.open(`https://telegram.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`, '_blank');
-  };
-
-  const shareViaEmail = () => {
-    window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${description}\n\n${url}`)}`;
-  };
+  const shareUrl = `${window.location.origin}/post/${postData.id}`;
+  const shareTitle = `Check out this ${postData.type || 'post'} by ${postData.author}`;
+  const shareText = postData.content.substring(0, 100) + (postData.content.length > 100 ? '...' : '');
 
   const handleNativeShare = async () => {
     if (navigator.share && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title,
-          text: description,
-          url,
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
         });
+        onShare('native');
         toast({
           title: "Shared successfully!"
         });
       } catch (error) {
         toast({
-          title: "Share failed"
+          title: "Share failed",
+          variant: "destructive"
         });
       }
+    } else {
+      // Fallback to copying link
+      navigator.clipboard.writeText(shareUrl);
+      toast({
+        title: "Link copied to clipboard!"
+      });
+      onShare('clipboard');
     }
   };
 
+  const shareOnPlatform = (platform: string, url: string) => {
+    window.open(url, '_blank', 'width=600,height=400');
+    onShare(platform);
+  };
+
   return (
-    <div className="flex items-center space-x-3">
-      <FacebookShareButton url={url} title={title} hashtags={hashtags}>
-        <FacebookIcon size={32} round />
-      </FacebookShareButton>
+    <div className="flex items-center space-x-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleNativeShare}
+        className="flex items-center space-x-1"
+      >
+        <Share2 className="h-4 w-4" />
+        <span>Share</span>
+      </Button>
 
-      <TwitterShareButton url={url} title={title} hashtags={hashtags}>
-        <TwitterIcon size={32} round />
-      </TwitterShareButton>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => shareOnPlatform('twitter', `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(shareUrl)}`)}
+      >
+        Twitter
+      </Button>
 
-      <LinkedinShareButton url={url} title={title}>
-        <LinkedinIcon size={32} round />
-      </LinkedinShareButton>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => shareOnPlatform('facebook', `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`)}
+      >
+        Facebook
+      </Button>
 
-      <WhatsappShareButton url={url} title={title} separator=" - ">
-        <WhatsappIcon size={32} round />
-      </WhatsappShareButton>
-
-      <TelegramShareButton url={url} title={title}>
-        <TelegramIcon size={32} round />
-      </TelegramShareButton>
-
-      <EmailShareButton url={url} subject={title} body={description}>
-        <EmailIcon size={32} round />
-      </EmailShareButton>
-
-      {navigator.share && typeof navigator.share === 'function' && (
-        <button
-          onClick={handleNativeShare}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-        >
-          Share
-        </button>
-      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => shareOnPlatform('linkedin', `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`)}
+      >
+        LinkedIn
+      </Button>
     </div>
   );
 };

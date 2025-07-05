@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { CheckCircle, DollarSign, Package } from 'lucide-react';
 
 interface ProductOffer {
@@ -14,74 +14,67 @@ interface ProductOffer {
 }
 
 const ProductOffers = () => {
-  const [offers, setOffers] = useState<ProductOffer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchOffers = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('product_offers')
-          .select('*')
-          .order('price');
-
-        if (error) {
-          console.error('Error fetching product offers:', error);
-          toast({
-            title: "Error fetching offers",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (data) {
-          setOffers(data.map(offer => ({
-            id: offer.id,
-            name: offer.name,
-            description: offer.description,
-            price: offer.price,
-            features: offer.features || [],
-          })));
-        }
-      } catch (error) {
-        console.error('Failed to fetch product offers:', error);
-        toast({
-          title: "Failed to load offers",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOffers();
-  }, [toast]);
+  // Mock data for product offers
+  const offers: ProductOffer[] = [
+    {
+      id: '1',
+      name: 'Basic Plan',
+      description: 'Perfect for beginners getting started with trading',
+      price: 29,
+      features: [
+        'Access to basic trading strategies',
+        'Community forum access',
+        'Email support',
+        'Basic analytics dashboard'
+      ]
+    },
+    {
+      id: '2',
+      name: 'Pro Plan',
+      description: 'Advanced features for serious traders',
+      price: 79,
+      features: [
+        'All Basic Plan features',
+        'Advanced trading strategies',
+        'Real-time market data',
+        'Priority support',
+        'Custom strategy builder',
+        'Risk management tools'
+      ]
+    },
+    {
+      id: '3',
+      name: 'Elite Plan',
+      description: 'Premium experience for professional traders',
+      price: 149,
+      features: [
+        'All Pro Plan features',
+        'One-on-one coaching sessions',
+        'Exclusive trading signals',
+        'Advanced portfolio analytics',
+        'API access',
+        'White-label solutions'
+      ]
+    }
+  ];
 
   const handlePurchase = async (offerId: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { priceId: offerId },
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast({
+        title: "Purchase successful!",
+        description: "You will be redirected to complete payment.",
       });
-
-      if (error) {
-        console.error('Error creating checkout session:', error);
-        toast({
-          title: "Purchase failed",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        toast({
-          title: "Purchase failed",
-          variant: "destructive",
-        });
-      }
+      
+      // In a real app, this would redirect to Stripe checkout
+      console.log(`Purchasing offer: ${offerId}`);
+      
     } catch (error) {
       console.error('Purchase error:', error);
       toast({
@@ -104,40 +97,36 @@ const ProductOffers = () => {
           <CardDescription>Choose the plan that fits your needs</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading ? (
-            <p className="text-center text-gray-500">Loading offers...</p>
-          ) : (
-            offers.map((offer) => (
-              <Card key={offer.id} className="bg-white shadow-md rounded-lg overflow-hidden">
-                <div className="p-6">
-                  <CardTitle className="text-xl font-semibold text-gray-900">{offer.name}</CardTitle>
-                  <CardDescription className="text-gray-600 mt-2">{offer.description}</CardDescription>
-                  <div className="mt-4">
-                    <div className="flex items-center text-2xl font-bold text-blue-600">
-                      <DollarSign className="h-5 w-5 mr-1" />
-                      {offer.price}
-                    </div>
-                    <p className="text-gray-500">per month</p>
+          {offers.map((offer) => (
+            <Card key={offer.id} className="bg-white shadow-md rounded-lg overflow-hidden">
+              <div className="p-6">
+                <CardTitle className="text-xl font-semibold text-gray-900">{offer.name}</CardTitle>
+                <CardDescription className="text-gray-600 mt-2">{offer.description}</CardDescription>
+                <div className="mt-4">
+                  <div className="flex items-center text-2xl font-bold text-blue-600">
+                    <DollarSign className="h-5 w-5 mr-1" />
+                    {offer.price}
                   </div>
-                  <ul className="mt-4 space-y-2">
-                    {offer.features.map((feature, index) => (
-                      <li key={index} className="flex items-center text-gray-700">
-                        <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    className="w-full mt-6"
-                    onClick={() => handlePurchase(offer.id)}
-                    disabled={loading}
-                  >
-                    {loading ? 'Purchasing...' : 'Purchase'}
-                  </Button>
+                  <p className="text-gray-500">per month</p>
                 </div>
-              </Card>
-            ))
-          )}
+                <ul className="mt-4 space-y-2">
+                  {offer.features.map((feature, index) => (
+                    <li key={index} className="flex items-center text-gray-700">
+                      <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  className="w-full mt-6"
+                  onClick={() => handlePurchase(offer.id)}
+                  disabled={loading}
+                >
+                  {loading ? 'Processing...' : 'Purchase'}
+                </Button>
+              </div>
+            </Card>
+          ))}
         </CardContent>
       </Card>
     </div>
