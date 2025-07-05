@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -12,10 +11,15 @@ const CTASection: React.FC = () => {
           Ready to Start Trading Iron Condors?
         </h3>
         <p className="text-lg sm:text-xl mb-8 max-w-2xl mx-auto opacity-90">
-          Join thousands of traders who trust Traderama for their options trading success
+          Join thousands of traders who trust Traderama for their options
+          trading success
         </p>
         <Link to="/auth">
-          <Button size="lg" variant="secondary" className="px-8 py-4 text-lg bg-white text-blue-600 hover:bg-red-600 hover:text-white transition-all duration-300">
+          <Button
+            size="lg"
+            variant="secondary"
+            className="px-8 py-4 text-lg bg-white text-blue-600 hover:bg-red-600 hover:text-white transition-all duration-300"
+          >
             Get Started Free
             <ArrowRight className="h-5 w-5 ml-2" />
           </Button>
