@@ -1,13 +1,11 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AssetForm from './AssetForm';
+import AssetListItem from './AssetListItem';
 
 type AssetType = 'stock' | 'etf' | 'index' | 'crypto';
 
@@ -133,73 +131,14 @@ const AssetManagement = () => {
             <CardTitle>Add New Asset</CardTitle>
             <CardDescription>Add a new tradeable asset to the platform</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="symbol">Symbol *</Label>
-                <Input
-                  id="symbol"
-                  value={newAsset.symbol}
-                  onChange={(e) => setNewAsset({...newAsset, symbol: e.target.value.toUpperCase()})}
-                  placeholder="e.g., AAPL"
-                />
-              </div>
-              <div>
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={newAsset.name}
-                  onChange={(e) => setNewAsset({...newAsset, name: e.target.value})}
-                  placeholder="e.g., Apple Inc."
-                />
-              </div>
-              <div>
-                <Label htmlFor="type">Asset Type *</Label>
-                <Select
-                  value={newAsset.asset_type}
-                  onValueChange={(value: AssetType) => 
-                    setNewAsset({...newAsset, asset_type: value})
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="stock">Stock</SelectItem>
-                    <SelectItem value="etf">ETF</SelectItem>
-                    <SelectItem value="index">Index</SelectItem>
-                    <SelectItem value="crypto">Crypto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="exchange">Exchange *</Label>
-                <Input
-                  id="exchange"
-                  value={newAsset.exchange}
-                  onChange={(e) => setNewAsset({...newAsset, exchange: e.target.value})}
-                  placeholder="e.g., NASDAQ"
-                />
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="options"
-                checked={newAsset.is_options_available}
-                onCheckedChange={(checked) => setNewAsset({...newAsset, is_options_available: checked})}
-              />
-              <Label htmlFor="options">Options trading available</Label>
-            </div>
-            <div className="flex space-x-2">
-              <Button onClick={handleAddAsset}>
-                <Save className="h-4 w-4 mr-2" />
-                Add Asset
-              </Button>
-              <Button variant="outline" onClick={() => setShowAddForm(false)}>
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-            </div>
+          <CardContent>
+            <AssetForm
+              asset={newAsset}
+              onAssetChange={setNewAsset}
+              onSave={handleAddAsset}
+              onCancel={() => setShowAddForm(false)}
+              isEditing={false}
+            />
           </CardContent>
         </Card>
       )}
@@ -210,102 +149,19 @@ const AssetManagement = () => {
           <Card key={asset.id}>
             <CardContent className="p-4">
               {editingAsset?.id === asset.id ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Symbol</Label>
-                      <Input
-                        value={editingAsset.symbol}
-                        onChange={(e) => setEditingAsset({...editingAsset, symbol: e.target.value.toUpperCase()})}
-                      />
-                    </div>
-                    <div>
-                      <Label>Name</Label>
-                      <Input
-                        value={editingAsset.name}
-                        onChange={(e) => setEditingAsset({...editingAsset, name: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label>Type</Label>
-                      <Select
-                        value={editingAsset.asset_type}
-                        onValueChange={(value: AssetType) => 
-                          setEditingAsset({...editingAsset, asset_type: value})
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="stock">Stock</SelectItem>
-                          <SelectItem value="etf">ETF</SelectItem>
-                          <SelectItem value="index">Index</SelectItem>
-                          <SelectItem value="crypto">Crypto</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Exchange</Label>
-                      <Input
-                        value={editingAsset.exchange}
-                        onChange={(e) => setEditingAsset({...editingAsset, exchange: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={editingAsset.is_options_available}
-                      onCheckedChange={(checked) => setEditingAsset({...editingAsset, is_options_available: checked})}
-                    />
-                    <Label>Options trading available</Label>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button onClick={handleUpdateAsset} size="sm">
-                      <Save className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setEditingAsset(null)}>
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
+                <AssetForm
+                  asset={editingAsset}
+                  onAssetChange={setEditingAsset}
+                  onSave={handleUpdateAsset}
+                  onCancel={() => setEditingAsset(null)}
+                  isEditing={true}
+                />
               ) : (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <h3 className="font-semibold">{asset.symbol}</h3>
-                        <Badge variant="secondary">{asset.asset_type}</Badge>
-                        {asset.is_options_available && (
-                          <Badge variant="outline">Options</Badge>
-                        )}
-                        {!asset.is_active && (
-                          <Badge variant="destructive">Inactive</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600">{asset.name}</p>
-                      <p className="text-xs text-gray-500">{asset.exchange}</p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingAsset(asset)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteAsset(asset.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                <AssetListItem
+                  asset={asset}
+                  onEdit={setEditingAsset}
+                  onDelete={handleDeleteAsset}
+                />
               )}
             </CardContent>
           </Card>

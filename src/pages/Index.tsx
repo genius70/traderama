@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,7 +57,6 @@ const Index: React.FC = () => {
       console.error("Error fetching strategies:", error);
       toast({
         title: "Error loading strategies",
-        description: "Failed to load trading strategies",
         variant: "destructive",
       });
     } finally {
@@ -73,7 +72,6 @@ const Index: React.FC = () => {
     if (!user) {
       toast({
         title: "Authentication required",
-        description: "Please sign in to subscribe to strategies",
         variant: "destructive",
       });
       return;
@@ -92,13 +90,11 @@ const Index: React.FC = () => {
 
       toast({
         title: "Strategy subscribed!",
-        description: "You can now copy trades from this strategy",
       });
     } catch (error) {
       console.error("Error subscribing to strategy:", error);
       toast({
         title: "Subscription failed",
-        description: "Failed to subscribe to strategy",
         variant: "destructive",
       });
     }
@@ -119,5 +115,4 @@ const Index: React.FC = () => {
   );
 };
 
-// Ensure proper default export
 export default Index;
