@@ -14,6 +14,7 @@ import { Calculator, TrendingUp, AlertTriangle, Save, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import Header from "@/components/Header";
 
 interface StrategyCondition {
   id: string;
@@ -143,6 +144,7 @@ const CreateStrategy = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <Header />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Create Trading Strategy</h1>
