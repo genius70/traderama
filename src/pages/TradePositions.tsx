@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
+import Header from '@/components/layout/Header';
 
 // Mock interfaces for demonstration
 interface Position {
@@ -158,6 +159,7 @@ const TradePositions = () => {
 
   return (
     <div className="space-y-6">
+      <Header />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Trade Positions</h1>
