@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import UserDashboard from '@/components/dashboard/UserDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
+import CreatorDashboard from '@/components/dashboard/CreatorDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
@@ -54,11 +54,22 @@ const Dashboard = () => {
     );
   }
 
-  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const renderDashboard = () => {
+    switch (userRole) {
+      case 'admin':
+      case 'super_admin':
+        return <AdminDashboard />;
+      case 'strategy_creator':
+        return <CreatorDashboard />;
+      case 'user':
+      default:
+        return <UserDashboard />;
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {isAdmin ? <AdminDashboard /> : <UserDashboard />}
+      {renderDashboard()}
     </div>
   );
 };
