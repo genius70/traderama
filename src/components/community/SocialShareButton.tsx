@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Share2 } from 'lucide-react';
-import SocialShareModal from '../trading/SocialShareModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface SocialShareButtonProps {
   postData: {
@@ -27,15 +27,22 @@ const SocialShareButton: React.FC<SocialShareButtonProps> = ({
 }) => {
   const [showShareModal, setShowShareModal] = useState(false);
 
-  const generateShareData = () => {
-    const shareType: 'pnl' | 'strategy' | 'trade' | 'post' = postData.type === 'post' ? 'post' : (postData.type as 'pnl' | 'strategy' | 'trade' | 'post') || 'post';
-    
-    return {
-      type: shareType,
-      userName: postData.author,
-      content: postData.content,
-      timestamp: new Date().toISOString()
+  const shareUrl = `${window.location.origin}/post/${postData.id}`;
+  const shareTitle = `Check out this ${postData.type || 'post'} by ${postData.author}`;
+
+  const handleShare = (platform: string) => {
+    const urls = {
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(shareUrl)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      whatsapp: `https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareTitle} - ${shareUrl}`)}`
     };
+
+    if (urls[platform as keyof typeof urls]) {
+      window.open(urls[platform as keyof typeof urls], '_blank', 'width=600,height=400');
+    }
+    
+    setShowShareModal(false);
   };
 
   return (
@@ -53,11 +60,27 @@ const SocialShareButton: React.FC<SocialShareButtonProps> = ({
         )}
       </Button>
 
-      <SocialShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        shareData={generateShareData()}
-      />
+      <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share this {postData.type || 'post'}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col space-y-3">
+            <Button onClick={() => handleShare('twitter')} variant="outline">
+              Share on Twitter
+            </Button>
+            <Button onClick={() => handleShare('facebook')} variant="outline">
+              Share on Facebook
+            </Button>
+            <Button onClick={() => handleShare('linkedin')} variant="outline">
+              Share on LinkedIn
+            </Button>
+            <Button onClick={() => handleShare('whatsapp')} variant="outline">
+              Share on WhatsApp
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
