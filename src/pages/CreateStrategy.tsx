@@ -14,7 +14,7 @@ import { Calculator, TrendingUp, AlertTriangle, Save, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import Header from "@/components/Header";
+import Header from "@/components/layout/Header";
 
 interface StrategyCondition {
   id: string;
