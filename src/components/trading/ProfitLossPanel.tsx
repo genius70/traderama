@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,18 +42,12 @@ const ProfitLossPanel: React.FC<ProfitLossPanelProps> = ({ userName }) => {
     ]
   };
 
-  const generateShareData = () => ({
-    type: 'pnl' as const,
-    userName: userName,
-    totalProfit: mockData.totalProfit,
-    totalTrades: mockData.totalTrades,
-    winRate: mockData.winRate.toString(),
-    timeframe: timeframe,
-    timestamp: new Date().toISOString()
-  });
-
   const isProfit = mockData.totalProfit > 0;
   const profitPercentage = ((mockData.totalProfit / (mockData.avgTradeSize * mockData.totalTrades)) * 100).toFixed(2);
+
+  const shareUrl = window.location.href;
+  const shareTitle = `${userName}'s Trading Results`;
+  const shareBody = `Check out my trading performance: $${mockData.totalProfit.toLocaleString()} profit with ${mockData.winRate}% win rate!`;
 
   return (
     <div className="space-y-6">
@@ -194,9 +189,11 @@ const ProfitLossPanel: React.FC<ProfitLossPanelProps> = ({ userName }) => {
 
       {/* Social Share Modal */}
       <SocialShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        shareData={generateShareData()}
+        open={showShareModal}
+        onOpenChange={setShowShareModal}
+        url={shareUrl}
+        title={shareTitle}
+        body={shareBody}
       />
     </div>
   );

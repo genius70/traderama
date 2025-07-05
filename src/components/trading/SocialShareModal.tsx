@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import {
   FacebookShareButton,
   TwitterShareButton,
@@ -19,21 +20,20 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 
 interface SocialShareModalProps {
   url: string;
   title: string;
   body: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-const SocialShareModal = ({ url, title, body }: SocialShareModalProps) => {
-  const [open, setOpen] = useState(false);
-  const { toast } = useToast()
+const SocialShareModal = ({ url, title, body, open, onOpenChange }: SocialShareModalProps) => {
+  const { toast } = useToast();
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -60,10 +60,7 @@ const SocialShareModal = ({ url, title, body }: SocialShareModalProps) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline">Share</Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Share this strategy</DialogTitle>
@@ -79,7 +76,7 @@ const SocialShareModal = ({ url, title, body }: SocialShareModalProps) => {
             <TwitterShareButton url={url} title={title}>
               <TwitterIcon size={32} round />
             </TwitterShareButton>
-            <LinkedinShareButton url={url} title={title} description={body}>
+            <LinkedinShareButton url={url} title={title}>
               <LinkedinIcon size={32} round />
             </LinkedinShareButton>
             <WhatsappShareButton url={url} title={title}>
