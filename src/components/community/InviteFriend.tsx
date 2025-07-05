@@ -1,118 +1,341 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Share2, Copy, Mail } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 
-const InviteFriend = () => {
-  const [referralLink, setReferralLink] = useState("");
-  const [copied, setCopied] = useState(false);
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { UserPlus, MessageCircle, X, Send, Users, Check, Clock } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Friend {
+  name: string;
+  phoneNumber: string;
+}
+
+interface ReferralStatus {
+  phone: string;
+  name: string;
+  status: 'pending' | 'accepted';
+  invitedAt: string;
+}
+
+const InviteFriend: React.FC = () => {
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [currentFriend, setCurrentFriend] = useState<Friend>({ name: '', phoneNumber: '' });
+  const [customMessage, setCustomMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [referralHistory, setReferralHistory] = useState<ReferralStatus[]>([]);
+  const [userReferralCode, setUserReferralCode] = useState('');
   const { user } = useAuth();
   const { toast } = useToast();
 
-  React.useEffect(() => {
+  const defaultMessage = "Hey! I recently join this amazing Expert Copy Trading Platform for Iron Condor Options Trading Strategies. Send your first 10 invites and earn $50 credited to your wallet. You should check it out. 🚀📈";
+
+  useEffect(() => {
     if (user) {
-      setReferralLink(`${window.location.origin}/register?ref=${user.id}`);
+      fetchUserProfile();
+      fetchReferralHistory();
     }
   }, [user]);
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Join Traderama!",
-          text: "Sign up using my referral link and start trading!",
-          url: referralLink,
-        });
-      } catch (error) {
-        console.log("Sharing failed", error);
-      }
-    } else {
-      toast({
-        title: "Web Share API not supported",
-      });
+  const fetchUserProfile = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('referral_code')
+      .eq('id', user.id)
+      .single();
+    
+    if (data) {
+      setUserReferralCode(data.referral_code);
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    toast({
-      title: "Referral link copied!",
-    });
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+  const fetchReferralHistory = async () => {
+    // This would typically fetch from a referrals tracking table
+    // For now, we'll use placeholder data
+    setReferralHistory([
+      { phone: '+1234567890', name: 'John Doe', status: 'accepted', invitedAt: '2024-01-15' },
+      { phone: '+0987654321', name: 'Jane Smith', status: 'pending', invitedAt: '2024-01-20' }
+    ]);
   };
 
-  const handleEmailShare = () => {
-    window.location.href = `mailto:?subject=Join Traderama!&body=Sign up using my referral link: ${referralLink}`;
+  const addFriend = () => {
+    if (!currentFriend.name.trim() || !currentFriend.phoneNumber.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both name and phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (friends.length >= 5) {
+      toast({
+        title: "Maximum Reached",
+        description: "You can invite up to 5 friends at a time",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
+    if (!phoneRegex.test(currentFriend.phoneNumber)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (friends.some(friend => friend.phoneNumber === currentFriend.phoneNumber)) {
+      toast({
+        title: "Duplicate Number",
+        description: "This phone number is already in your invite list",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setFriends([...friends, { ...currentFriend }]);
+    setCurrentFriend({ name: '', phoneNumber: '' });
+    
+    toast({
+      title: "Friend Added",
+      description: `${currentFriend.name} has been added to your invite list`,
+    });
+  };
+
+  const removeFriend = (index: number) => {
+    const updatedFriends = friends.filter((_, i) => i !== index);
+    setFriends(updatedFriends);
+  };
+
+  const sendInvites = async () => {
+    if (friends.length === 0) {
+      toast({
+        title: "No Friends to Invite",
+        description: "Please add at least one friend to send invites",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const message = customMessage.trim() || defaultMessage;
+      const messageWithReferral = `${message}\n\nJoin using my referral code: ${userReferralCode}\nTraderama.com`;
+      
+      const response = await supabase.functions.invoke('send-whatsapp-invites', {
+        body: {
+          friends: friends,
+          message: messageWithReferral,
+          referralCode: userReferralCode
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      toast({
+        title: "Invites Sent Successfully!",
+        description: `Sent ${friends.length} WhatsApp invite(s) to your friends`,
+      });
+
+      setFriends([]);
+      setCustomMessage('');
+      fetchReferralHistory();
+      
+    } catch (error) {
+      console.error('Error sending invites:', error);
+      toast({
+        title: "Error Sending Invites",
+        description: "There was an issue sending your invites. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Invite Friends</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-gray-500">
-          Share your referral link with friends and earn rewards!
-        </p>
-        <div className="space-y-2">
-          <Label htmlFor="referral-link">Referral Link</Label>
-          <div className="flex rounded-md shadow-sm">
-            <Input
-              id="referral-link"
-              className="bg-gray-100 cursor-not-allowed"
-              value={referralLink}
-              disabled
-            />
-            <Button
-              onClick={handleCopy}
-              disabled={copied}
-              className="ml-2"
+    <div className="space-y-6">
+      {/* Referral Code Display */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Users className="h-5 w-5 mr-2" />
+            Your Referral Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-2">
+            <Input value={userReferralCode} readOnly className="font-mono" />
+            <Button 
+              variant="outline" 
+              onClick={() => navigator.clipboard.writeText(userReferralCode)}
             >
-              {copied ? <CheckIcon className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-              {copied ? "Copied!" : "Copy"}
+              Copy
             </Button>
           </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button onClick={handleShare} variant="outline">
-            <Share2 className="h-4 w-4 mr-2" />
-            Share
+          <p className="text-sm text-gray-500 mt-2">
+            Share this code with friends to earn 2 KEM credits when they join!
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Referral Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Referral Status</CardTitle>
+          <CardDescription>Track your invited friends</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {referralHistory.length === 0 ? (
+            <p className="text-gray-500">No referrals yet. Start inviting friends!</p>
+          ) : (
+            <div className="space-y-2">
+              {referralHistory.map((referral, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <span className="font-medium">{referral.name}</span>
+                    <span className="text-gray-600 ml-2">{referral.phone}</span>
+                  </div>
+                  <Badge variant={referral.status === 'accepted' ? 'default' : 'secondary'}>
+                    {referral.status === 'accepted' ? (
+                      <><Check className="h-3 w-3 mr-1" /> Accepted</>
+                    ) : (
+                      <><Clock className="h-3 w-3 mr-1" /> Pending</>
+                    )}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Invite Friends Form */}
+      <Card className="w-full max-w-2xl">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <UserPlus className="h-5 w-5 mr-2" />
+            Invite Friends via WhatsApp
+          </CardTitle>
+          <CardDescription>
+            Invite up to 5 friends to join the platform via WhatsApp. They'll receive a personal invitation from you!
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
+          {/* Add Friend Form */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Friend's Name</label>
+                <Input
+                  placeholder="Enter friend's name"
+                  value={currentFriend.name}
+                  onChange={(e) => setCurrentFriend({ ...currentFriend, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">WhatsApp Number</label>
+                <Input
+                  placeholder="+1234567890"
+                  value={currentFriend.phoneNumber}
+                  onChange={(e) => setCurrentFriend({ ...currentFriend, phoneNumber: e.target.value })}
+                />
+              </div>
+            </div>
+            
+            <Button 
+              onClick={addFriend}
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={friends.length >= 5}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add Friend ({friends.length}/5)
+            </Button>
+          </div>
+
+          {/* Friends List */}
+          {friends.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Friends to Invite:</label>
+              <div className="space-y-2">
+                {friends.map((friend, index) => (
+                  <div 
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div>
+                      <span className="font-medium">{friend.name}</span>
+                      <span className="text-gray-600 ml-2">{friend.phoneNumber}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeFriend(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Custom Message */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Invitation Message (Optional)</label>
+            <Textarea
+              placeholder={defaultMessage}
+              value={customMessage}
+              onChange={(e) => setCustomMessage(e.target.value)}
+              className="min-h-[100px]"
+            />
+            <p className="text-xs text-gray-500">
+              Leave empty to use the default message. Your referral code will be automatically added.
+            </p>
+          </div>
+
+          {/* Send Button */}
+          <Button 
+            onClick={sendInvites}
+            disabled={friends.length === 0 || isLoading}
+            className="w-full"
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Sending Invites...
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                Send {friends.length} WhatsApp Invite{friends.length !== 1 ? 's' : ''}
+              </>
+            )}
           </Button>
-          <Button onClick={handleEmailShare} variant="outline">
-            <Mail className="h-4 w-4 mr-2" />
-            Share via Email
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+
+          {/* Info */}
+          <div className="text-xs text-gray-500 space-y-1">
+            <p>• Your friends will receive a WhatsApp message with your personal invitation and referral code</p>
+            <p>• Make sure to include country codes in phone numbers (e.g., +1 for US)</p>
+            <p>• You'll earn 2 KEM credits when each friend accepts your referral</p>
+            <p>• Each friend can only be invited once per day</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
-
-function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  )
-}
 
 export default InviteFriend;
