@@ -147,4 +147,4 @@ const useToast = () => {
   }
 }
 
-export { useToast }
+export { useToast, toast }

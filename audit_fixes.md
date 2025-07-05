@@ -2,9 +2,9 @@
 
 esbuild  <=0.24.2
 Severity: moderate
-esbuild enables unknown website to send unknown requests to the development server and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+esbuild enables any website to send any requests to the development server and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
 No fix available
-node_modules/esbuild
+node_modules/vite/node_modules/esbuild
   vite  0.11.0 - 6.1.6
   Depends on vulnerable versions of esbuild
   node_modules/vite
