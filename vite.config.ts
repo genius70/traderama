@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
+      rollupOptions: {
+      external: ['@emotion/react/jsx-runtime'],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
