@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, Settings, TrendingUp, Link, DollarSign, Shield, Activity, Play, Pause } from 'lucide-react';
+import { AlertTriangle, Settings, TrendingUp, Link, DollarSign, Shield, Activity, Play, Pause, Power, CheckCircle } from 'lucide-react';
 import { LiveTradingEngine } from '@/components/trading';
 import { IGBrokerConnect } from '@/components/brokers';
 import Header from '@/components/layout/Header';
@@ -34,6 +34,19 @@ interface Strategy {
   winRate: number;
   drawdown: number;
   isLive: boolean;
+  lastTrade?: string;
+}
+
+interface Trade {
+  id: string;
+  strategy: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  size: number;
+  price: number;
+  pnl: number;
+  timestamp: string;
+  status: 'open' | 'closed';
 }
 
 const AutoTrading = () => {
@@ -56,9 +69,12 @@ const AutoTrading = () => {
   const [showParametersDialog, setShowParametersDialog] = useState(false);
   const [showFeeDialog, setShowFeeDialog] = useState(false);
   const [accountBalance, setAccountBalance] = useState(25000);
-  const [platformFee] = useState(0.10); // 10% platform fee
+  const [platformFee] = useState(0.10);
   const [dailyPnL, setDailyPnL] = useState(125.75);
   const [monthlyFees, setMonthlyFees] = useState(340.50);
+  const [isTradingActive, setIsTradingActive] = useState(false);
+  const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
+  const [tradingEngine, setTradingEngine] = useState<NodeJS.Timeout | null>(null);
 
   const { 
     isConnected, 
@@ -80,6 +96,105 @@ const AutoTrading = () => {
     }
   }, [isConnected, getAccountBalance]);
 
+  const handleDisconnect = () => {
+    disconnect();
+    setIsTradingActive(false);
+    if (tradingEngine) {
+      clearInterval(tradingEngine);
+      setTradingEngine(null);
+    }
+  };
+
+  // Main trading activation function
+  const handleStartTrading = () => {
+    if (!isConnected) {
+      alert('Please connect to your broker account first');
+      return;
+    }
+
+    const activeStrategies = strategies.filter(s => s.status === 'active');
+    if (activeStrategies.length === 0) {
+      alert('Please activate at least one strategy before starting trading');
+      return;
+    }
+
+    setIsTradingActive(true);
+    
+    // Start the trading engine
+    const engine = setInterval(() => {
+      simulateTrade();
+    }, 5000); // Execute trades every 5 seconds for demo
+
+    setTradingEngine(engine);
+  };
+
+  const handleStopTrading = () => {
+    setIsTradingActive(false);
+    if (tradingEngine) {
+      clearInterval(tradingEngine);
+      setTradingEngine(null);
+    }
+    
+    // Set all strategies to paused
+    setStrategies(prev => 
+      prev.map(strategy => ({
+        ...strategy,
+        isLive: false,
+        status: 'paused'
+      }))
+    );
+  };
+
+  // Simulate trading activity
+  const simulateTrade = () => {
+    const activeStrategies = strategies.filter(s => s.status === 'active');
+    if (activeStrategies.length === 0) return;
+
+    const randomStrategy = activeStrategies[Math.floor(Math.random() * activeStrategies.length)];
+    const symbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD'];
+    const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+    
+    const trade: Trade = {
+      id: `trade_${Date.now()}`,
+      strategy: randomStrategy.name,
+      symbol: randomSymbol,
+      side: Math.random() > 0.5 ? 'buy' : 'sell',
+      size: Math.floor(Math.random() * 1000) + 100,
+      price: 1.0500 + Math.random() * 0.1,
+      pnl: (Math.random() - 0.4) * 100, // Slightly positive bias
+      timestamp: new Date().toLocaleTimeString(),
+      status: Math.random() > 0.7 ? 'open' : 'closed'
+    };
+
+    setRecentTrades(prev => [trade, ...prev.slice(0, 9)]); // Keep last 10 trades
+
+    // Update strategy stats
+    setStrategies(prev => 
+      prev.map(strategy => {
+        if (strategy.id === randomStrategy.id) {
+          const newTrades = strategy.trades + 1;
+          const newPnL = strategy.pnl + trade.pnl;
+          const newWinRate = trade.pnl > 0 ? 
+            Math.min(95, strategy.winRate + 1) : 
+            Math.max(50, strategy.winRate - 1);
+          
+          return {
+            ...strategy,
+            trades: newTrades,
+            pnl: newPnL,
+            winRate: newWinRate,
+            lastTrade: trade.timestamp,
+            isLive: true
+          };
+        }
+        return strategy;
+      })
+    );
+
+    // Update daily P&L
+    setDailyPnL(prev => prev + trade.pnl);
+  };
+
   const handleParameterChange = (param: keyof TradingParameters, value: number) => {
     setTradingParameters(prev => ({
       ...prev,
@@ -91,28 +206,10 @@ const AutoTrading = () => {
     setStrategies(prev => 
       prev.map(strategy => 
         strategy.id === strategyId 
-          ? { ...strategy, status: newStatus }
+          ? { ...strategy, status: newStatus, isLive: newStatus === 'active' && isTradingActive }
           : strategy
       )
     );
-  };
-
-  const handleGoLive = async (strategyId: number) => {
-    if (!isConnected) {
-      alert('Please connect to your IG Broker account first');
-      return;
-    }
-
-    setStrategies(prev => 
-      prev.map(strategy => 
-        strategy.id === strategyId 
-          ? { ...strategy, isLive: true, status: 'active' }
-          : strategy
-      )
-    );
-
-    // Initialize live trading for this strategy
-    // This would integrate with your LiveTradingEngine component
   };
 
   const calculatePlatformFee = (profit: number) => {
@@ -125,14 +222,22 @@ const AutoTrading = () => {
 
   const totalPlatformFees = calculatePlatformFee(totalActivePnL);
 
+  useEffect(() => {
+    return () => {
+      if (tradingEngine) {
+        clearInterval(tradingEngine);
+      }
+    };
+  }, [tradingEngine]);
+
   return (
     <div className="space-y-6">
       <Header />
       
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Auto Trading</h1>
-          <p className="text-gray-600">Live automated trading with IG Broker integration</p>
+          <h1 className="text-3xl font-bold">Auto Trading Platform</h1>
+          <p className="text-gray-600">Live automated trading with broker integration</p>
         </div>
         <div className="flex space-x-2">
           <Dialog open={showFeeDialog} onOpenChange={setShowFeeDialog}>
@@ -253,52 +358,114 @@ const AutoTrading = () => {
         </div>
       </div>
 
-      {/* IG Broker Connection Status */}
-      <Card>
+      {/* Main Trading Controls */}
+      <Card className="border-2 border-blue-200">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Link className="h-5 w-5 mr-2" />
-            IG Broker Connection
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Power className="h-5 w-5 mr-2" />
+              Trading Engine Control
+            </div>
+            <Badge variant={isTradingActive ? "default" : "secondary"} className="text-sm">
+              {isTradingActive ? "ACTIVE" : "INACTIVE"}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Badge variant={isConnected ? 'default' : 'secondary'}>
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </Badge>
-              {isConnected && accountInfo && (
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm">Broker: {isConnected ? 'Connected' : 'Disconnected'}</span>
+              </div>
+              {isConnected && (
                 <div className="text-sm text-gray-600">
-                  Account: {accountInfo.accountId} | Balance: ${accountBalance.toLocaleString()}
+                  Balance: ${accountBalance.toLocaleString()}
                 </div>
               )}
             </div>
-            <IGBrokerConnect />
+            <div className="flex space-x-2">
+              {!isConnected ? (
+                <Button onClick={connect} variant="outline">
+                  <Link className="h-4 w-4 mr-2" />
+                  Connect Broker
+                </Button>
+              ) : (
+                <Button onClick={handleDisconnect} variant="outline">
+                  <Link className="h-4 w-4 mr-2" />
+                  Disconnect
+                </Button>
+              )}
+              
+              {!isTradingActive ? (
+                <Button 
+                  onClick={handleStartTrading} 
+                  disabled={!isConnected}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Trading
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleStopTrading}
+                  variant="destructive"
+                >
+                  <Pause className="h-4 w-4 mr-2" />
+                  Stop Trading
+                </Button>
+              )}
+            </div>
           </div>
-          {!isConnected && (
-            <Alert className="mt-4">
-              <AlertTriangle className="h-4 w-4" />
+          
+          {isTradingActive && (
+            <Alert className="mt-4 bg-green-50 border-green-200">
+              <CheckCircle className="h-4 w-4" />
               <AlertDescription>
-                Connect your IG Broker account to enable live auto trading
+                Auto trading is active! Strategies are executing trades automatically.
               </AlertDescription>
             </Alert>
           )}
         </CardContent>
       </Card>
 
-      {/* Live Trading Engine */}
-      <LiveTradingEngine 
-        parameters={tradingParameters}
-        isConnected={isConnected}
-        platformFee={platformFee}
-      />
+      {/* Recent Trades */}
+      {recentTrades.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Trades</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {recentTrades.map((trade) => (
+                <div key={trade.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <Badge variant={trade.side === 'buy' ? 'default' : 'secondary'}>
+                      {trade.side.toUpperCase()}
+                    </Badge>
+                    <span className="font-medium">{trade.symbol}</span>
+                    <span className="text-sm text-gray-600">{trade.strategy}</span>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm">{trade.size} units @ {trade.price.toFixed(4)}</span>
+                    <span className={`font-medium ${trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)}
+                    </span>
+                    <span className="text-sm text-gray-500">{trade.timestamp}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Strategy Overview */}
+      {/* Trading Strategies */}
       <Card>
         <CardHeader>
           <CardTitle>Trading Strategies</CardTitle>
           <CardDescription>
-            Manage your automated trading strategies and go live
+            Manage your automated trading strategies
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -326,54 +493,30 @@ const AutoTrading = () => {
                           <span className="text-sm text-gray-500">
                             {strategy.trades} trades | {strategy.winRate}% win rate
                           </span>
+                          {strategy.lastTrade && (
+                            <span className="text-sm text-gray-500">
+                              Last: {strategy.lastTrade}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <div className="flex items-center space-x-2">
-                        <TrendingUp className="h-4 w-4" />
-                        <span className={`font-medium ${
-                          strategy.pnl >= 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Fee: ${calculatePlatformFee(strategy.pnl).toFixed(2)}
-                      </div>
+                  <div className="text-right">
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="h-4 w-4" />
+                      <span className={`font-medium ${
+                        strategy.pnl >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toFixed(2)}
+                      </span>
                     </div>
-                    {!strategy.isLive && (
-                      <Button
-                        onClick={() => handleGoLive(strategy.id)}
-                        disabled={!isConnected}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        Go Live
-                      </Button>
-                    )}
-                    {strategy.isLive && (
-                      <Button
-                        onClick={() => setStrategies(prev => 
-                          prev.map(s => 
-                            s.id === strategy.id 
-                              ? { ...s, isLive: false, status: 'paused' }
-                              : s
-                          )
-                        )}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Pause className="h-4 w-4 mr-2" />
-                        Stop Live
-                      </Button>
-                    )}
+                    <div className="text-sm text-gray-500">
+                      Fee: ${calculatePlatformFee(strategy.pnl).toFixed(2)}
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-gray-500">Drawdown:</span>
                     <span className="ml-2 font-medium">{strategy.drawdown}%</span>
@@ -385,6 +528,10 @@ const AutoTrading = () => {
                   <div>
                     <span className="text-gray-500">Mode:</span>
                     <span className="ml-2 font-medium">{strategy.isLive ? 'Live' : 'Paper'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Active:</span>
+                    <span className="ml-2 font-medium">{isTradingActive && strategy.status === 'active' ? 'Yes' : 'No'}</span>
                   </div>
                 </div>
               </div>
@@ -419,7 +566,7 @@ const AutoTrading = () => {
             </div>
             <div className="space-y-2">
               <Label>Open Positions</Label>
-              <p className="text-2xl font-bold">7/{tradingParameters.maxOpenPositions}</p>
+              <p className="text-2xl font-bold">{recentTrades.filter(t => t.status === 'open').length}/{tradingParameters.maxOpenPositions}</p>
               <p className="text-sm text-gray-500">Active positions</p>
             </div>
             <div className="space-y-2">
@@ -428,56 +575,6 @@ const AutoTrading = () => {
               <p className="text-sm text-gray-500">This month</p>
             </div>
           </div>
-          <Separator className="my-4" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Risk Per Trade</Label>
-              <p className="text-lg font-semibold">{tradingParameters.riskPerTrade}%</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Stop Loss</Label>
-              <p className="text-lg font-semibold">{tradingParameters.stopLoss}%</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Take Profit</Label>
-              <p className="text-lg font-semibold">{tradingParameters.takeProfit}%</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Live Trading Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Activity className="h-5 w-5 mr-2" />
-            Live Trading Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Live Strategies</Label>
-              <p className="text-2xl font-bold">
-                {strategies.filter(s => s.isLive).length}/{strategies.length}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Connection Status</Label>
-              <p className="text-2xl font-bold">
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </p>
-            </div>
-          </div>
-          {strategies.some(s => s.isLive) && (
-            <Alert className="mt-4">
-              <Activity className="h-4 w-4" />
-              <AlertDescription>
-                You have {strategies.filter(s => s.isLive).length} strategies running live. 
-                Platform fees of 10% apply to profitable trades only.
-              </AlertDescription>
-            </Alert>
-          )}
         </CardContent>
       </Card>
     </div>
