@@ -5,6 +5,7 @@ import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import CreatorDashboard from '@/components/dashboard/CreatorDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import Header from '@/components/layout/Header';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -48,6 +49,7 @@ const Dashboard = () => {
 
   if (!user) {
     return (
+
       <div className="flex items-center justify-center min-h-[400px]">
         <p>Please sign in to view your dashboard.</p>
       </div>
@@ -68,8 +70,11 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
+      <Header />    
+     <div className="space-y-6">
       {renderDashboard()}
+    </div>
     </div>
   );
 };
