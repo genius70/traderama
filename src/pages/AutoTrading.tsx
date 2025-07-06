@@ -75,6 +75,8 @@ const AutoTrading = () => {
   const [isTradingActive, setIsTradingActive] = useState(false);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
   const [tradingEngine, setTradingEngine] = useState<NodeJS.Timeout | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [tradingStarted, setTradingStarted] = useState(false);
 
   const { 
     isConnected, 
@@ -96,17 +98,44 @@ const AutoTrading = () => {
     }
   }, [isConnected, getAccountBalance]);
 
+  // Enhanced connect broker function
+  const handleConnectBroker = async () => {
+    setIsConnecting(true);
+    try {
+      console.log('Attempting to connect to broker...');
+      await connect();
+      console.log('Broker connection successful');
+      
+      // Simulate connection process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Fetch account details
+      const balance = await getAccountBalance();
+      if (balance) {
+        setAccountBalance(balance);
+      }
+      
+      console.log('Account data fetched successfully');
+    } catch (error) {
+      console.error('Broker connection failed:', error);
+      alert('Failed to connect to broker. Please check your credentials.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const handleDisconnect = () => {
     disconnect();
     setIsTradingActive(false);
+    setTradingStarted(false);
     if (tradingEngine) {
       clearInterval(tradingEngine);
       setTradingEngine(null);
     }
   };
 
-  // Main trading activation function
-  const handleStartTrading = () => {
+  // Enhanced start trading function
+  const handleStartTrading = async () => {
     if (!isConnected) {
       alert('Please connect to your broker account first');
       return;
@@ -118,7 +147,20 @@ const AutoTrading = () => {
       return;
     }
 
+    console.log('Starting trading engine...');
+    console.log('Active strategies:', activeStrategies.map(s => s.name));
+    console.log('Trading parameters:', tradingParameters);
+
     setIsTradingActive(true);
+    setTradingStarted(true);
+    
+    // Update strategies to live mode
+    setStrategies(prev => 
+      prev.map(strategy => ({
+        ...strategy,
+        isLive: strategy.status === 'active',
+      }))
+    );
     
     // Start the trading engine
     const engine = setInterval(() => {
@@ -126,10 +168,15 @@ const AutoTrading = () => {
     }, 5000); // Execute trades every 5 seconds for demo
 
     setTradingEngine(engine);
+    
+    console.log('Trading engine started successfully');
+    return { success: true, message: 'Trading engine started', activeStrategies: activeStrategies.length };
   };
 
   const handleStopTrading = () => {
+    console.log('Stopping trading engine...');
     setIsTradingActive(false);
+    setTradingStarted(false);
     if (tradingEngine) {
       clearInterval(tradingEngine);
       setTradingEngine(null);
@@ -143,6 +190,8 @@ const AutoTrading = () => {
         status: 'paused'
       }))
     );
+    
+    console.log('Trading engine stopped');
   };
 
   // Simulate trading activity
@@ -193,6 +242,8 @@ const AutoTrading = () => {
 
     // Update daily P&L
     setDailyPnL(prev => prev + trade.pnl);
+    
+    console.log('Trade executed:', trade);
   };
 
   const handleParameterChange = (param: keyof TradingParameters, value: number) => {
@@ -386,9 +437,13 @@ const AutoTrading = () => {
             </div>
             <div className="flex space-x-2">
               {!isConnected ? (
-                <Button onClick={connect} variant="outline">
+                <Button 
+                  onClick={handleConnectBroker} 
+                  disabled={isConnecting}
+                  className="bg-red-600 hover:bg-blue-600 text-white transition-colors duration-200"
+                >
                   <Link className="h-4 w-4 mr-2" />
-                  Connect Broker
+                  {isConnecting ? 'Connecting...' : 'Connect Broker'}
                 </Button>
               ) : (
                 <Button onClick={handleDisconnect} variant="outline">
@@ -401,7 +456,7 @@ const AutoTrading = () => {
                 <Button 
                   onClick={handleStartTrading} 
                   disabled={!isConnected}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-green-600 hover:bg-blue-600 text-white transition-colors duration-200"
                 >
                   <Play className="h-4 w-4 mr-2" />
                   Start Trading
