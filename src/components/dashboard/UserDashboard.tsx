@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import TradingChart from '@/components/trading/TradingChart';
 import IronCondorBuilder from '@/components/trading/IronCondorBuilder';
 import StrategyMarketplace from '@/components/strategies/StrategyMarketplace';
@@ -12,16 +14,76 @@ import { useAnalyticsContext } from '@/components/analytics/AnalyticsProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, Target, Plus, UserPlus, Gift, Mail, CreditCard, Link as LinkIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { 
+  Users, 
+  TrendingUp, 
+  Target, 
+  Plus, 
+  UserPlus, 
+  Gift, 
+  Mail, 
+  CreditCard, 
+  Link as LinkIcon,
+  Wallet
+} from 'lucide-react';
 import IGBrokerConnect from '@/components/brokers/IGBrokerConnect';
+
+interface KemCredits {
+  credits_earned: number;
+  credits_spent: number;
+  total_airdrops_received: number;
+}
 
 const UserDashboard = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { trackFeatureUsage, trackActivity } = useAnalyticsContext();
   const [showIGConnect, setShowIGConnect] = useState(false);
+  const [kemCredits, setKemCredits] = useState<KemCredits | null>(null);
+  const [progressValue, setProgressValue] = useState(0);
 
   // Mock subscription tier - in real app this would come from profiles table
   const isPremiumUser = false; // This would be fetched from user profile
+
+  // KEM Credits calculation
+  useEffect(() => {
+    if (kemCredits) {
+      setProgressValue(kemCredits.credits_earned % 100);
+    }
+  }, [kemCredits]);
+
+  const fetchUserKemCredits = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('kem_credits')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (!error && data) {
+        setKemCredits({
+          credits_earned: data.credits_earned || 0,
+          credits_spent: data.credits_spent || 0,
+          total_airdrops_received: data.total_airdrops_received || 0
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error fetching KEM credits",
+        variant: "destructive",
+      });
+    }
+  }, [user, toast]);
+
+  useEffect(() => {
+    fetchUserKemCredits();
+  }, [fetchUserKemCredits]);
+
+  const nextMilestone = kemCredits ? Math.ceil(kemCredits.credits_earned / 100) * 100 : 100;
 
   const handleIGSignup = () => {
     trackFeatureUsage('ig_broker_signup');
@@ -43,6 +105,8 @@ const UserDashboard = () => {
   const handleIGConnectSuccess = () => {
     trackActivity('broker_connected', 'ig', 10); // Award 10 credits for connecting broker
     console.log('IG Broker connected successfully');
+    // Refresh KEM credits after connection
+    fetchUserKemCredits();
   };
 
   const handleCloseIGConnect = () => {
@@ -63,6 +127,48 @@ const UserDashboard = () => {
           </h1>
           <p className="text-gray-600">Manage your iron condor strategies and connect with the trading community</p>
         </div>
+
+        {/* KEM Credits Overview Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Wallet className="h-6 w-6 text-green-600" />
+              <span>KEM Credits Overview</span>
+            </CardTitle>
+            <CardDescription>Track your KEM credits and progress</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                <div className="text-lg font-semibold text-green-700">
+                  {kemCredits?.credits_earned || 0}
+                </div>
+                <div className="text-sm text-gray-600">Credits Earned</div>
+              </div>
+              <div className="bg-gradient-to-br from-red-50 to-pink-50 p-4 rounded-lg border border-red-200">
+                <div className="text-lg font-semibold text-red-700">
+                  {kemCredits?.credits_spent || 0}
+                </div>
+                <div className="text-sm text-gray-600">Credits Spent</div>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                <div className="text-lg font-semibold text-blue-700">
+                  {kemCredits?.total_airdrops_received || 0} KEM
+                </div>
+                <div className="text-sm text-gray-600">Airdrops Received</div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+              <div className="text-sm font-medium mb-2">
+                Next Milestone: {nextMilestone} Credits
+              </div>
+              <Progress value={progressValue} max={100} className="mb-2" />
+              <p className="text-xs text-gray-500">
+                {progressValue} / 100 Credits until next milestone
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -92,7 +198,9 @@ const UserDashboard = () => {
                 type="button"
               > 
                 <span className="mr-2 inline-flex">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </span> 
                 Join TradingView            
               </Button>           
@@ -152,7 +260,9 @@ const UserDashboard = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center">
                 <span className="mr-2 inline-flex">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-red-600"><path d="M12 17.3L18.2 21l-1.7-7.2L22 9.3l-7.3-.6L12 2 9.3 8.7 2 9.3l5.5 4.5L5.8 21z" fill="currentColor"/></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-red-600">
+                    <path d="M12 17.3L18.2 21l-1.7-7.2L22 9.3l-7.3-.6L12 2 9.3 8.7 2 9.3l5.5 4.5L5.8 21z" fill="currentColor"/>
+                  </svg>
                 </span>
                 Connect to IG Broker
               </CardTitle>
@@ -175,7 +285,9 @@ const UserDashboard = () => {
                 type="button"
               >
                 <span className="mr-2 inline-flex">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </span>
                 Open IG Account
               </Button>
