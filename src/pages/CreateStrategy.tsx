@@ -4,10 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Calculator, TrendingUp, AlertTriangle, Save, Eye } from 'lucide-react';
@@ -15,6 +13,11 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import Header from "@/components/layout/Header";
+import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
+import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
+import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
+import MockOptionsChain from '@/components/trading/MockOptionsChain';
+import StrategyPreview from '@/components/trading/StrategyPreview';
 
 interface StrategyCondition {
   id: string;
@@ -23,6 +26,16 @@ interface StrategyCondition {
   operator: string;
   value: string;
   timeframe: string;
+}
+
+interface TradingLeg {
+  id?: string;
+  strike: string;
+  type: 'Call' | 'Put';
+  expiration: string;
+  buySell: 'Buy' | 'Sell';
+  size: number;
+  price: string;
 }
 
 const CreateStrategy = () => {
@@ -34,18 +47,9 @@ const CreateStrategy = () => {
   const [isPremium, setIsPremium] = useState(false);
   const [feePercentage, setFeePercentage] = useState('2');
   const [conditions, setConditions] = useState<StrategyCondition[]>([]);
+  const [legs, setLegs] = useState<TradingLeg[]>([]);
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  const categories = [
-    'Options Trading',
-    'Swing Trading',
-    'Day Trading',
-    'Scalping',
-    'Mean Reversion',
-    'Momentum',
-    'Arbitrage'
-  ];
 
   const indicators = [
     'RSI',
@@ -82,11 +86,16 @@ const CreateStrategy = () => {
     setConditions(conditions.filter(condition => condition.id !== id));
   };
 
+  const handleTemplateSelect = (option: { id: string; name: string; template: { legs: TradingLeg[] } }) => {
+    setStrategyName(option.name);
+    setCategory('Options Trading');
+    setLegs(option.template.legs.map(leg => ({ ...leg, id: Date.now().toString() + Math.random() })));
+  };
+
   const handleSave = async () => {
     if (!user) {
       toast({
         title: "Authentication required",
-        description: "Please sign in to create a strategy",
         variant: "destructive"
       });
       return;
@@ -95,7 +104,6 @@ const CreateStrategy = () => {
     if (!strategyName.trim() || !description.trim() || !category) {
       toast({
         title: "Missing information",
-        description: "Please fill in all required fields",
         variant: "destructive"
       });
       return;
@@ -113,7 +121,7 @@ const CreateStrategy = () => {
             is_premium_only: isPremium,
             fee_percentage: parseFloat(feePercentage),
             creator_id: user.id,
-            conditions: conditions,
+            strategy_config: { conditions, legs },
             status: 'draft'
           }
         ]);
@@ -121,8 +129,7 @@ const CreateStrategy = () => {
       if (error) throw error;
 
       toast({
-        title: "Strategy created!",
-        description: "Your trading strategy has been saved as a draft"
+        title: "Strategy created!"
       });
 
       // Reset form
@@ -130,11 +137,11 @@ const CreateStrategy = () => {
       setDescription('');
       setCategory('');
       setConditions([]);
+      setLegs([]);
     } catch (error) {
       console.error('Error creating strategy:', error);
       toast({
         title: "Error creating strategy",
-        description: "Please try again",
         variant: "destructive"
       });
     } finally {
@@ -163,99 +170,64 @@ const CreateStrategy = () => {
       </div>
 
       {isPreview ? (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>{strategyName || 'Untitled Strategy'}</CardTitle>
-              <div className="flex space-x-2">
-                {isPremium && <Badge>Premium</Badge>}
-                <Badge variant="outline">{category || 'Uncategorized'}</Badge>
-              </div>
-            </div>
-            <CardDescription>{description || 'No description provided'}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold mb-2">Strategy Conditions:</h3>
-                {conditions.length === 0 ? (
-                  <p className="text-gray-500">No conditions defined</p>
-                ) : (
-                  <div className="space-y-2">
-                    {conditions.map((condition) => (
-                      <div key={condition.id} className="p-3 border rounded">
-                        <Badge variant={condition.type === 'entry' ? 'default' : 'secondary'}>
-                          {condition.type}
-                        </Badge>
-                        <p className="mt-1">
-                          {condition.indicator} {condition.operator} {condition.value} ({condition.timeframe})
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              {isPremium && (
-                <div>
-                  <h3 className="font-semibold">Fee Structure:</h3>
-                  <p>{feePercentage}% of profits</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <StrategyPreview
+          strategyName={strategyName}
+          description={description}
+          category={category}
+          isPremium={isPremium}
+          feePercentage={feePercentage}
+          legs={legs}
+          conditions={conditions}
+        />
       ) : (
-        <Tabs defaultValue="basic" className="space-y-6">
-          <TabsList>
+        <Tabs defaultValue="templates" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
+            <TabsTrigger value="legs">Options Legs</TabsTrigger>
+            <TabsTrigger value="chain">Options Chain</TabsTrigger>
             <TabsTrigger value="conditions">Conditions</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="templates">
+            <TradingOptionsSelector onSelectOption={handleTemplateSelect} />
+          </TabsContent>
+
           <TabsContent value="basic">
-            <Card>
-              <CardHeader>
-                <CardTitle>Strategy Information</CardTitle>
-                <CardDescription>Basic details about your trading strategy</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Strategy Name *</Label>
-                  <Input
-                    id="name"
-                    value={strategyName}
-                    onChange={(e) => setStrategyName(e.target.value)}
-                    placeholder="e.g., RSI Mean Reversion"
-                  />
-                </div>
+            <StrategyBasicInfo
+              strategyName={strategyName}
+              setStrategyName={setStrategyName}
+              description={description}
+              setDescription={setDescription}
+              category={category}
+              setCategory={setCategory}
+            />
+          </TabsContent>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe your strategy, its logic, and expected performance..."
-                    rows={4}
-                  />
-                </div>
+          <TabsContent value="legs">
+            <EnhancedTradingTemplate
+              strategyName={strategyName || 'Strategy'}
+              legs={legs}
+              onLegsChange={setLegs}
+            />
+          </TabsContent>
 
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category *</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="chain">
+            <MockOptionsChain
+              onSelectContract={(contract) => {
+                const newLeg: TradingLeg = {
+                  id: Date.now().toString(),
+                  strike: contract.strike.toString(),
+                  type: contract.type,
+                  expiration: '30',
+                  buySell: 'Buy',
+                  size: 1,
+                  price: contract.ask.toFixed(2)
+                };
+                setLegs([...legs, newLeg]);
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="conditions">
@@ -274,8 +246,8 @@ const CreateStrategy = () => {
               </CardHeader>
               <CardContent>
                 {conditions.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <div className="text-center py-8 text-muted-foreground">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                     <p>No conditions defined yet</p>
                     <p className="text-sm">Add conditions to define your strategy logic</p>
                   </div>
@@ -372,7 +344,7 @@ const CreateStrategy = () => {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Premium Strategy</Label>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       Charge users a fee to access this strategy
                     </p>
                   </div>
@@ -393,7 +365,7 @@ const CreateStrategy = () => {
                         onChange={(e) => setFeePercentage(e.target.value)}
                         className="w-24"
                       />
-                      <span className="text-sm text-gray-500">% of profits</span>
+                      <span className="text-sm text-muted-foreground">% of profits</span>
                     </div>
                     <Alert>
                       <TrendingUp className="h-4 w-4" />
