@@ -69,7 +69,6 @@ const ProductOffers = () => {
       
       toast({
         title: "Purchase successful!",
-        description: "You will be redirected to complete payment.",
       });
       
       // In a real app, this would redirect to Stripe checkout

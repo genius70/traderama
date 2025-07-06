@@ -42,7 +42,6 @@ const UpgradeToPremium = () => {
     if (!user) {
       toast({
         title: "Authentication Required",
-        description: "Please sign in to upgrade.",
         variant: "destructive",
       });
       return;
@@ -64,7 +63,6 @@ const UpgradeToPremium = () => {
         window.open(data.url, "_blank");
         toast({
           title: "Stripe checkout",
-          description: "Complete your payment in the new tab.",
         });
       } else if (selectedProvider === 'airtm') {
         // AirTM payment URL
@@ -72,7 +70,6 @@ const UpgradeToPremium = () => {
         window.open(airtmUrl, "_blank");
         toast({
           title: "AirTM Payment",
-          description: "Complete your payment on AirTM. Your subscription will be activated within 24 hours.",
         });
       } else if (selectedProvider === 'wise') {
         // Wise payment URL

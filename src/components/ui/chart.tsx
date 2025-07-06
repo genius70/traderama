@@ -183,8 +183,8 @@ const ChartTooltip = React.forwardRef<
                   indicator === "dot" && "items-center"
                 )}
               >
-                {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
+                {item?.value !== undefined && item.name ? (
+                  <span>{item.value}</span>
                 ) : (
                   <>
                     {itemConfig?.icon ? (

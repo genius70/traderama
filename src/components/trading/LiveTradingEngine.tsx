@@ -96,7 +96,6 @@ const LiveTradingEngine: React.FC = () => {
     if (connectionStatus !== 'connected') {
       toast({
         title: "Broker Not Connected",
-        description: "Please connect your IG Broker account first.",
         variant: "destructive",
       });
       return;
@@ -108,13 +107,11 @@ const LiveTradingEngine: React.FC = () => {
       
       toast({
         title: isActive ? "Trading Stopped" : "Trading Started",
-        description: isActive ? "Auto-trading has been paused." : "Auto-trading is now active.",
       });
     } catch (error) {
       console.error('Error toggling trading:', error);
       toast({
         title: "Error",
-        description: "Failed to toggle trading status.",
         variant: "destructive",
       });
     }

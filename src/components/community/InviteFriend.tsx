@@ -50,7 +50,7 @@ const InviteFriend: React.FC = () => {
       .eq('id', user.id)
       .single();
     
-    if (data) {
+    if (data?.referral_code) {
       setUserReferralCode(data.referral_code);
     }
   };
@@ -68,7 +68,6 @@ const InviteFriend: React.FC = () => {
     if (!currentFriend.name.trim() || !currentFriend.phoneNumber.trim()) {
       toast({
         title: "Missing Information",
-        description: "Please enter both name and phone number",
         variant: "destructive",
       });
       return;
@@ -77,7 +76,6 @@ const InviteFriend: React.FC = () => {
     if (friends.length >= 5) {
       toast({
         title: "Maximum Reached",
-        description: "You can invite up to 5 friends at a time",
         variant: "destructive",
       });
       return;
@@ -87,7 +85,6 @@ const InviteFriend: React.FC = () => {
     if (!phoneRegex.test(currentFriend.phoneNumber)) {
       toast({
         title: "Invalid Phone Number",
-        description: "Please enter a valid phone number",
         variant: "destructive",
       });
       return;
@@ -96,7 +93,6 @@ const InviteFriend: React.FC = () => {
     if (friends.some(friend => friend.phoneNumber === currentFriend.phoneNumber)) {
       toast({
         title: "Duplicate Number",
-        description: "This phone number is already in your invite list",
         variant: "destructive",
       });
       return;
@@ -107,7 +103,6 @@ const InviteFriend: React.FC = () => {
     
     toast({
       title: "Friend Added",
-      description: `${currentFriend.name} has been added to your invite list`,
     });
   };
 
@@ -120,7 +115,6 @@ const InviteFriend: React.FC = () => {
     if (friends.length === 0) {
       toast({
         title: "No Friends to Invite",
-        description: "Please add at least one friend to send invites",
         variant: "destructive",
       });
       return;
@@ -144,7 +138,6 @@ const InviteFriend: React.FC = () => {
 
       toast({
         title: "Invites Sent Successfully!",
-        description: `Sent ${friends.length} WhatsApp invite(s) to your friends`,
       });
 
       setFriends([]);
@@ -155,7 +148,6 @@ const InviteFriend: React.FC = () => {
       console.error('Error sending invites:', error);
       toast({
         title: "Error Sending Invites",
-        description: "There was an issue sending your invites. Please try again.",
         variant: "destructive",
       });
     } finally {
