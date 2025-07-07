@@ -67,6 +67,23 @@ interface BrokerSettings {
   autoSync: boolean;
 }
 
+interface Analytics {
+  totalTrades: number;
+  winRate: number;
+  avgWin: number;
+  avgLoss: number;
+  riskReward: number;
+  maxDrawdown: number;
+  riskPerTrade: number;
+  sharpeRatio: number;
+  profitFactor: number;
+  winningTrades: number;
+  losingTrades: number;
+  breakEvenTrades: number;
+  bestDay: number;
+  worstDay: number;
+  avgDailyPnL: number;
+}
 const TradePositions = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -90,6 +107,25 @@ const TradePositions = () => {
     autoSync: true
   });
 
+  // Mock data for analytics
+  const [analytics] = useState<Analytics>({
+    totalTrades: 124,
+    winRate: 68.5,
+    avgWin: 485.30,
+    avgLoss: -245.80,
+    riskReward: 1.97,
+    maxDrawdown: -12.5,
+    riskPerTrade: 2.1,
+    sharpeRatio: 1.45,
+    profitFactor: 1.83,
+    winningTrades: 85,
+    losingTrades: 34,
+    breakEvenTrades: 5,
+    bestDay: 1850.50,
+    worstDay: -890.20,
+    avgDailyPnL: 145.75
+  });
+
   const [dailyPnL] = useState([
     { date: '2024-01-01', pnl: 450 },
     { date: '2024-01-02', pnl: -200 },
@@ -98,6 +134,15 @@ const TradePositions = () => {
     { date: '2024-01-05', pnl: -150 },
     { date: '2024-01-06', pnl: 600 },
     { date: '2024-01-07', pnl: 920 }
+  ]);
+
+  const [monthlyPerformance] = useState([
+    { month: 'Jan', profit: 2500, loss: -800 },
+    { month: 'Feb', profit: 1800, loss: -1200 },
+    { month: 'Mar', profit: 3200, loss: -600 },
+    { month: 'Apr', profit: 2100, loss: -950 },
+    { month: 'May', profit: 2800, loss: -750 },
+    { month: 'Jun', profit: 2200, loss: -1100 }
   ]);
 
   const fetchPositions = useCallback(async () => {
@@ -372,7 +417,7 @@ const TradePositions = () => {
     }
   };
 
-const toggleAutoTrading = () => {
+  const toggleAutoTrading = () => {
     if (!brokerConnected) {
       toast({
         title: "Error",
@@ -401,6 +446,9 @@ const toggleAutoTrading = () => {
         return null;
     }
   };
+export default function TradePositions() {
+  // Component state and logic would go here
+  // (useState hooks, useEffect, handlers, etc.)
 
   if (loading) {
     return (
@@ -706,12 +754,22 @@ const toggleAutoTrading = () => {
                               <p className="font-medium">${position.strike}</p>
                             </div>
                             <div>
+                              <p className="text-gray-600">Expiry</p>
+                              <p className="font-medium">{new Date(position.expiry).toLocaleDateString()}</p>
+                            </div>
+                            <div>
                               <p className="text-gray-600">Premium</p>
                               <p className="font-medium">${position.premium}</p>
                             </div>
-                            <div>
-                              <p className="text-gray-600">Final Value</p>
-                              <p className="font-medium">${position.currentValue.toFixed(2)}</p>
+                          </div>
+                          <div className="mt-3 pt-3 border-t text-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">
+                                Opened: {new Date(position.openedAt).toLocaleString()}
+                              </span>
+                              <span className="text-gray-600">
+                                Closed: {position.closedAt ? new Date(position.closedAt).toLocaleString() : 'N/A'}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -722,187 +780,222 @@ const toggleAutoTrading = () => {
               </CardContent>
             </Card>
           </TabsContent>
-         <Card>
-  <CardContent>
-    {dailyPnL && dailyPnL.length > 0 && (
-      <div className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={dailyPnL}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Line 
-              type="monotone" 
-              dataKey="pnl" 
-              stroke="#3B82F6" 
-              strokeWidth={2}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    )}
-  </CardContent>
-</Card>
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <Card>
-    <CardHeader>
-      <CardTitle>Performance Metrics</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium">Total Trades</span>
-          <Badge variant="outline">{analytics.totalTrades}</Badge>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium">Win Rate</span>
-          <Badge variant={analytics.winRate >= 60 ? "default" : "secondary"}>
-            {analytics.winRate}%
-          </Badge>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-</div>
-<Card>
-    <CardHeader>
-      <CardTitle>Performance Metrics</CardTitle>
-    </CardHeader>
-    <CardContent>                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Avg Win</span>
-                        <span className="text-sm font-mono text-green-600">
-                          ${analytics.avgWin.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Avg Loss</span>
-                        <span className="text-sm font-mono text-red-600">
-                          ${analytics.avgLoss.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Risk/Reward</span>
-                        <Badge variant={analytics.riskReward >= 1.5 ? "default" : "destructive"}>
-                          {analytics.riskReward.toFixed(2)}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Risk Management</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Max Drawdown</span>
-                        <span className="text-sm font-mono text-red-600">
-                          {analytics.maxDrawdown.toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Risk Per Trade</span>
-                        <span className="text-sm font-mono">
-                          {analytics.riskPerTrade.toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Sharpe Ratio</span>
-                        <Badge variant={analytics.sharpeRatio >= 1.0 ? "default" : "secondary"}>
-                          {analytics.sharpeRatio.toFixed(2)}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Profit Factor</span>
-                        <Badge variant={analytics.profitFactor >= 1.2 ? "default" : "destructive"}>
-                          {analytics.profitFactor.toFixed(2)}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Monthly Performance</CardTitle>
-                  <CardDescription>Profit and loss by month</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={monthlyPerformance}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip />
-                        <Line 
-                          type="monotone" 
-                          dataKey="profit" 
-                          stroke="#10B981" 
-                          strokeWidth={2}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="loss" 
-                          stroke="#EF4444" 
-                          strokeWidth={2}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+          <TabsContent value="analytics">
+            <Card>
+              <CardHeader>
+                <CardTitle>Portfolio Analytics</CardTitle>
+                <CardDescription>
+                  Performance metrics and risk analysis
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!brokerConnected ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Connect to your broker to view analytics</p>
                   </div>
-                </CardContent>
-              </Card>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Performance Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">
+                            {((positions.filter(p => p.pnl > 0).length / positions.length) * 100).toFixed(1)}%
+                          </div>
+                          <p className="text-sm text-gray-600">
+                            {positions.filter(p => p.pnl > 0).length} of {positions.length} trades
+                          </p>
+                        </CardContent>
+                      </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Trading Activity</CardTitle>
-                  <CardDescription>Recent trading activity and patterns</CardDescription>
-                </CardHeader>
-                <CardContent>
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium">Best Trade</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-green-600">
+                            +${Math.max(...positions.map(p => p.pnl)).toFixed(2)}
+                          </div>
+                          <p className="text-sm text-gray-600">Single trade profit</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium">Worst Trade</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-red-600">
+                            ${Math.min(...positions.map(p => p.pnl)).toFixed(2)}
+                          </div>
+                          <p className="text-sm text-gray-600">Single trade loss</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Risk Metrics */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Risk Metrics</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="font-medium mb-2">Portfolio Greeks</h4>
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span>Total Delta:</span>
+                                <span className="font-medium">
+                                  {positions.reduce((sum, p) => sum + (p.greeks?.delta || 0), 0).toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Total Gamma:</span>
+                                <span className="font-medium">
+                                  {positions.reduce((sum, p) => sum + (p.greeks?.gamma || 0), 0).toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Total Theta:</span>
+                                <span className="font-medium">
+                                  {positions.reduce((sum, p) => sum + (p.greeks?.theta || 0), 0).toFixed(1)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="font-medium mb-2">Position Sizing</h4>
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span>Average Position Size:</span>
+                                <span className="font-medium">
+                                  ${(positions.reduce((sum, p) => sum + p.currentValue, 0) / positions.length).toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Largest Position:</span>
+                                <span className="font-medium">
+                                  ${Math.max(...positions.map(p => p.currentValue)).toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Portfolio Concentration:</span>
+                                <span className="font-medium">
+                                  {((Math.max(...positions.map(p => p.currentValue)) / positions.reduce((sum, p) => sum + p.currentValue, 0)) * 100).toFixed(1)}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="broker">
+            <Card>
+              <CardHeader>
+                <CardTitle>Broker Connection</CardTitle>
+                <CardDescription>
+                  Connect to your IG Broker account to start trading
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {brokerConnected ? (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">{analytics.winningTrades}</div>
-                        <div className="text-sm text-gray-500">Winning Trades</div>
+                    <div className="flex items-center space-x-2 text-green-600">
+                      <Wifi className="h-5 w-5" />
+                      <span className="font-medium">Connected to IG Broker</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium mb-2">Account Details</h4>
+                        <div className="space-y-1 text-sm">
+                          <p>Account ID: DEMO123456</p>
+                          <p>Account Type: Demo Account</p>
+                          <p>Currency: USD</p>
+                          <p>Status: Active</p>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-red-600">{analytics.losingTrades}</div>
-                        <div className="text-sm text-gray-500">Losing Trades</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{analytics.breakEvenTrades}</div>
-                        <div className="text-sm text-gray-500">Break Even</div>
+                      <div>
+                        <h4 className="font-medium mb-2">Connection Status</h4>
+                        <div className="space-y-1 text-sm">
+                          <p>Connected: {new Date().toLocaleString()}</p>
+                          <p>API Version: v3.0</p>
+                          <p>Market Data: Live</p>
+                          <p>Trading: Enabled</p>
+                        </div>
                       </div>
                     </div>
-                    <Separator />
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Best Trading Day</span>
-                        <span className="font-mono text-green-600">${analytics.bestDay.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Worst Trading Day</span>
-                        <span className="font-mono text-red-600">${analytics.worstDay.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Average Daily P&L</span>
-                        <span className="font-mono">${analytics.avgDailyPnL.toFixed(2)}</span>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setBrokerConnected(false)}
+                      className="w-full md:w-auto"
+                    >
+                      <WifiOff className="h-4 w-4 mr-2" />
+                      Disconnect
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-center py-8">
+                      <Link className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <h3 className="font-semibold mb-2">Connect to IG Broker</h3>
+                      <p className="text-gray-600 mb-4">
+                        Connect your IG Broker account to start trading and view your positions
+                      </p>
+                      <Button onClick={() => setBrokerModalOpen(true)}>
+                        <Link className="h-4 w-4 mr-2" />
+                        Connect Account
+                      </Button>
+                    </div>
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium mb-2">Connection Requirements</h4>
+                      <div className="space-y-2 text-sm text-gray-600">
+                        <div className="flex items-start space-x-2">
+                          <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Valid IG Broker account</span>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>API access enabled</span>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Account credentials and API key</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Broker Connection Modal */}
+      {brokerModalOpen && (
+        <BrokerConnectionModal
+          isOpen={brokerModalOpen}
+          onClose={() => setBrokerModalOpen(false)}
+          onConnect={() => {
+            setBrokerConnected(true);
+            setBrokerModalOpen(false);
+            fetchPositions();
+          }}
+        />
+      )}
     </div>
   );
-};
+}
 
-export default TradingDashboard;
+export default TradePositions;
