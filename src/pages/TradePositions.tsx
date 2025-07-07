@@ -722,42 +722,50 @@ const toggleAutoTrading = () => {
               </CardContent>
             </Card>
           </TabsContent>
+         <Card>
+  <CardContent>
+    {dailyPnL && dailyPnL.length > 0 && (
+      <div className="h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={dailyPnL}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Line 
+              type="monotone" 
+              dataKey="pnl" 
+              stroke="#3B82F6" 
+              strokeWidth={2}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    )}
+  </CardContent>
+</Card>
 
-<LineChart data={dailyPnL}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis />
-                          <Tooltip />
-                          <Line 
-                            type="monotone" 
-                            dataKey="pnl" 
-                            stroke="#3B82F6" 
-                            strokeWidth={2}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Performance Metrics</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Total Trades</span>
-                        <Badge variant="outline">{analytics.totalTrades}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Win Rate</span>
-                        <Badge variant={analytics.winRate >= 60 ? "default" : "secondary"}>
-                          {analytics.winRate}%
-                        </Badge>
-                      </div>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <Card>
+    <CardHeader>
+      <CardTitle>Performance Metrics</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium">Total Trades</span>
+          <Badge variant="outline">{analytics.totalTrades}</Badge>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium">Win Rate</span>
+          <Badge variant={analytics.winRate >= 60 ? "default" : "secondary"}>
+            {analytics.winRate}%
+          </Badge>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+</div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">Avg Win</span>
                         <span className="text-sm font-mono text-green-600">
