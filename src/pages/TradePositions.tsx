@@ -446,7 +446,7 @@ const TradePositions = () => {
         return null;
     }
   };
-export default function TradePositions() {
+function TradePositions() {
   // Component state and logic would go here
   // (useState hooks, useEffect, handlers, etc.)
 
