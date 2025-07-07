@@ -766,7 +766,11 @@ const toggleAutoTrading = () => {
     </CardContent>
   </Card>
 </div>
-                      <div className="flex justify-between items-center">
+<Card>
+    <CardHeader>
+      <CardTitle>Performance Metrics</CardTitle>
+    </CardHeader>
+    <CardContent>                      <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">Avg Win</span>
                         <span className="text-sm font-mono text-green-600">
                           ${analytics.avgWin.toFixed(2)}
