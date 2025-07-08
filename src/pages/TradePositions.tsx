@@ -585,7 +585,6 @@ const TradePositions: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-          </Card>
 
           <Card>
             <CardHeader className="pb-2">
