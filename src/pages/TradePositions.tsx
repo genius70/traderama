@@ -250,7 +250,7 @@ const TradePositions: React.FC = () => {
 
       if (!response.ok) throw new Error('Failed to execute auto trade');
 
-      const { positions: newAldi newPositions } = await response.json();
+      const { positions: newAldi, newPositions } = await response.json();
       
       if (newPositions.length > 0) {
         const { error } = await supabase
