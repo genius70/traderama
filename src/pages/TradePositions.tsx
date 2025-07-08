@@ -12,6 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import Header from '@/components/layout/Header';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -273,6 +274,7 @@ const TradePositions = () => {
 
   return (
     <div className="space-y-6 p-6">
+    <Header />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Trade Positions</h1>
