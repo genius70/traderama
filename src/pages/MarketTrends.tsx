@@ -1,175 +1,526 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  CandlestickChart,
+  Candlestick
+} from 'recharts';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, TrendingDown, Activity, Target, AlertTriangle } from 'lucide-react';
-import MarketChart from '@/components/market/MarketChart';
-import SpyReturnsDistribution from '@/components/strategies/SpyReturnsDistribution';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/layout/Header';
 
+// ETF data configuration
+const ETF_SYMBOLS = [
+  // Core Market ETFs
+  { symbol: 'SPY', name: 'SPDR S&P 500', description: 'S&P 500 ETF', category: 'Core' },
+  { symbol: 'QQQ', name: 'Invesco QQQ', description: 'NASDAQ-100 ETF', category: 'Core' },
+  { symbol: 'IWM', name: 'iShares Russell 2000', description: 'Small Cap ETF', category: 'Core' },
+  { symbol: 'VTI', name: 'Vanguard Total Stock', description: 'Total Stock Market ETF', category: 'Core' },
+  { symbol: 'DIA', name: 'SPDR Dow Jones', description: 'Dow Jones ETF', category: 'Core' },
+  { symbol: 'VOO', name: 'Vanguard S&P 500', description: 'Low-cost S&P 500 ETF', category: 'Core' },
+  // Sector ETFs
+  { symbol: 'XLF', name: 'Financial Select', description: 'Financial Sector ETF', category: 'Sector' },
+  { symbol: 'XLK', name: 'Technology Select', description: 'Technology Sector ETF', category: 'Sector' },
+  { symbol: 'XLE', name: 'Energy Select', description: 'Energy Sector ETF', category: 'Sector' },
+  { symbol: 'XLV', name: 'Health Care Select', description: 'Healthcare Sector ETF', category: 'Sector' },
+  { symbol: 'XLI', name: 'Industrial Select', description: 'Industrial Sector ETF', category: 'Sector' },
+  { symbol: 'XLY', name: 'Consumer Discretionary', description: 'Consumer Discretionary ETF', category: 'Sector' },
+  { symbol: 'XLP', name: 'Consumer Staples', description: 'Consumer Staples ETF', category: 'Sector' },
+  { symbol: 'XLU', name: 'Utilities Select', description: 'Utilities Sector ETF', category: 'Sector' },
+  { symbol: 'XLB', name: 'Materials Select', description: 'Materials Sector ETF', category: 'Sector' },
+  { symbol: 'XLRE', name: 'Real Estate Select', description: 'Real Estate ETF', category: 'Sector' },
+  // International ETFs
+  { symbol: 'EFA', name: 'iShares MSCI EAFE', description: 'Developed Markets ETF', category: 'International' },
+  { symbol: 'EEM', name: 'iShares MSCI Emerging', description: 'Emerging Markets ETF', category: 'International' },
+  { symbol: 'VEA', name: 'Vanguard FTSE Developed', description: 'Developed Markets ETF', category: 'International' },
+  { symbol: 'VWO', name: 'Vanguard FTSE Emerging', description: 'Emerging Markets ETF', category: 'International' },
+  { symbol: 'IEFA', name: 'iShares Core MSCI EAFE', description: 'Core Developed Markets', category: 'International' },
+  // Bond ETFs
+  { symbol: 'AGG', name: 'iShares Core Aggregate', description: 'US Aggregate Bond ETF', category: 'Bonds' },
+  { symbol: 'BND', name: 'Vanguard Total Bond', description: 'Total Bond Market ETF', category: 'Bonds' },
+  { symbol: 'TLT', name: 'iShares 20+ Year Treasury', description: 'Long-term Treasury ETF', category: 'Bonds' },
+  { symbol: 'IEF', name: 'iShares 7-10 Year Treasury', description: 'Intermediate Treasury ETF', category: 'Bonds' },
+  { symbol: 'SHY', name: 'iShares 1-3 Year Treasury', description: 'Short-term Treasury ETF', category: 'Bonds' },
+  // Growth & Value ETFs
+  { symbol: 'VUG', name: 'Vanguard Growth', description: 'Large Cap Growth ETF', category: 'Style' },
+  { symbol: 'VTV', name: 'Vanguard Value', description: 'Large Cap Value ETF', category: 'Style' },
+  { symbol: 'IWF', name: 'iShares Russell 1000 Growth', description: 'Large Cap Growth ETF', category: 'Style' },
+  { symbol: 'IWD', name: 'iShares Russell 1000 Value', description: 'Large Cap Value ETF', category: 'Style' },
+  // Commodity & Alternative ETFs
+  { symbol: 'GLD', name: 'SPDR Gold Shares', description: 'Gold ETF', category: 'Commodities' },
+  { symbol: 'SLV', name: 'iShares Silver Trust', description: 'Silver ETF', category: 'Commodities' },
+  { symbol: 'USO', name: 'United States Oil Fund', description: 'Crude Oil ETF', category: 'Commodities' },
+  { symbol: 'VNQ', name: 'Vanguard Real Estate', description: 'REIT ETF', category: 'Real Estate' },
+  { symbol: 'ARKK', name: 'ARK Innovation', description: 'Innovation ETF', category: 'Thematic' },
+  { symbol: 'ICLN', name: 'iShares Global Clean Energy', description: 'Clean Energy ETF', category: 'Thematic' }
+];
+
+// Timeframe configuration
+const TIMEFRAMES = [
+  { key: '5min', label: '5 Min', endpoint: 'TIME_SERIES_INTRADAY&interval=5min', days: 1 },
+  { key: '15min', label: '15 Min', endpoint: 'TIME_SERIES_INTRADAY&interval=15min', days: 1 },
+  { key: '30min', label: '30 Min', endpoint: 'TIME_SERIES_INTRADAY&interval=30min', days: 1 },
+  { key: '60min', label: '60 Min', endpoint: 'TIME_SERIES_INTRADAY&interval=60min', days: 1 },
+  { key: 'daily', label: 'Daily', endpoint: 'TIME_SERIES_DAILY', days: 30 },
+  { key: 'weekly', label: 'Weekly', endpoint: 'TIME_SERIES_WEEKLY', days: 365 },
+  { key: 'monthly', label: 'Monthly', endpoint: 'TIME_SERIES_MONTHLY', days: 1825 },
+  { key: '1Y', label: '1 Year', endpoint: 'TIME_SERIES_MONTHLY', days: 365 },
+  { key: '3Y', label: '3 Years', endpoint: 'TIME_SERIES_MONTHLY', days: 1095 },
+  { key: '5Y', label: '5 Years', endpoint: 'TIME_SERIES_MONTHLY', days: 1825 }
+];
+
+// Chart types
+const CHART_TYPES = ['candlestick', 'line', 'area'];
+
+// Interfaces
 interface MarketData {
   symbol: string;
   price: number;
   change: number;
   changePercent: number;
   volume: number;
-  marketCap?: number;
+  high: number;
+  low: number;
 }
 
 interface ChartData {
   date: string;
-  price: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
   volume: number;
   sma20: number;
+  sma50: number;
   rsi: number;
-  macd: number;
-  signal: number;
-  upperBB: number;
-  lowerBB: number;
 }
 
-const ALPHA_VANTAGE_API_KEY = '8AQPB7J6D8TUCDJA';
-const TIMEFRAMES = {
-  hourly: 'TIME_SERIES_INTRADAY&interval=60min',
-  daily: 'TIME_SERIES_DAILY',
-  weekly: 'TIME_SERIES_WEEKLY',
-  monthly: 'TIME_SERIES_MONTHLY',
-  yearly: 'TIME_SERIES_MONTHLY' // Processed to show yearly trends
+const ALPHA_VANTAGE_API_KEY = '111222333';
+
+// ETF Card Component
+const ETFCard: React.FC<{
+  etf: typeof ETF_SYMBOLS[0];
+  data: MarketData | undefined;
+  onSelect: (symbol: string) => void;
+  isSelected: boolean;
+}> = ({ etf, data, onSelect, isSelected }) => {
+  const isPositive = data ? data.change >= 0 : false;
+
+  return (
+    <Card
+      className={`cursor-pointer transition-all duration-300 border-2 ${
+        isSelected ? 'border-gray-800' : 'border-gray-200 hover:border-gray-400'
+      } bg-white`}
+      onClick={() => onSelect(etf.symbol)}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg text-gray-900">{etf.symbol}</CardTitle>
+            <CardDescription className="text-sm text-gray-500">{etf.name}</CardDescription>
+            <CardDescription className="text-xs text-gray-400">{etf.description}</CardDescription>
+          </div>
+          <div
+            className={`p-2 rounded-full ${
+              isPositive ? 'bg-gray-200' : 'bg-gray-300'
+            }`}
+          >
+            {isPositive ? (
+              <TrendingUp className="w-4 h-4 text-gray-800" />
+            ) : (
+              <TrendingDown className="w-4 h-4 text-gray-800" />
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {data ? (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-2xl font-bold text-gray-900">${data.price.toFixed(2)}</span>
+              <span
+                className={`text-sm font-semibold ${
+                  isPositive ? 'text-gray-700' : 'text-gray-800'
+                }`}
+              >
+                {isPositive ? '+' : ''}{data.change.toFixed(2)} ({isPositive ? '+' : ''}{data.changePercent.toFixed(2)}%)
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div>
+                <span className="block text-xs text-gray-500">High</span>
+                <span className="font-medium">${data.high.toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="block text-xs text-gray-500">Low</span>
+                <span className="font-medium">${data.low.toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              Volume: {data.volume.toLocaleString()}
+            </div>
+          </div>
+        ) : (
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded mb-2"></div>
+            <div className="h-3 bg-gray-200 rounded"></div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 };
 
-const MarketTrends = () => {
-  const [selectedSymbol, setSelectedSymbol] = useState('SPY');
-  const [marketData, setMarketData] = useState<MarketData[]>([]);
+// Chart Component
+const ChartComponent: React.FC<{
+  symbol: string;
+  data: ChartData[];
+  chartType: string;
+}> = ({ symbol, data, chartType }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-96 flex items-center justify-center">
+        <div className="animate-pulse text-gray-500">Loading chart data...</div>
+      </div>
+    );
+  }
+
+  const commonProps = {
+    data,
+    width: '100%',
+    height: '100%'
+  };
+
+  const renderChart = () => {
+    switch (chartType) {
+      case 'candlestick':
+        return (
+          <CandlestickChart {...commonProps}>
+            <CartesianGrid stroke="#e5e5e5" strokeDasharray="3 3" />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#4b5563' }} />
+            <YAxis
+              yAxisId="left"
+              tick={{ fontSize: 10, fill: '#4b5563' }}
+              domain={['dataMin - 5', 'dataMax + 5']}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tick={{ fontSize: 10, fill: '#4b5563' }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e5e5e5',
+                borderRadius: '8px',
+                fontSize: '12px',
+                color: '#1f2937'
+              }}
+            />
+            <Candlestick
+              yAxisId="left"
+              dataKey="close"
+              low="low"
+              high="high"
+              open="open"
+              fill="#4b5563"
+              stroke="#1f2937"
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="sma20"
+              stroke="#6b7280"
+              name="SMA20"
+              dot={false}
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="sma50"
+              stroke="#9ca3af"
+              name="SMA50"
+              dot={false}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="rsi"
+              stroke="#374151"
+              name="RSI"
+              dot={false}
+            />
+          </CandlestickChart>
+        );
+      case 'area':
+        return (
+          <AreaChart {...commonProps}>
+            <defs>
+              <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6b7280" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#6b7280" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="#e5e5e5" strokeDasharray="3 3" />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#4b5563' }} />
+            <YAxis
+              yAxisId="left"
+              tick={{ fontSize: 10, fill: '#4b5563' }}
+              domain={['dataMin - 5', 'dataMax + 5']}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tick={{ fontSize: 10, fill: '#4b5563' }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e5e5e5',
+                borderRadius: '8px',
+                fontSize: '12px',
+                color: '#1f2937'
+              }}
+            />
+            <Area
+              yAxisId="left"
+              type="monotone"
+              dataKey="close"
+              stroke="#1f2937"
+              fill="url(#colorPrice)"
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="sma20"
+              stroke="#6b7280"
+              name="SMA20"
+              dot={false}
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="sma50"
+              stroke="#9ca3af"
+              name="SMA50"
+              dot={false}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="rsi"
+              stroke="#374151"
+              name="RSI"
+              dot={false}
+            />
+          </AreaChart>
+        );
+      default:
+        return (
+          <LineChart {...commonProps}>
+            <CartesianGrid stroke="#e5e5e5" strokeDasharray="3 3" />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#4b5563' }} />
+            <YAxis
+              yAxisId="left"
+              tick={{ fontSize: 10, fill: '#4b5563' }}
+              domain={['dataMin - 5', 'dataMax + 5']}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tick={{ fontSize: 10, fill: '#4b5563' }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e5e5e5',
+                borderRadius: '8px',
+                fontSize: '12px',
+                color: '#1f2937'
+              }}
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="close"
+              stroke="#1f2937"
+              name="Price"
+              dot={false}
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="sma20"
+              stroke="#6b7280"
+              name="SMA20"
+              dot={false}
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="sma50"
+              stroke="#9ca3af"
+              name="SMA50"
+              dot={false}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="rsi"
+              stroke="#374151"
+              name="RSI"
+              dot={false}
+            />
+          </LineChart>
+        );
+    }
+  };
+
+  return (
+    <div className="h-96">
+      <ResponsiveContainer width="100%" height="100%">
+        {renderChart()}
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+// Main Dashboard Component
+const MarketTrends: React.FC = () => {
+  const [etfData, setEtfData] = useState<Record<string, MarketData>>({});
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('SPY');
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>('daily');
   const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [chartType, setChartType] = useState<string>('line');
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<keyof typeof TIMEFRAMES>('daily');
   const { toast } = useToast();
 
   // Calculate technical indicators
-  const calculateIndicators = (prices: number[]): { sma20: number[], rsi: number[], macd: number[], signal: number[], upperBB: number[], lowerBB: number[] } => {
-    const sma20: number[] = [];
-    const rsi: number[] = [];
-    const macd: number[] = [];
-    const signal: number[] = [];
-    const upperBB: number[] = [];
-    const lowerBB: number[] = [];
+  const calculateIndicators = useCallback(
+    (data: { close: number }[]): { sma20: number[]; sma50: number[]; rsi: number[] } => {
+      const sma20: number[] = [];
+      const sma50: number[] = [];
+      const rsi: number[] = [];
 
-    // SMA20
-    for (let i = 0; i < prices.length; i++) {
-      if (i < 20) {
-        sma20.push(0);
-      } else {
-        const sum = prices.slice(i - 20, i).reduce((a, b) => a + b, 0);
-        sma20.push(sum / 20);
+      // SMA20 and SMA50
+      for (let i = 0; i < data.length; i++) {
+        sma20.push(
+          i < 20 ? 0 : data.slice(i - 20, i).reduce((sum, item) => sum + item.close, 0) / 20
+        );
+        sma50.push(
+          i < 50 ? 0 : data.slice(i - 50, i).reduce((sum, item) => sum + item.close, 0) / 50
+        );
       }
-    }
 
-    // RSI
-    let gains = 0;
-    let losses = 0;
-    for (let i = 1; i < prices.length; i++) {
-      const diff = prices[i] - prices[i - 1];
-      if (diff > 0) gains += diff;
-      else losses -= diff;
-      
-      if (i >= 14) {
-        const avgGain = gains / 14;
-        const avgLoss = losses / 14;
-        const rs = avgGain / (avgLoss || 1);
-        rsi.push(100 - (100 / (1 + rs)));
-      } else {
-        rsi.push(50);
+      // RSI
+      let gains = 0;
+      let losses = 0;
+      for (let i = 1; i < data.length; i++) {
+        const diff = data[i].close - data[i - 1].close;
+        if (diff > 0) gains += diff;
+        else losses -= diff;
+
+        if (i >= 14) {
+          const avgGain = gains / 14;
+          const avgLoss = losses / 14;
+          const rs = avgGain / (avgLoss || 1);
+          rsi.push(100 - 100 / (1 + rs));
+        } else {
+          rsi.push(50);
+        }
       }
-    }
 
-    // MACD
-    const ema12 = calculateEMA(prices, 12);
-    const ema26 = calculateEMA(prices, 26);
-    for (let i = 0; i < prices.length; i++) {
-      macd.push(ema12[i] - ema26[i]);
-    }
-    const signalLine = calculateEMA(macd, 9);
-    signal.push(...signalLine);
+      return { sma20, sma50, rsi };
+    },
+    []
+  );
 
-    // Bollinger Bands
-    for (let i = 0; i < prices.length; i++) {
-      if (i < 20) {
-        upperBB.push(0);
-        lowerBB.push(0);
-      } else {
-        const slice = prices.slice(i - 20, i);
-        const mean = slice.reduce((a, b) => a + b) / 20;
-        const stdDev = Math.sqrt(slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / 20);
-        upperBB.push(mean + 2 * stdDev);
-        lowerBB.push(mean - 2 * stdDev);
-      }
-    }
-
-    return { sma20, rsi, macd, signal, upperBB, lowerBB };
-  };
-
-  // Helper function for EMA calculation
-  const calculateEMA = (prices: number[], period: number): number[] => {
-    const k = 2 / (period + 1);
-    const ema: number[] = [prices[0]];
-    for (let i = 1; i < prices.length; i++) {
-      ema.push(prices[i] * k + ema[i - 1] * (1 - k));
-    }
-    return ema;
-  };
-
-  // Fetch live market data from Alpha Vantage
+  // Fetch live market data
   const fetchMarketData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const symbols = ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'];
-      const marketDataPromises = symbols.map(async (symbol) => {
+      const promises = ETF_SYMBOLS.map(async (etf) => {
         const response = await fetch(
-          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
+          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${etf.symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
         );
         const data = await response.json();
         const quote = data['Global Quote'];
-        
+
         if (!quote) {
-          throw new Error(`No data for ${symbol}`);
+          throw new Error(`No data for ${etf.symbol}`);
         }
 
-        return {
-          symbol,
+        const marketData: MarketData = {
+          symbol: etf.symbol,
           price: parseFloat(quote['05. price']),
           change: parseFloat(quote['09. change']),
           changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
           volume: parseInt(quote['06. volume']),
+          high: parseFloat(quote['03. high']),
+          low: parseFloat(quote['04. low'])
         };
+
+        return marketData;
       });
 
-      const liveData = await Promise.all(marketDataPromises);
-      setMarketData(liveData);
+      const results = await Promise.all(promises);
+      const dataMap: Record<string, MarketData> = {};
+      results.forEach((result) => {
+        dataMap[result.symbol] = result;
+      });
+
+      setEtfData(dataMap);
 
       // Save to Supabase
-      await supabase.from('market_data')
-        .upsert(liveData.map(item => ({
+      await supabase.from('market_data').upsert(
+        results.map((item) => ({
           symbol: item.symbol,
           price: item.price,
           change: item.change,
           change_percent: item.changePercent,
           volume: item.volume,
+          high: item.high,
+          low: item.low,
           updated_at: new Date().toISOString()
-        })));
+        }))
+      );
     } catch (err) {
       console.error('Error fetching market data:', err);
       setError('Failed to fetch market data from Alpha Vantage');
       toast({
-        title: "Data Error",
-        description: "Unable to fetch live market data. Please try again later.",
-        variant: "destructive",
+        title: 'Data Error',
+        description: 'Unable to fetch live market data. Please try again later.',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -177,109 +528,127 @@ const MarketTrends = () => {
   }, [toast]);
 
   // Fetch historical chart data
-  const fetchChartData = useCallback(async (symbol: string, timeframe: keyof typeof TIMEFRAMES) => {
-    try {
-      const endpoint = TIMEFRAMES[timeframe];
-      const response = await fetch(
-        `https://www.alphavantage.co/query?function=${endpoint}&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
-      );
-      const data = await response.json();
-      
-      let timeSeriesKey: string;
-      switch (timeframe) {
-        case 'hourly':
-          timeSeriesKey = 'Time Series (60min)';
-          break;
-        case 'daily':
-          timeSeriesKey = 'Time Series (Daily)';
-          break;
-        case 'weekly':
-          timeSeriesKey = 'Weekly Time Series';
-          break;
-        default:
-          timeSeriesKey = 'Monthly Time Series';
-      }
+  const fetchChartData = useCallback(
+    async (symbol: string, timeframe: string) => {
+      try {
+        const tf = TIMEFRAMES.find((t) => t.key === timeframe);
+        if (!tf) return;
 
-      const timeSeries = data[timeSeriesKey];
-      if (!timeSeries) {
-        throw new Error('No time series data available');
-      }
+        const response = await fetch(
+          `https://www.alphavantage.co/query?function=${tf.endpoint}&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
+        );
+        const data = await response.json();
 
-      const prices = Object.entries(timeSeries).map(([date, values]: [string, any]) => ({
-        date,
-        price: parseFloat(values['4. close']),
-        volume: parseInt(values['5. volume'] || '0')
-      }));
+        let timeSeriesKey: string;
+        switch (timeframe) {
+          case '5min':
+          case '15min':
+          case '30min':
+          case '60min':
+            timeSeriesKey = `Time Series (${timeframe.replace('min', 'min')})`;
+            break;
+          case 'daily':
+            timeSeriesKey = 'Time Series (Daily)';
+            break;
+          case 'weekly':
+            timeSeriesKey = 'Weekly Time Series';
+            break;
+          default:
+            timeSeriesKey = 'Monthly Time Series';
+        }
 
-      // Calculate indicators
-      const priceValues = prices.map(p => p.price);
-      const { sma20, rsi, macd, signal, upperBB, lowerBB } = calculateIndicators(priceValues);
+        const timeSeries = data[timeSeriesKey];
+        if (!timeSeries) {
+          throw new Error('No time series data available');
+        }
 
-      const transformedChartData: ChartData[] = prices.map((item, index) => ({
-        date: item.date,
-        price: item.price,
-        volume: item.volume,
-        sma20: sma20[index],
-        rsi: rsi[index],
-        macd: macd[index],
-        signal: signal[index],
-        upperBB: upperBB[index],
-        lowerBB: lowerBB[index]
-      }));
+        const prices = Object.entries(timeSeries)
+          .map(([date, values]: [string, any]) => ({
+            date,
+            open: parseFloat(values['1. open']),
+            high: parseFloat(values['2. high']),
+            low: parseFloat(values['3. low']),
+            close: parseFloat(values['4. close']),
+            volume: parseInt(values['5. volume'] || '0')
+          }))
+          .slice(0, tf.days); // Limit to timeframe duration
 
-      // For yearly view, aggregate monthly data
-      if (timeframe === 'yearly') {
-        const yearlyData: ChartData[] = [];
-        const years = new Set(transformedChartData.map(d => new Date(d.date).getFullYear()));
-        
-        years.forEach(year => {
-          const yearData = transformedChartData.filter(d => new Date(d.date).getFullYear() === year);
-          if (yearData.length > 0) {
-            const avgPrice = yearData.reduce((sum, d) => sum + d.price, 0) / yearData.length;
-            const avgVolume = yearData.reduce((sum, d) => sum + d.volume, 0) / yearData.length;
-            yearlyData.push({
-              date: year.toString(),
-              price: avgPrice,
-              volume: avgVolume,
-              sma20: yearData[yearData.length - 1].sma20,
-              rsi: yearData[yearData.length - 1].rsi,
-              macd: yearData[yearData.length - 1].macd,
-              signal: yearData[yearData.length - 1].signal,
-              upperBB: yearData[yearData.length - 1].upperBB,
-              lowerBB: yearData[yearData.length - 1].lowerBB
-            });
-          }
-        });
-        setChartData(yearlyData);
-      } else {
-        setChartData(transformedChartData.slice(0, 30)); // Limit to recent 30 data points
-      }
+        const { sma20, sma50, rsi } = calculateIndicators(prices);
 
-      // Save to Supabase
-      await supabase.from('price_history').upsert(
-        transformedChartData.map(item => ({
-          symbol,
+        const transformedChartData: ChartData[] = prices.map((item, index) => ({
           date: item.date,
-          price: item.price,
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close,
           volume: item.volume,
-          sma20: item.sma20,
-          rsi: item.rsi,
-          macd: item.macd,
-          signal: item.signal,
-          upperBB: item.upperBB,
-          lowerBB: item.lowerBB
-        }))
-      );
-    } catch (err) {
-      console.error('Error fetching chart data:', err);
-      setError('Failed to fetch chart data');
-      toast({
-        title: "Data Error",
-        description: "Unable to fetch historical chart data. Please try again later.",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
+          sma20: sma20[index],
+          sma50: sma50[index],
+          rsi: rsi[index]
+        }));
+
+        // Aggregate for yearly views
+        if (['1Y', '3Y', '5Y'].includes(timeframe)) {
+          const yearlyData: ChartData[] = [];
+          const years = new Set(
+            transformedChartData.map((d) => new Date(d.date).getFullYear())
+          );
+
+          years.forEach((year) => {
+            const yearData = transformedChartData.filter(
+              (d) => new Date(d.date).getFullYear() === year
+            );
+            if (yearData.length > 0) {
+              const avgOpen = yearData.reduce((sum, d) => sum + d.open, 0) / yearData.length;
+              const avgHigh = yearData.reduce((sum, d) => sum + d.high, 0) / yearData.length;
+              const avgLow = yearData.reduce((sum, d) => sum + d.low, 0) / yearData.length;
+              const avgClose = yearData.reduce((sum, d) => sum + d.close, 0) / yearData.length;
+              const avgVolume = yearData.reduce((sum, d) => sum + d.volume, 0) / yearData.length;
+              yearlyData.push({
+                date: year.toString(),
+                open: avgOpen,
+                high: avgHigh,
+                low: avgLow,
+                close: avgClose,
+                volume: avgVolume,
+                sma20: yearData[yearData.length - 1].sma20,
+                sma50: yearData[yearData.length - 1].sma50,
+                rsi: yearData[yearData.length - 1].rsi
+              });
+            }
+          });
+          setChartData(yearlyData);
+        } else {
+          setChartData(transformedChartData);
+        }
+
+        // Save to Supabase
+        await supabase.from('price_history').upsert(
+          transformedChartData.map((item) => ({
+            symbol,
+            date: item.date,
+            open: item.open,
+            high: item.high,
+            low: item.low,
+            close: item.close,
+            volume: item.volume,
+            sma20: item.sma20,
+            sma50: item.sma50,
+            rsi: item.rsi
+          }))
+        );
+      } catch (err) {
+        console.error('Error fetching chart data:', err);
+        setError('Failed to fetch chart data');
+        toast({
+          title: 'Data Error',
+          description: 'Unable to fetch historical chart data. Please try again later.',
+          variant: 'destructive'
+        });
+      }
+    },
+    [toast, calculateIndicators]
+  );
 
   // Initial data fetch
   useEffect(() => {
@@ -301,27 +670,19 @@ const MarketTrends = () => {
     return () => clearInterval(interval);
   }, [fetchMarketData, fetchChartData, selectedSymbol, selectedTimeframe]);
 
-  const topMovers = marketData
-    .filter(item => item.symbol !== 'VIX')
-    .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
-    .slice(0, 5);
-
-  const marketSentiment = () => {
-    const vixData = marketData.find(item => item.symbol === 'VIX');
-    if (!vixData) return 'neutral';
-    
-    if (vixData.price < 20) return 'bullish';
-    if (vixData.price > 30) return 'bearish';
-    return 'neutral';
-  };
-
-  const sentiment = marketSentiment();
+  // Get unique categories
+  const categories = ['All', ...new Set(ETF_SYMBOLS.map((etf) => etf.category))];
+  const filteredETFs =
+    categories
+      .filter((category) => category !== 'All')
+      .map((category) => ETF_SYMBOLS.filter((etf) => etf.category === category))
+      .flat();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading market data...</p>
         </div>
       </div>
@@ -329,276 +690,143 @@ const MarketTrends = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-100">
       <Header />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Market Trends</h1>
-          <p className="text-gray-600">Real-time market analysis and trading opportunities</p>
-          {error && (
-            <p className="text-sm text-amber-600 mt-1">
-              ⚠️ Live data connection issue
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">ETF Market Overview</h2>
+            <p className="text-gray-600">
+              Last updated: {new Date().toLocaleTimeString()} •{' '}
+              <span className="text-gray-800">● Live Data</span>
             </p>
-          )}
+            {error && (
+              <p className="text-sm text-gray-700 mt-1">⚠️ Live data connection issue</p>
+            )}
+          </div>
+          <div className="flex items-center space-x-4 text-sm text-gray-600">
+            <div className="flex items-center">
+              <Activity className="w-4 h-4 mr-1 text-gray-800" />
+              <span>Powered by Alpha Vantage</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant={sentiment === 'bullish' ? 'default' : sentiment === 'bearish' ? 'destructive' : 'secondary'}>
-            Market Sentiment: {sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}
-          </Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              fetchMarketData();
-              fetchChartData(selectedSymbol, selectedTimeframe);
-            }}
-          >
-            Refresh
-          </Button>
+
+        {/* ETF Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
+          {filteredETFs.map((etf) => (
+            <ETFCard
+              key={etf.symbol}
+              etf={etf}
+              data={etfData[etf.symbol]}
+              onSelect={setSelectedSymbol}
+              isSelected={selectedSymbol === etf.symbol}
+            />
+          ))}
         </div>
-      </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</TabsTrigger>
-          <TabsTrigger value="distribution">Returns Distribution</TabsTrigger>
-          <TabsTrigger value="sectors">Sectors</TabsTrigger>
-        </TabsList>
+        {/* Selected ETF Chart */}
+        <Card className="bg-white border-gray-200">
+          <CardHeader>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div>
+                <CardTitle className="text-xl text-gray-900">
+                  {ETF_SYMBOLS.find((etf) => etf.symbol === selectedSymbol)?.name || selectedSymbol}
+                </CardTitle>
+                <CardDescription className="text-gray-600">
+                  {TIMEFRAMES.find((t) => t.key === selectedTimeframe)?.label} Price Chart
+                </CardDescription>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
+                  <SelectTrigger className="w-full sm:w-[200px] bg-white border-gray-300 text-gray-900">
+                    <SelectValue placeholder="Select ETF" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-gray-300">
+                    {categories.map((category) => (
+                      <div key={category}>
+                        {category !== 'All' && (
+                          <div className="px-2 py-1 text-xs font-semibold text-gray-500">
+                            {category}
+                          </div>
+                        )}
+                        {ETF_SYMBOLS.filter(
+                          (etf) => category === 'All' || etf.category === category
+                        ).map((etf) => (
+                          <SelectItem
+                            key={etf.symbol}
+                            value={etf.symbol}
+                            className="text-gray-900"
+                          >
+                            {etf.symbol} - {etf.name}
+                          </SelectItem>
+                        ))}
+                      </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
+                  <SelectTrigger className="w-full sm:w-[120px] bg-white border-gray-300 text-gray-900">
+                    <SelectValue placeholder="Timeframe" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-gray-300">
+                    {TIMEFRAMES.map((tf) => (
+                      <SelectItem key={tf.key} value={tf.key} className="text-gray-900">
+                        {tf.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={chartType} onValueChange={setChartType}>
+                  <SelectTrigger className="w-full sm:w-[120px] bg-white border-gray-300 text-gray-900">
+                    <SelectValue placeholder="Chart Type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-gray-300">
+                    {CHART_TYPES.map((type) => (
+                      <SelectItem key={type} value={type} className="text-gray-900">
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ChartComponent symbol={selectedSymbol} data={chartData} chartType={chartType} />
+          </CardContent>
+        </Card>
 
-        <TabsContent value="overview" className="space-y-6">
-          {/* Market Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {marketData.slice(0, 4).map((item) => (
-              <Card key={item.symbol} className="hover:shadow-md transition-shadow cursor-pointer">
+        {/* Market Summary Stats */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {categories.slice(1, 5).map((category) => {
+            const categoryETFs = ETF_SYMBOLS.filter((etf) => etf.category === category);
+            const avgChange =
+              categoryETFs.reduce((sum, etf) => {
+                const data = etfData[etf.symbol];
+                return sum + (data ? data.changePercent : 0);
+              }, 0) / categoryETFs.length;
+
+            return (
+              <Card key={category} className="bg-white border-gray-200">
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{item.symbol}</CardTitle>
-                    {item.changePercent > 0 ? (
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-red-600" />
-                    )}
-                  </div>
+                  <CardTitle className="text-base text-gray-900">{category}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-1">
-                    <p className="text-2xl font-bold">${item.price.toFixed(2)}</p>
-                    <p className={`text-sm ${item.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {item.change > 0 ? '+' : ''}{item.change.toFixed(2)} ({item.changePercent > 0 ? '+' : ''}{item.changePercent.toFixed(2)}%)
-                    </p>
-                    {item.volume > 0 && (
-                      <p className="text-xs text-gray-500">
-                        Vol: {(item.volume / 1000000).toFixed(1)}M
-                      </p>
-                    )}
+                  <div
+                    className={`text-2xl font-bold ${
+                      avgChange >= 0 ? 'text-gray-700' : 'text-gray-800'
+                    }`}
+                  >
+                    {avgChange >= 0 ? '+' : ''}{avgChange.toFixed(2)}%
                   </div>
+                  <p className="text-xs text-gray-500">{categoryETFs.length} ETFs</p>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-
-          {/* Top Movers */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Activity className="h-5 w-5 mr-2" />
-                Top Movers
-              </CardTitle>
-              <CardDescription>Stocks with the highest volatility today</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {topMovers.map((item) => (
-                  <div key={item.symbol} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <span className="font-medium">{item.symbol}</span>
-                      <span className="text-lg font-bold">${item.price.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {item.changePercent > 0 ? (
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-red-600" />
-                      )}
-                      <span className={`font-medium ${item.changePercent > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {item.changePercent > 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Market Chart */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Market Chart - {selectedSymbol}</CardTitle>
-                  <CardDescription>{selectedTimeframe.charAt(0).toUpperCase() + selectedTimeframe.slice(1)} price movement</CardDescription>
-                </div>
-                <div className="flex space-x-2">
-                  {['SPY', 'QQQ', 'IWM'].map((symbol) => (
-                    <Button
-                      key={symbol}
-                      variant={selectedSymbol === symbol ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedSymbol(symbol)}
-                    >
-                      {symbol}
-                    </Button>
-                  ))}
-                  {['hourly', 'daily', 'weekly', 'monthly', 'yearly'].map((tf) => (
-                    <Button
-                      key={tf}
-                      variant={selectedTimeframe === tf ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedTimeframe(tf as keyof typeof TIMEFRAMES)}
-                    >
-                      {tf.charAt(0).toUpperCase() + tf.slice(1)}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} />
-                    <Tooltip />
-                    <Line yAxisId="left" type="monotone" dataKey="price" stroke="#8884d8" name="Price" />
-                    <Line yAxisId="left" type="monotone" dataKey="sma20" stroke="#82ca9d" name="SMA20" />
-                    <Line yAxisId="left" type="monotone" dataKey="upperBB" stroke="#ff7300" name="Upper BB" strokeDasharray="3 3" />
-                    <Line yAxisId="left" type="monotone" dataKey="lowerBB" stroke="#ff7300" name="Lower BB" strokeDasharray="3 3" />
-                    <Line yAxisId="right" type="monotone" dataKey="rsi" stroke="#ff0000" name="RSI" />
-                    <Line yAxisId="left" type="monotone" dataKey="macd" stroke="#00ff00" name="MACD" />
-                    <Line yAxisId="left" type="monotone" dataKey="signal" stroke="#0000ff" name="Signal" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analysis">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Target className="h-5 w-5 mr-2" />
-                  Technical Indicators
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span>RSI (14)</span>
-                    <Badge variant="secondary">
-                      {chartData.length > 0 ? chartData[chartData.length - 1].rsi.toFixed(1) : 'N/A'}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>MACD</span>
-                    <Badge variant={chartData.length > 0 && chartData[chartData.length - 1].macd > chartData[chartData.length - 1].signal ? 'default' : 'destructive'}>
-                      {chartData.length > 0 ? (chartData[chartData.length - 1].macd > chartData[chartData.length - 1].signal ? 'Bullish' : 'Bearish') : 'N/A'}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Moving Average (20)</span>
-                    <Badge variant="secondary">
-                      ${chartData.length > 0 ? chartData[chartData.length - 1].sma20.toFixed(2) : 'N/A'}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Upper Bollinger Band</span>
-                    <Badge variant="outline">
-                      ${chartData.length > 0 ? chartData[chartData.length - 1].upperBB.toFixed(2) : 'N/A'}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Lower Bollinger Band</span>
-                    <Badge variant="outline">
-                      ${chartData.length > 0 ? chartData[chartData.length - 1].lowerBB.toFixed(2) : 'N/A'}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <AlertTriangle className="h-5 w-5 mr-2" />
-                  Market Alerts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {chartData.length > 0 && (
-                    <>
-                      {chartData[chartData.length - 1].volume > chartData.slice(-10, -1).reduce((a, b) => a + b.volume, 0) / 9 * 1.5 && (
-                        <div className="p-3 border-l-4 border-yellow-500 bg-yellow-50">
-                          <p className="font-medium">Volume Spike</p>
-                          <p className="text-sm text-gray-600">{selectedSymbol} volume significantly above average</p>
-                        </div>
-                      )}
-                      {chartData[chartData.length - 1].price > chartData[chartData.length - 1].upperBB && (
-                        <div className="p-3 border-l-4 border-green-500 bg-green-50">
-                          <p className="font-medium">Breakout Alert</p>
-                          <p className="text-sm text-gray-600">{selectedSymbol} broke above upper Bollinger Band</p>
-                        </div>
-                      )}
-                      {chartData[chartData.length - 1].price < chartData[chartData.length - 1].lowerBB && (
-                        <div className="p-3 border-l-4 border-red-500 bg-red-50">
-                          <p className="font-medium">Support Test</p>
-                          <p className="text-sm text-gray-600">{selectedSymbol} testing lower Bollinger Band</p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="distribution">
-          <SpyReturnsDistribution />
-        </TabsContent>
-
-        <TabsContent value="sectors">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sector Performance</CardTitle>
-              <CardDescription>Today's sector rotation and performance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={[
-                    { sector: 'Technology', performance: marketData.find(d => d.symbol === 'QQQ')?.changePercent || 0 },
-                    { sector: 'Broad Market', performance: marketData.find(d => d.symbol === 'SPY')?.changePercent || 0 },
-                    { sector: 'Small Caps', performance: marketData.find(d => d.symbol === 'IWM')?.changePercent || 0 },
-                    { sector: 'Commodities', performance: marketData.find(d => d.symbol === 'GLD')?.changePercent || 0 },
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="sector" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="performance" fill="#3B82F6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };
