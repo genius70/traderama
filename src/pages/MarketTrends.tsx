@@ -38,7 +38,7 @@ const TIMEFRAMES = {
   daily: 'TIME_SERIES_DAILY',
   weekly: 'TIME_SERIES_WEEKLY',
   monthly: 'TIME_SERIES_MONTHLY',
-  yearly: 'TIME_SERIES_MONTHLY' // Processed to show yearly trends
+  yearly: 'TIME_SERIES_MONTHLY'
 };
 
 const MarketTrends = () => {
@@ -50,7 +50,6 @@ const MarketTrends = () => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<keyof typeof TIMEFRAMES>('daily');
   const { toast } = useToast();
 
-  // Calculate technical indicators
   const calculateIndicators = (prices: number[]): { sma20: number[], rsi: number[], macd: number[], signal: number[], upperBB: number[], lowerBB: number[] } => {
     const sma20: number[] = [];
     const rsi: number[] = [];
@@ -59,7 +58,6 @@ const MarketTrends = () => {
     const upperBB: number[] = [];
     const lowerBB: number[] = [];
 
-    // SMA20
     for (let i = 0; i < prices.length; i++) {
       if (i < 20) {
         sma20.push(0);
@@ -69,7 +67,6 @@ const MarketTrends = () => {
       }
     }
 
-    // RSI
     let gains = 0;
     let losses = 0;
     for (let i = 1; i < prices.length; i++) {
@@ -87,7 +84,6 @@ const MarketTrends = () => {
       }
     }
 
-    // MACD
     const ema12 = calculateEMA(prices, 12);
     const ema26 = calculateEMA(prices, 26);
     for (let i = 0; i < prices.length; i++) {
@@ -96,7 +92,6 @@ const MarketTrends = () => {
     const signalLine = calculateEMA(macd, 9);
     signal.push(...signalLine);
 
-    // Bollinger Bands
     for (let i = 0; i < prices.length; i++) {
       if (i < 20) {
         upperBB.push(0);
@@ -113,7 +108,6 @@ const MarketTrends = () => {
     return { sma20, rsi, macd, signal, upperBB, lowerBB };
   };
 
-  // Helper function for EMA calculation
   const calculateEMA = (prices: number[], period: number): number[] => {
     const k = 2 / (period + 1);
     const ema: number[] = [prices[0]];
@@ -123,30 +117,32 @@ const MarketTrends = () => {
     return ema;
   };
 
-  // Fetch live market data from Alpha Vantage
   const fetchMarketData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const symbols = ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'];
-      const marketDataPromises = symbols.map(async (symbol) => {
+      const marketDataPromises = symbols.map(async (symbol, index) => {
+        // Add delay to avoid rate limits (200ms between requests)
+        await new Promise(resolve => setTimeout(resolve, index * 200));
         const response = await fetch(
           `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
         );
         const data = await response.json();
-        const quote = data['Global Quote'];
-        
-        if (!quote) {
-          throw new Error(`No data for ${symbol}`);
+
+        // Check for API errors
+        if (data['Error Message'] || data['Note'] || !data['Global Quote']) {
+          throw new Error(`API error for ${symbol}: ${data['Error Message'] || data['Note'] || 'No quote data'}`);
         }
 
+        const quote = data['Global Quote'];
         return {
           symbol,
-          price: parseFloat(quote['05. price']),
-          change: parseFloat(quote['09. change']),
-          changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
-          volume: parseInt(quote['06. volume']),
+          price: parseFloat(quote['05. price'] || '0') || 0,
+          change: parseFloat(quote['09. change'] || '0') || 0,
+          changePercent: parseFloat(quote['10. change percent']?.replace('%', '') || '0') || 0,
+          volume: parseInt(quote['06. volume'] || '0') || 0,
         };
       });
 
@@ -165,10 +161,11 @@ const MarketTrends = () => {
         })));
     } catch (err) {
       console.error('Error fetching market data:', err);
-      setError('Failed to fetch market data from Alpha Vantage');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch market data from Alpha Vantage';
+      setError(errorMessage);
       toast({
         title: "Data Error",
-        description: "Unable to fetch live market data. Please try again later.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -176,7 +173,6 @@ const MarketTrends = () => {
     }
   }, [toast]);
 
-  // Fetch historical chart data
   const fetchChartData = useCallback(async (symbol: string, timeframe: keyof typeof TIMEFRAMES) => {
     try {
       const endpoint = TIMEFRAMES[timeframe];
@@ -184,7 +180,12 @@ const MarketTrends = () => {
         `https://www.alphavantage.co/query?function=${endpoint}&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
       );
       const data = await response.json();
-      
+
+      // Check for API errors
+      if (data['Error Message'] || data['Note']) {
+        throw new Error(`API error for ${symbol}: ${data['Error Message'] || data['Note'] || 'No time series data'}`);
+      }
+
       let timeSeriesKey: string;
       switch (timeframe) {
         case 'hourly':
@@ -207,8 +208,8 @@ const MarketTrends = () => {
 
       const prices = Object.entries(timeSeries).map(([date, values]: [string, any]) => ({
         date,
-        price: parseFloat(values['4. close']),
-        volume: parseInt(values['5. volume'] || '0')
+        price: parseFloat(values['4. close'] || '0') || 0,
+        volume: parseInt(values['5. volume'] || '0') || 0
       }));
 
       // Calculate indicators
@@ -227,7 +228,6 @@ const MarketTrends = () => {
         lowerBB: lowerBB[index]
       }));
 
-      // For yearly view, aggregate monthly data
       if (timeframe === 'yearly') {
         const yearlyData: ChartData[] = [];
         const years = new Set(transformedChartData.map(d => new Date(d.date).getFullYear()));
@@ -252,7 +252,7 @@ const MarketTrends = () => {
         });
         setChartData(yearlyData);
       } else {
-        setChartData(transformedChartData.slice(0, 30)); // Limit to recent 30 data points
+        setChartData(transformedChartData.slice(0, 30));
       }
 
       // Save to Supabase
@@ -272,31 +272,29 @@ const MarketTrends = () => {
       );
     } catch (err) {
       console.error('Error fetching chart data:', err);
-      setError('Failed to fetch chart data');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chart data';
+      setError(errorMessage);
       toast({
         title: "Data Error",
-        description: "Unable to fetch historical chart data. Please try again later.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
   }, [toast]);
 
-  // Initial data fetch
   useEffect(() => {
     fetchMarketData();
   }, [fetchMarketData]);
 
-  // Fetch chart data when symbol or timeframe changes
   useEffect(() => {
     fetchChartData(selectedSymbol, selectedTimeframe);
   }, [selectedSymbol, selectedTimeframe, fetchChartData]);
 
-  // Auto-refresh data every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       fetchMarketData();
       fetchChartData(selectedSymbol, selectedTimeframe);
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, [fetchMarketData, fetchChartData, selectedSymbol, selectedTimeframe]);
@@ -337,7 +335,7 @@ const MarketTrends = () => {
           <p className="text-gray-600">Real-time market analysis and trading opportunities</p>
           {error && (
             <p className="text-sm text-amber-600 mt-1">
-              ⚠️ Live data connection issue
+              ⚠️ {error}
             </p>
           )}
         </div>
@@ -367,7 +365,6 @@ const MarketTrends = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Market Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {marketData.slice(0, 4).map((item) => (
               <Card key={item.symbol} className="hover:shadow-md transition-shadow cursor-pointer">
@@ -398,7 +395,6 @@ const MarketTrends = () => {
             ))}
           </div>
 
-          {/* Top Movers */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -431,7 +427,6 @@ const MarketTrends = () => {
             </CardContent>
           </Card>
 
-          {/* Market Chart */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
