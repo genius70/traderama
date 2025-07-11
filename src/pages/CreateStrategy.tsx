@@ -17,11 +17,11 @@ import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector'
 import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
 import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
 import StrategyPreview from '@/components/trading/StrategyPreview';
-import LiveOptionsChainModal from '@/utils/LiveOptionsChainModal'; // New import
 import { optimizeStrategy } from '@/utils/GeneticOptimizationEngine';
-import { deployStrategyToBroker, fetchOptionsChainMetadata, IGAuthTokens } from '@/utils/igTradingAPI';
+import { deployStrategyToBroker, fetchOptionsChain, fetchOptionsChainMetadata, IGAuthTokens } from '@/utils/igTradingAPI';
+import { Badge } from '@/components/ui/badge';
+import { Search } from 'lucide-react';
 
-// Define interfaces for type safety
 interface StrategyCondition {
   id: string;
   type: 'entry' | 'exit';
@@ -35,17 +35,17 @@ interface TradingLeg {
   id: string;
   strike: string;
   type: 'Call' | 'Put';
-  expiration: string; // e.g., '2025-08-15'
+  expiration: string;
   buySell: 'Buy' | 'Sell';
   size: number;
   price: string;
-  underlying: string; // e.g., 'SPY'
-  epic: string; // IG's market identifier
-  volume?: number; // Added from LiveOptionContract
-  openInterest?: number; // Added from LiveOptionContract
-  impliedVolatility?: number; // Added from LiveOptionContract
-  delta?: number; // Added from LiveOptionContract
-  percentChange?: number; // Added from LiveOptionContract
+  underlying: string; // Added for live data
+  epic: string; // Added for live data
+  volume?: number; // Optional fields for live data
+  openInterest?: number;
+  impliedVolatility?: number;
+  delta?: number;
+  percentChange?: number;
 }
 
 interface StrategyTemplate {
@@ -75,6 +75,21 @@ interface OptimizationResult {
   };
 }
 
+interface LiveOptionContract {
+  epic: string;
+  strike: number;
+  type: 'Call' | 'Put';
+  bid: number;
+  ask: number;
+  volume: number;
+  openInterest: number;
+  impliedVolatility: number;
+  delta: number;
+  percentChange: number;
+  expiration: string;
+  underlying: string;
+}
+
 const CreateStrategy = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -91,13 +106,13 @@ const CreateStrategy = () => {
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [backtestResults, setBacktestResults] = useState<BacktestResult[]>([]);
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false); // State for modal
-  const [selectedSymbol, setSelectedSymbol] = useState<string>(''); // State for symbol
-  const [availableUnderlyings, setAvailableUnderlyings] = useState<string[]>([]);
-  const [availableExpirations, setAvailableExpirations] = useState<string[]>([]);
-  const [selectedExpiry, setSelectedExpiry] = useState<string>('');
+  const [symbol] = useState<string>('SPY'); // Default symbol
+  const [expiry, setExpiry] = useState<string>(''); // Set after fetching
+  const [contracts, setContracts] = useState<LiveOptionContract[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [searchStrike, setSearchStrike] = useState<string>('');
+  const [authTokens, setAuthTokens] = useState<IGAuthTokens | null>(null);
 
-  // Expanded list of indicators for data-driven approach
   const indicators = [
     'RSI',
     'MACD',
@@ -106,38 +121,66 @@ const CreateStrategy = () => {
     'Stochastic',
     'Volume',
     'Price Action',
-    'VWAP',
-    'ATR',
-    'Ichimoku Cloud',
   ];
 
   const operators = ['>', '<', '>=', '<=', '=', 'crosses above', 'crosses below'];
-  const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
+  const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
-  // Fetch underlyings and expirations on mount
+  // Authenticate with IG API
   useEffect(() => {
-    const fetchMetadata = async () => {
+    const authenticate = async () => {
       try {
-        const auth: IGAuthTokens = await supabase.functions.invoke('get-auth-tokens', {
+        const tokens = await supabase.functions.invoke('get-auth-tokens', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${user?.id}` },
         });
-        const { underlyings, expirations } = await fetchOptionsChainMetadata(auth);
-        setAvailableUnderlyings(underlyings);
-        setAvailableExpirations(expirations);
-        if (underlyings.length > 0) setSelectedSymbol(underlyings[0]);
-        if (expirations.length > 0) setSelectedExpiry(expirations[0]);
-      } catch (error) {
-        console.error('Error fetching metadata:', error);
+        setAuthTokens(tokens);
+      } catch (err) {
         toast({
-          title: 'Error fetching options metadata',
-          description: 'Unable to load underlyings or expirations.',
+          title: 'Authentication Error',
+          description: 'Unable to authenticate with the broker.',
           variant: 'destructive',
         });
       }
     };
-    if (user) fetchMetadata();
+    if (user) authenticate();
   }, [user, toast]);
+
+  // Fetch default expiry and options chain
+  useEffect(() => {
+    const fetchMetadataAndContracts = async () => {
+      if (!authTokens || !user) return;
+      try {
+        setLoading(true);
+        const { expirations } = await fetchOptionsChainMetadata(authTokens);
+        if (expirations.length > 0) {
+          setExpiry(expirations[0]); // Set nearest expiry
+        }
+
+        const data = await fetchOptionsChain({ auth: authTokens, underlying: symbol, expiration: expirations[0] });
+        // Map IG API data to LiveOptionContract, adding mock Greeks
+        const enrichedData = data.map((contract) => ({
+          ...contract,
+          volume: Math.floor(Math.random() * 1000), // Mock volume
+          openInterest: Math.floor(Math.random() * 500), // Mock open interest
+          impliedVolatility: Math.random() * 0.5, // Mock IV
+          delta: Math.random() * (contract.type === 'Call' ? 1 : -1), // Mock delta
+          percentChange: (Math.random() - 0.5) * 10, // Mock percent change
+        }));
+        setContracts(enrichedData);
+      } catch (error) {
+        console.error('Error fetching options data:', error);
+        toast({
+          title: 'Error fetching options data',
+          description: 'Unable to load options chain.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (authTokens && user) fetchMetadataAndContracts();
+  }, [authTokens, user, symbol, toast]);
 
   // Fetch backtest results from broker
   const fetchBacktestResults = async (strategyId: string) => {
@@ -179,7 +222,7 @@ const CreateStrategy = () => {
     setConditions(conditions.filter((condition) => condition.id !== id));
   };
 
-  // Handle template selection from StrategyMarketplace
+  // Handle template selection
   const handleTemplateSelect = (option: StrategyTemplate) => {
     setStrategyName(option.name);
     setCategory('Options Trading');
@@ -220,7 +263,6 @@ const CreateStrategy = () => {
       });
       return false;
     }
-    // Validate condition values
     for (const condition of conditions) {
       if (!condition.indicator || !condition.operator || !condition.value || !condition.timeframe) {
         toast({
@@ -239,7 +281,6 @@ const CreateStrategy = () => {
         return false;
       }
     }
-    // Validate legs
     for (const leg of legs) {
       if (!leg.strike || !leg.type || !leg.expiration || !leg.buySell || !leg.price || leg.size <= 0 || !leg.underlying || !leg.epic) {
         toast({
@@ -293,12 +334,10 @@ const CreateStrategy = () => {
         description: `Strategy ${strategyName} saved as draft.`,
       });
 
-      // Fetch backtest results for the saved strategy
       if (data?.id) {
         await fetchBacktestResults(data.id);
       }
 
-      // Reset form
       setStrategyName('');
       setDescription('');
       setCategory('');
@@ -344,7 +383,6 @@ const CreateStrategy = () => {
         description: `Strategy ${strategyName} deployed to broker.`,
       });
 
-      // Fetch backtest results after deployment
       await fetchBacktestResults(response.strategyId);
     } catch (error) {
       console.error('Error deploying strategy:', error);
@@ -395,18 +433,11 @@ const CreateStrategy = () => {
     }
   };
 
-  // Open modal for selecting options chain
-  const openOptionsChainModal = () => {
-    if (!selectedSymbol || !selectedExpiry) {
-      toast({
-        title: 'Selection required',
-        description: 'Please select an underlying asset and expiration date.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setIsModalOpen(true);
-  };
+  const filteredContracts = contracts.filter((contract) =>
+    !searchStrike || contract.strike.toString().includes(searchStrike)
+  );
+  const callContracts = filteredContracts.filter((c) => c.type === 'Call');
+  const putContracts = filteredContracts.filter((c) => c.type === 'Put');
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -447,8 +478,8 @@ const CreateStrategy = () => {
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="chain">Options Chain</TabsTrigger>
             <TabsTrigger value="legs">Options Legs</TabsTrigger>
+            <TabsTrigger value="chain">Options Chain</TabsTrigger>
             <TabsTrigger value="conditions">Conditions</TabsTrigger>
             <TabsTrigger value="optimization">Optimization</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -469,79 +500,166 @@ const CreateStrategy = () => {
             />
           </TabsContent>
 
-          <TabsContent value="chain">
-            <Card>
-              <CardHeader>
-                <CardTitle>Options Chain</CardTitle>
-                <CardDescription>Select an underlying asset and expiration to view available contracts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Underlying Asset</Label>
-                      <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select underlying" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableUnderlyings.map((asset) => (
-                            <SelectItem key={asset} value={asset}>{asset}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Expiration Date</Label>
-                      <Select value={selectedExpiry} onValueChange={setSelectedExpiry}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select expiration" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableExpirations.map((exp) => (
-                            <SelectItem key={exp} value={exp}>{exp}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <Button onClick={openOptionsChainModal}>View Options Chain</Button>
-                  <LiveOptionsChainModal
-                    isOpen={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
-                    symbol={selectedSymbol}
-                    onSelectContract={(contract) => {
-                      const newLeg: TradingLeg = {
-                        id: Date.now().toString(),
-                        strike: contract.strike.toString(),
-                        type: contract.type,
-                        expiration: selectedExpiry,
-                        buySell: 'Buy',
-                        size: 1,
-                        price: contract.ask.toFixed(2),
-                        underlying: selectedSymbol,
-                        epic: contract.epic,
-                        volume: contract.volume,
-                        openInterest: contract.openInterest,
-                        impliedVolatility: contract.impliedVolatility,
-                        delta: contract.delta,
-                        percentChange: contract.percentChange,
-                      };
-                      setLegs([...legs, newLeg]);
-                      setIsModalOpen(false); // Close modal after selection
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="legs">
             <EnhancedTradingTemplate
               strategyName={strategyName || 'Strategy'}
               legs={legs}
               onLegsChange={setLegs}
             />
+          </TabsContent>
+
+          <TabsContent value="chain">
+            <Card>
+              <CardHeader>
+                <CardTitle>Options Chain - {symbol}</CardTitle>
+                <CardDescription>Select an options contract to add to your strategy</CardDescription>
+              </CardHeader>
+              <CardContent className="overflow-auto">
+                <div className="flex gap-4 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    <Input
+                      placeholder="Filter by strike..."
+                      value={searchStrike}
+                      onChange={(e) => setSearchStrike(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                </div>
+
+                {loading ? (
+                  <div className="text-center py-8">Loading options chain...</div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Calls */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 text-green-600">Calls</h3>
+                      <div className="space-y-2">
+                        {callContracts.map((contract, idx) => (
+                          <div
+                            key={`call-${idx}`}
+                            className="p-3 border rounded-lg flex justify-between items-center hover:bg-gray-50 transition-colors"
+                          >
+                            <div>
+                              <span className="font-medium">${contract.strike}</span>
+                              <Badge variant="outline" className="ml-2">Call</Badge>
+                              <div className="text-xs text-gray-600 mt-2">
+                                <span>IV: {(contract.impliedVolatility * 100).toFixed(1)}%</span>
+                                <span className="ml-2">Δ: {contract.delta.toFixed(3)}</span>
+                                <span
+                                  className={
+                                    contract.percentChange >= 0 ? 'text-green-600 ml-2' : 'text-red-600 ml-2'
+                                  }
+                                >
+                                  {contract.percentChange >= 0 ? '+' : ''}{contract.percentChange.toFixed(2)}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right flex items-center gap-2">
+                              <div>
+                                <div className="text-sm">
+                                  Bid: ${contract.bid.toFixed(2)} | Ask: ${contract.ask.toFixed(2)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Vol: {contract.volume} | OI: {contract.openInterest}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const newLeg: TradingLeg = {
+                                    id: Date.now().toString(),
+                                    strike: contract.strike.toString(),
+                                    type: contract.type,
+                                    expiration: contract.expiration,
+                                    buySell: 'Buy',
+                                    size: 1,
+                                    price: contract.ask.toFixed(2),
+                                    underlying: contract.underlying,
+                                    epic: contract.epic,
+                                    volume: contract.volume,
+                                    openInterest: contract.openInterest,
+                                    impliedVolatility: contract.impliedVolatility,
+                                    delta: contract.delta,
+                                    percentChange: contract.percentChange,
+                                  };
+                                  setLegs([...legs, newLeg]);
+                                }}
+                              >
+                                Select
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Puts */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 text-red-600">Puts</h3>
+                      <div className="space-y-2">
+                        {putContracts.map((contract, idx) => (
+                          <div
+                            key={`put-${idx}`}
+                            className="p-3 border rounded-lg flex justify-between items-center hover:bg-gray-50 transition-colors"
+                          >
+                            <div>
+                              <span className="font-medium">${contract.strike}</span>
+                              <Badge variant="outline" className="ml-2">Put</Badge>
+                              <div className="text-xs text-gray-600 mt-2">
+                                <span>IV: {(contract.impliedVolatility * 100).toFixed(1)}%</span>
+                                <span className="ml-2">Δ: {contract.delta.toFixed(3)}</span>
+                                <span
+                                  className={
+                                    contract.percentChange >= 0 ? 'text-green-600 ml-2' : 'text-red-600 ml-2'
+                                  }
+                                >
+                                  {contract.percentChange >= 0 ? '+' : ''}{contract.percentChange.toFixed(2)}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right flex items-center gap-2">
+                              <div>
+                                <div className="text-sm">
+                                  Bid: ${contract.bid.toFixed(2)} | Ask: ${contract.ask.toFixed(2)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Vol: {contract.volume} | OI: {contract.openInterest}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const newLeg: TradingLeg = {
+                                    id: Date.now().toString(),
+                                    strike: contract.strike.toString(),
+                                    type: contract.type,
+                                    expiration: contract.expiration,
+                                    buySell: 'Buy',
+                                    size: 1,
+                                    price: contract.ask.toFixed(2),
+                                    underlying: contract.underlying,
+                                    epic: contract.epic,
+                                    volume: contract.volume,
+                                    openInterest: contract.openInterest,
+                                    impliedVolatility: contract.impliedVolatility,
+                                    delta: contract.delta,
+                                    percentChange: contract.percentChange,
+                                  };
+                                  setLegs([...legs, newLeg]);
+                                }}
+                              >
+                                Select
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="conditions">
