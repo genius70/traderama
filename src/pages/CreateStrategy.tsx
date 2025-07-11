@@ -39,9 +39,9 @@ interface TradingLeg {
   buySell: 'Buy' | 'Sell';
   size: number;
   price: string;
-  underlying: string; // Added for live data
-  epic: string; // Added for live data
-  volume?: number; // Optional fields for live data
+  underlying: string;
+  epic: string;
+  volume?: number;
   openInterest?: number;
   impliedVolatility?: number;
   delta?: number;
@@ -106,12 +106,14 @@ const CreateStrategy = () => {
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [backtestResults, setBacktestResults] = useState<BacktestResult[]>([]);
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
-  const [symbol] = useState<string>('SPY'); // Default symbol
-  const [expiry, setExpiry] = useState<string>(''); // Set after fetching
+  const [symbol, setSymbol] = useState<string>('SPY'); // Default symbol
+  const [expiry, setExpiry] = useState<string>(''); // Selected expiry
+  const [availableExpirations, setAvailableExpirations] = useState<string[]>([]);
   const [contracts, setContracts] = useState<LiveOptionContract[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchStrike, setSearchStrike] = useState<string>('');
   const [authTokens, setAuthTokens] = useState<IGAuthTokens | null>(null);
+  const [selectedBuySell, setSelectedBuySell] = useState<{ [key: string]: 'Buy' | 'Sell' }>({}); // Buy/Sell per contract
 
   const indicators = [
     'RSI',
@@ -125,6 +127,29 @@ const CreateStrategy = () => {
 
   const operators = ['>', '<', '>=', '<=', '=', 'crosses above', 'crosses below'];
   const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
+  const availableSymbols = ['SPY', 'QQQ', 'VIX', 'GOLD'];
+
+  // Calculate expiration dates (30, 45, 75, 90, 180 days, 1–5 years)
+  const calculateExpirationDates = () => {
+    const today = new Date('2025-07-11');
+    const days = [30, 45, 75, 90, 180];
+    const years = [1, 2, 3, 4, 5];
+    const expirations: string[] = [];
+
+    days.forEach((d) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() + d);
+      expirations.push(date.toISOString().split('T')[0]); // e.g., '2025-08-10'
+    });
+
+    years.forEach((y) => {
+      const date = new Date(today);
+      date.setFullYear(today.getFullYear() + y);
+      expirations.push(date.toISOString().split('T')[0]); // e.g., '2026-07-11'
+    });
+
+    return expirations.sort();
+  };
 
   // Authenticate with IG API
   useEffect(() => {
@@ -146,28 +171,34 @@ const CreateStrategy = () => {
     if (user) authenticate();
   }, [user, toast]);
 
-  // Fetch default expiry and options chain
+  // Fetch expirations and options chain
   useEffect(() => {
     const fetchMetadataAndContracts = async () => {
       if (!authTokens || !user) return;
       try {
         setLoading(true);
         const { expirations } = await fetchOptionsChainMetadata(authTokens);
-        if (expirations.length > 0) {
-          setExpiry(expirations[0]); // Set nearest expiry
+        const targetExpirations = calculateExpirationDates();
+        const filteredExpirations = expirations
+          .filter((exp) => targetExpirations.includes(exp) && new Date(exp) >= new Date('2025-08-10')) // Min 30 days
+          .sort();
+        setAvailableExpirations(filteredExpirations);
+        if (filteredExpirations.length > 0 && !expiry) {
+          setExpiry(filteredExpirations[0]); // Set default to nearest (min 30 days)
         }
 
-        const data = await fetchOptionsChain({ auth: authTokens, underlying: symbol, expiration: expirations[0] });
-        // Map IG API data to LiveOptionContract, adding mock Greeks
-        const enrichedData = data.map((contract) => ({
-          ...contract,
-          volume: Math.floor(Math.random() * 1000), // Mock volume
-          openInterest: Math.floor(Math.random() * 500), // Mock open interest
-          impliedVolatility: Math.random() * 0.5, // Mock IV
-          delta: Math.random() * (contract.type === 'Call' ? 1 : -1), // Mock delta
-          percentChange: (Math.random() - 0.5) * 10, // Mock percent change
-        }));
-        setContracts(enrichedData);
+        if (symbol && expiry) {
+          const data = await fetchOptionsChain({ auth: authTokens, underlying: symbol, expiration: expiry });
+          const enrichedData = data.map((contract) => ({
+            ...contract,
+            volume: Math.floor(Math.random() * 1000), // Mock volume
+            openInterest: Math.floor(Math.random() * 500), // Mock open interest
+            impliedVolatility: Math.random() * 0.5, // Mock IV
+            delta: Math.random() * (contract.type === 'Call' ? 1 : -1), // Mock delta
+            percentChange: (Math.random() - 0.5) * 10, // Mock percent change
+          }));
+          setContracts(enrichedData);
+        }
       } catch (error) {
         console.error('Error fetching options data:', error);
         toast({
@@ -180,7 +211,7 @@ const CreateStrategy = () => {
       }
     };
     if (authTokens && user) fetchMetadataAndContracts();
-  }, [authTokens, user, symbol, toast]);
+  }, [authTokens, user, symbol, expiry, toast]);
 
   // Fetch backtest results from broker
   const fetchBacktestResults = async (strategyId: string) => {
@@ -478,8 +509,8 @@ const CreateStrategy = () => {
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="legs">Options Legs</TabsTrigger>
             <TabsTrigger value="chain">Options Chain</TabsTrigger>
+            <TabsTrigger value="legs">Options Legs</TabsTrigger>
             <TabsTrigger value="conditions">Conditions</TabsTrigger>
             <TabsTrigger value="optimization">Optimization</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -500,14 +531,6 @@ const CreateStrategy = () => {
             />
           </TabsContent>
 
-          <TabsContent value="legs">
-            <EnhancedTradingTemplate
-              strategyName={strategyName || 'Strategy'}
-              legs={legs}
-              onLegsChange={setLegs}
-            />
-          </TabsContent>
-
           <TabsContent value="chain">
             <Card>
               <CardHeader>
@@ -515,6 +538,34 @@ const CreateStrategy = () => {
                 <CardDescription>Select an options contract to add to your strategy</CardDescription>
               </CardHeader>
               <CardContent className="overflow-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <Label>Underlying Asset</Label>
+                    <Select value={symbol} onValueChange={setSymbol}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select underlying" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableSymbols.map((asset) => (
+                          <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Expiration Date</Label>
+                    <Select value={expiry} onValueChange={setExpiry}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select expiration" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableExpirations.map((exp) => (
+                          <SelectItem key={exp} value={exp}>{exp}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="flex gap-4 mb-4">
                   <div className="flex items-center gap-2">
                     <Search className="h-4 w-4" />
@@ -564,6 +615,21 @@ const CreateStrategy = () => {
                                   Vol: {contract.volume} | OI: {contract.openInterest}
                                 </div>
                               </div>
+                              <Select
+                                value={selectedBuySell[contract.epic] || 'Buy'}
+                                onValueChange={(value) => setSelectedBuySell({
+                                  ...selectedBuySell,
+                                  [contract.epic]: value as 'Buy' | 'Sell',
+                                })}
+                              >
+                                <SelectTrigger className="w-24">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Buy">Buy</SelectItem>
+                                  <SelectItem value="Sell">Sell</SelectItem>
+                                </SelectContent>
+                              </Select>
                               <Button
                                 size="sm"
                                 onClick={() => {
@@ -572,7 +638,7 @@ const CreateStrategy = () => {
                                     strike: contract.strike.toString(),
                                     type: contract.type,
                                     expiration: contract.expiration,
-                                    buySell: 'Buy',
+                                    buySell: selectedBuySell[contract.epic] || 'Buy',
                                     size: 1,
                                     price: contract.ask.toFixed(2),
                                     underlying: contract.underlying,
@@ -627,6 +693,21 @@ const CreateStrategy = () => {
                                   Vol: {contract.volume} | OI: {contract.openInterest}
                                 </div>
                               </div>
+                              <Select
+                                value={selectedBuySell[contract.epic] || 'Buy'}
+                                onValueChange={(value) => setSelectedBuySell({
+                                  ...selectedBuySell,
+                                  [contract.epic]: value as 'Buy' | 'Sell',
+                                })}
+                              >
+                                <SelectTrigger className="w-24">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Buy">Buy</SelectItem>
+                                  <SelectItem value="Sell">Sell</SelectItem>
+                                </SelectContent>
+                              </Select>
                               <Button
                                 size="sm"
                                 onClick={() => {
@@ -635,7 +716,7 @@ const CreateStrategy = () => {
                                     strike: contract.strike.toString(),
                                     type: contract.type,
                                     expiration: contract.expiration,
-                                    buySell: 'Buy',
+                                    buySell: selectedBuySell[contract.epic] || 'Buy',
                                     size: 1,
                                     price: contract.ask.toFixed(2),
                                     underlying: contract.underlying,
@@ -660,6 +741,14 @@ const CreateStrategy = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="legs">
+            <EnhancedTradingTemplate
+              strategyName={strategyName || 'Strategy'}
+              legs={legs}
+              onLegsChange={setLegs}
+            />
           </TabsContent>
 
           <TabsContent value="conditions">
