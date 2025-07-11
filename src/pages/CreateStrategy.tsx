@@ -16,10 +16,10 @@ import Header from '@/components/layout/Header';
 import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
 import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
 import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
-import LiveOptionsChain from '@/components/trading/LiveOptionsChain'; // Replaced MockOptionsChain
 import StrategyPreview from '@/components/trading/StrategyPreview';
+import LiveOptionsChainModal from '@/components/trading/LiveOptionsChainModal'; // New import
 import { optimizeStrategy } from '@/utils/GeneticOptimizationEngine';
-import { deployStrategyToBroker } from '@/utils/igTradingAPI';
+import { deployStrategyToBroker, fetchOptionsChainMetadata, IGAuthTokens } from '@/utils/igTradingAPI';
 
 // Define interfaces for type safety
 interface StrategyCondition {
@@ -41,6 +41,11 @@ interface TradingLeg {
   price: string;
   underlying: string; // e.g., 'SPY'
   epic: string; // IG's market identifier
+  volume?: number; // Added from LiveOptionContract
+  openInterest?: number; // Added from LiveOptionContract
+  impliedVolatility?: number; // Added from LiveOptionContract
+  delta?: number; // Added from LiveOptionContract
+  percentChange?: number; // Added from LiveOptionContract
 }
 
 interface StrategyTemplate {
@@ -86,6 +91,11 @@ const CreateStrategy = () => {
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [backtestResults, setBacktestResults] = useState<BacktestResult[]>([]);
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false); // State for modal
+  const [selectedSymbol, setSelectedSymbol] = useState<string>(''); // State for symbol
+  const [availableUnderlyings, setAvailableUnderlyings] = useState<string[]>([]);
+  const [availableExpirations, setAvailableExpirations] = useState<string[]>([]);
+  const [selectedExpiry, setSelectedExpiry] = useState<string>('');
 
   // Expanded list of indicators for data-driven approach
   const indicators = [
@@ -103,6 +113,31 @@ const CreateStrategy = () => {
 
   const operators = ['>', '<', '>=', '<=', '=', 'crosses above', 'crosses below'];
   const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
+
+  // Fetch underlyings and expirations on mount
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const auth: IGAuthTokens = await supabase.functions.invoke('get-auth-tokens', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${user?.id}` },
+        });
+        const { underlyings, expirations } = await fetchOptionsChainMetadata(auth);
+        setAvailableUnderlyings(underlyings);
+        setAvailableExpirations(expirations);
+        if (underlyings.length > 0) setSelectedSymbol(underlyings[0]);
+        if (expirations.length > 0) setSelectedExpiry(expirations[0]);
+      } catch (error) {
+        console.error('Error fetching metadata:', error);
+        toast({
+          title: 'Error fetching options metadata',
+          description: 'Unable to load underlyings or expirations.',
+          variant: 'destructive',
+        });
+      }
+    };
+    if (user) fetchMetadata();
+  }, [user, toast]);
 
   // Fetch backtest results from broker
   const fetchBacktestResults = async (strategyId: string) => {
@@ -360,6 +395,19 @@ const CreateStrategy = () => {
     }
   };
 
+  // Open modal for selecting options chain
+  const openOptionsChainModal = () => {
+    if (!selectedSymbol || !selectedExpiry) {
+      toast({
+        title: 'Selection required',
+        description: 'Please select an underlying asset and expiration date.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Header />
@@ -422,22 +470,70 @@ const CreateStrategy = () => {
           </TabsContent>
 
           <TabsContent value="chain">
-            <LiveOptionsChain
-              onSelectContract={(contract: { strike: number; type: 'Call' | 'Put'; ask: number; expiration: string; underlying: string; epic: string }) => {
-                const newLeg: TradingLeg = {
-                  id: Date.now().toString(),
-                  strike: contract.strike.toString(),
-                  type: contract.type,
-                  expiration: contract.expiration,
-                  buySell: 'Buy',
-                  size: 1,
-                  price: contract.ask.toFixed(2),
-                  underlying: contract.underlying,
-                  epic: contract.epic,
-                };
-                setLegs([...legs, newLeg]);
-              }}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Options Chain</CardTitle>
+                <CardDescription>Select an underlying asset and expiration to view available contracts</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Underlying Asset</Label>
+                      <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select underlying" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableUnderlyings.map((asset) => (
+                            <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Expiration Date</Label>
+                      <Select value={selectedExpiry} onValueChange={setSelectedExpiry}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select expiration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableExpirations.map((exp) => (
+                            <SelectItem key={exp} value={exp}>{exp}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button onClick={openOptionsChainModal}>View Options Chain</Button>
+                  <LiveOptionsChainModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    symbol={selectedSymbol}
+                    onSelectContract={(contract) => {
+                      const newLeg: TradingLeg = {
+                        id: Date.now().toString(),
+                        strike: contract.strike.toString(),
+                        type: contract.type,
+                        expiration: selectedExpiry,
+                        buySell: 'Buy',
+                        size: 1,
+                        price: contract.ask.toFixed(2),
+                        underlying: selectedSymbol,
+                        epic: contract.epic,
+                        volume: contract.volume,
+                        openInterest: contract.openInterest,
+                        impliedVolatility: contract.impliedVolatility,
+                        delta: contract.delta,
+                        percentChange: contract.percentChange,
+                      };
+                      setLegs([...legs, newLeg]);
+                      setIsModalOpen(false); // Close modal after selection
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="legs">
