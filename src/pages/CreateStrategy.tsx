@@ -17,7 +17,7 @@ import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector'
 import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
 import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
 import StrategyPreview from '@/components/trading/StrategyPreview';
-import LiveOptionsChainModal from '@/components/trading/LiveOptionsChainModal'; // New import
+import LiveOptionsChainModal from '@/utils/LiveOptionsChainModal'; // New import
 import { optimizeStrategy } from '@/utils/GeneticOptimizationEngine';
 import { deployStrategyToBroker, fetchOptionsChainMetadata, IGAuthTokens } from '@/utils/igTradingAPI';
 
