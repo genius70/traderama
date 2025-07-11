@@ -1,6 +1,6 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+// src/components/trading/CreateStrategy.tsx
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,17 +8,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calculator, TrendingUp, AlertTriangle, Save, Eye } from 'lucide-react';
+import { Calculator, TrendingUp, AlertTriangle, Save, Eye, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import Header from "@/components/layout/Header";
+import Header from '@/components/layout/Header';
 import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
 import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
 import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
-import MockOptionsChain from '@/components/trading/MockOptionsChain';
+import LiveOptionsChain from '@/components/trading/LiveOptionsChain'; // Replaced MockOptionsChain
 import StrategyPreview from '@/components/trading/StrategyPreview';
+import { optimizeStrategy } from '@/utils/GeneticOptimizationEngine';
+import { deployStrategyToBroker } from '@/utils/igTradingAPI';
 
+// Define interfaces for type safety
 interface StrategyCondition {
   id: string;
   type: 'entry' | 'exit';
@@ -29,28 +32,62 @@ interface StrategyCondition {
 }
 
 interface TradingLeg {
-  id?: string;
+  id: string;
   strike: string;
   type: 'Call' | 'Put';
-  expiration: string;
+  expiration: string; // e.g., '2025-08-15'
   buySell: 'Buy' | 'Sell';
   size: number;
   price: string;
+  underlying: string; // e.g., 'SPY'
+  epic: string; // IG's market identifier
+}
+
+interface StrategyTemplate {
+  id: string;
+  name: string;
+  template: { legs: TradingLeg[]; conditions: StrategyCondition[] };
+}
+
+interface BacktestResult {
+  id: string;
+  strategyId: string;
+  returns: number;
+  sharpeRatio: number;
+  maxDrawdown: number;
+  trades: number;
+  createdAt: string;
+}
+
+interface OptimizationResult {
+  fitnessScore: number;
+  optimizedConditions: StrategyCondition[];
+  optimizedLegs: TradingLeg[];
+  performanceMetrics: {
+    returns: number;
+    sharpeRatio: number;
+    maxDrawdown: number;
+  };
 }
 
 const CreateStrategy = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [strategyName, setStrategyName] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [isPremium, setIsPremium] = useState(false);
-  const [feePercentage, setFeePercentage] = useState('2');
+  const [strategyName, setStrategyName] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [category, setCategory] = useState<string>('');
+  const [isPremium, setIsPremium] = useState<boolean>(false);
+  const [feePercentage, setFeePercentage] = useState<string>('2');
   const [conditions, setConditions] = useState<StrategyCondition[]>([]);
   const [legs, setLegs] = useState<TradingLeg[]>([]);
-  const [isPreview, setIsPreview] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isPreview, setIsPreview] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isDeploying, setIsDeploying] = useState<boolean>(false);
+  const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
+  const [backtestResults, setBacktestResults] = useState<BacktestResult[]>([]);
+  const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
 
+  // Expanded list of indicators for data-driven approach
   const indicators = [
     'RSI',
     'MACD',
@@ -58,12 +95,31 @@ const CreateStrategy = () => {
     'Bollinger Bands',
     'Stochastic',
     'Volume',
-    'Price Action'
+    'Price Action',
+    'VWAP',
+    'ATR',
+    'Ichimoku Cloud',
   ];
 
   const operators = ['>', '<', '>=', '<=', '=', 'crosses above', 'crosses below'];
-  const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
+  const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
+  // Fetch backtest results from broker
+  const fetchBacktestResults = async (strategyId: string) => {
+    try {
+      const response = await deployStrategyToBroker({ strategyId, action: 'backtest' });
+      setBacktestResults(response.results || []);
+    } catch (error) {
+      console.error('Error fetching backtest results:', error);
+      toast({
+        title: 'Error fetching backtest results',
+        description: 'Unable to retrieve results from the broker.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Add a new condition
   const addCondition = () => {
     const newCondition: StrategyCondition = {
       id: Date.now().toString(),
@@ -71,47 +127,113 @@ const CreateStrategy = () => {
       indicator: '',
       operator: '',
       value: '',
-      timeframe: '15m'
+      timeframe: '15m',
     };
     setConditions([...conditions, newCondition]);
   };
 
+  // Update a condition
   const updateCondition = (id: string, field: keyof StrategyCondition, value: string) => {
-    setConditions(conditions.map(condition => 
+    setConditions(conditions.map((condition) =>
       condition.id === id ? { ...condition, [field]: value } : condition
     ));
   };
 
+  // Remove a condition
   const removeCondition = (id: string) => {
-    setConditions(conditions.filter(condition => condition.id !== id));
+    setConditions(conditions.filter((condition) => condition.id !== id));
   };
 
-  const handleTemplateSelect = (option: { id: string; name: string; template: { legs: TradingLeg[] } }) => {
+  // Handle template selection from StrategyMarketplace
+  const handleTemplateSelect = (option: StrategyTemplate) => {
     setStrategyName(option.name);
     setCategory('Options Trading');
-    setLegs(option.template.legs.map(leg => ({ ...leg, id: Date.now().toString() + Math.random() })));
+    setLegs(option.template.legs.map((leg) => ({ ...leg, id: Date.now().toString() + Math.random() })));
+    setConditions(option.template.conditions.map((condition) => ({
+      ...condition,
+      id: Date.now().toString() + Math.random(),
+    })));
+    toast({
+      title: 'Template loaded',
+      description: `Loaded template: ${option.name}`,
+    });
   };
 
+  // Validate strategy conditions and legs
+  const validateStrategy = (): boolean => {
+    if (!strategyName.trim() || !description.trim() || !category) {
+      toast({
+        title: 'Missing basic information',
+        description: 'Please provide strategy name, description, and category.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    if (conditions.length === 0) {
+      toast({
+        title: 'No conditions defined',
+        description: 'Please add at least one entry or exit condition.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    if (legs.length === 0) {
+      toast({
+        title: 'No trading legs defined',
+        description: 'Please add at least one trading leg.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    // Validate condition values
+    for (const condition of conditions) {
+      if (!condition.indicator || !condition.operator || !condition.value || !condition.timeframe) {
+        toast({
+          title: 'Incomplete condition',
+          description: 'All conditions must have an indicator, operator, value, and timeframe.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+      if (isNaN(parseFloat(condition.value)) && condition.operator !== 'crosses above' && condition.operator !== 'crosses below') {
+        toast({
+          title: 'Invalid condition value',
+          description: `Value for condition with ${condition.indicator} must be numeric.`,
+          variant: 'destructive',
+        });
+        return false;
+      }
+    }
+    // Validate legs
+    for (const leg of legs) {
+      if (!leg.strike || !leg.type || !leg.expiration || !leg.buySell || !leg.price || leg.size <= 0 || !leg.underlying || !leg.epic) {
+        toast({
+          title: 'Invalid trading leg',
+          description: 'All legs must have valid strike, type, expiration, buy/sell, price, size, underlying, and epic.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Save strategy to Supabase
   const handleSave = async () => {
     if (!user) {
       toast({
-        title: "Authentication required",
-        variant: "destructive"
+        title: 'Authentication required',
+        description: 'Please log in to save a strategy.',
+        variant: 'destructive',
       });
       return;
     }
 
-    if (!strategyName.trim() || !description.trim() || !category) {
-      toast({
-        title: "Missing information",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!validateStrategy()) return;
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('trading_strategies')
         .insert([
           {
@@ -122,15 +244,24 @@ const CreateStrategy = () => {
             fee_percentage: parseFloat(feePercentage),
             creator_id: user.id,
             strategy_config: { conditions, legs },
-            status: 'draft'
-          }
-        ]);
+            status: 'draft',
+            created_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast({
-        title: "Strategy created!"
+        title: 'Strategy created!',
+        description: `Strategy ${strategyName} saved as draft.`,
       });
+
+      // Fetch backtest results for the saved strategy
+      if (data?.id) {
+        await fetchBacktestResults(data.id);
+      }
 
       // Reset form
       setStrategyName('');
@@ -138,14 +269,94 @@ const CreateStrategy = () => {
       setCategory('');
       setConditions([]);
       setLegs([]);
+      setOptimizationResult(null);
     } catch (error) {
       console.error('Error creating strategy:', error);
       toast({
-        title: "Error creating strategy",
-        variant: "destructive"
+        title: 'Error creating strategy',
+        description: 'Failed to save strategy to the database.',
+        variant: 'destructive',
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Deploy strategy to broker
+  const handleDeploy = async () => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please log in to deploy a strategy.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!validateStrategy()) return;
+
+    setIsDeploying(true);
+    try {
+      const strategyConfig = { conditions, legs, name: strategyName };
+      const response = await deployStrategyToBroker({
+        strategyId: Date.now().toString(),
+        strategyConfig,
+        action: 'deploy',
+      });
+
+      toast({
+        title: 'Strategy deployed!',
+        description: `Strategy ${strategyName} deployed to broker.`,
+      });
+
+      // Fetch backtest results after deployment
+      await fetchBacktestResults(response.strategyId);
+    } catch (error) {
+      console.error('Error deploying strategy:', error);
+      toast({
+        title: 'Error deploying strategy',
+        description: 'Failed to deploy strategy to the broker.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
+  // Run genetic optimization
+  const handleOptimize = async () => {
+    if (!validateStrategy()) return;
+
+    setIsOptimizing(true);
+    try {
+      const result = await optimizeStrategy({ conditions, legs });
+      setOptimizationResult(result);
+      toast({
+        title: 'Optimization complete!',
+        description: 'Review optimized strategy parameters in the Optimization tab.',
+      });
+    } catch (error) {
+      console.error('Error optimizing strategy:', error);
+      toast({
+        title: 'Error optimizing strategy',
+        description: 'Failed to run genetic optimization.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  // Apply optimized parameters
+  const applyOptimization = () => {
+    if (optimizationResult) {
+      setConditions(optimizationResult.optimizedConditions);
+      setLegs(optimizationResult.optimizedLegs);
+      toast({
+        title: 'Optimization applied',
+        description: 'Strategy updated with optimized parameters.',
+      });
+      setOptimizationResult(null);
     }
   };
 
@@ -155,7 +366,7 @@ const CreateStrategy = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Create Trading Strategy</h1>
-          <p className="text-gray-600">Build and share your automated trading strategies</p>
+          <p className="text-gray-600">Build and deploy automated trading strategies</p>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={() => setIsPreview(!isPreview)}>
@@ -165,6 +376,10 @@ const CreateStrategy = () => {
           <Button onClick={handleSave} disabled={isSaving}>
             <Save className="h-4 w-4 mr-2" />
             {isSaving ? 'Saving...' : 'Save Strategy'}
+          </Button>
+          <Button onClick={handleDeploy} disabled={isDeploying}>
+            <Upload className="h-4 w-4 mr-2" />
+            {isDeploying ? 'Deploying...' : 'Deploy to Broker'}
           </Button>
         </div>
       </div>
@@ -181,12 +396,13 @@ const CreateStrategy = () => {
         />
       ) : (
         <Tabs defaultValue="templates" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
             <TabsTrigger value="chain">Options Chain</TabsTrigger>
-            <TabsTrigger value="legs">Options Legs</TabsTrigger>            
+            <TabsTrigger value="legs">Options Legs</TabsTrigger>
             <TabsTrigger value="conditions">Conditions</TabsTrigger>
+            <TabsTrigger value="optimization">Optimization</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -204,30 +420,34 @@ const CreateStrategy = () => {
               setCategory={setCategory}
             />
           </TabsContent>
-          
+
           <TabsContent value="chain">
-            <MockOptionsChain
-              onSelectContract={(contract) => {
+            <LiveOptionsChain
+              onSelectContract={(contract: { strike: number; type: 'Call' | 'Put'; ask: number; expiration: string; underlying: string; epic: string }) => {
                 const newLeg: TradingLeg = {
                   id: Date.now().toString(),
                   strike: contract.strike.toString(),
                   type: contract.type,
-                  expiration: '30',
+                  expiration: contract.expiration,
                   buySell: 'Buy',
                   size: 1,
-                  price: contract.ask.toFixed(2)
+                  price: contract.ask.toFixed(2),
+                  underlying: contract.underlying,
+                  epic: contract.epic,
                 };
                 setLegs([...legs, newLeg]);
               }}
             />
           </TabsContent>
+
           <TabsContent value="legs">
             <EnhancedTradingTemplate
               strategyName={strategyName || 'Strategy'}
               legs={legs}
               onLegsChange={setLegs}
             />
-          </TabsContent>          
+          </TabsContent>
+
           <TabsContent value="conditions">
             <Card>
               <CardHeader>
@@ -324,6 +544,47 @@ const CreateStrategy = () => {
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="optimization">
+            <Card>
+              <CardHeader>
+                <CardTitle>Strategy Optimization</CardTitle>
+                <CardDescription>Optimize your strategy using genetic algorithms and review broker backtest results</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Button onClick={handleOptimize} disabled={isOptimizing}>
+                  <Calculator className="h-4 w-4 mr-2" />
+                  {isOptimizing ? 'Optimizing...' : 'Run Optimization'}
+                </Button>
+                {optimizationResult && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">Optimization Results</h3>
+                      <p>Fitness Score: {optimizationResult.fitnessScore.toFixed(2)}</p>
+                      <p>Expected Returns: {optimizationResult.performanceMetrics.returns.toFixed(2)}%</p>
+                      <p>Sharpe Ratio: {optimizationResult.performanceMetrics.sharpeRatio.toFixed(2)}</p>
+                      <p>Max Drawdown: {optimizationResult.performanceMetrics.maxDrawdown.toFixed(2)}%</p>
+                    </div>
+                    <Button onClick={applyOptimization}>Apply Optimized Parameters</Button>
+                  </div>
+                )}
+                {backtestResults.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Broker Backtest Results</h3>
+                    {backtestResults.map((result) => (
+                      <div key={result.id} className="p-4 border rounded-lg">
+                        <p>Returns: {result.returns.toFixed(2)}%</p>
+                        <p>Sharpe Ratio: {result.sharpeRatio.toFixed(2)}</p>
+                        <p>Max Drawdown: {result.maxDrawdown.toFixed(2)}%</p>
+                        <p>Trades: {result.trades}</p>
+                        <p>Tested: {new Date(result.createdAt).toLocaleDateString()}</p>
                       </div>
                     ))}
                   </div>
