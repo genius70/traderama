@@ -21,10 +21,10 @@ const Header = () => {
   const isAdmin = user?.email === 'royan.shaw@gmail.com';
 
   const NavigationItems = ({ mobile = false, onItemClick = () => {} }) => (
-    <div className={`${mobile ? 'flex flex-col space-y-4' : 'hidden xl:flex items-center justify-center space-x-1 min-w-0 flex-1'}`}>
+    <div className={`${mobile ? 'flex flex-col space-y-4' : 'hidden lg:flex items-center justify-center space-x-1 min-w-0 flex-1'}`}>
       <Link 
         to="/market-trends" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       > 
         Markets
@@ -33,7 +33,7 @@ const Header = () => {
       
       <Link 
         to="/dashboard" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Dashboard
@@ -42,7 +42,7 @@ const Header = () => {
       
       <Link 
         to="/trade-positions" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Positions
@@ -51,7 +51,7 @@ const Header = () => {
       
       <Link 
         to="/options-trading" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Training
@@ -60,7 +60,7 @@ const Header = () => {
       
       <Link 
         to="/auto-trading" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Auto Trading
@@ -69,7 +69,7 @@ const Header = () => {
       
       <Link 
         to="/community" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Community
@@ -78,7 +78,7 @@ const Header = () => {
       
       <Link 
         to="/create-strategy" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
         onClick={onItemClick}
       >
         Create Strategy
@@ -89,7 +89,7 @@ const Header = () => {
           <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
           <Link 
             to="/admin" 
-            className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+            className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
             onClick={onItemClick}
           >
             Analytics
@@ -110,9 +110,9 @@ const Header = () => {
             <span className="text-lg font-bold text-gray-900 sm:hidden">TR</span>
           </Link>
 
-          {/* Desktop Navigation - Flexible and responsive */}
+          {/* Desktop Navigation - Only visible on desktop */}
           {user && (
-            <div className="flex-1 flex justify-center px-4 xl:px-8 min-w-0 overflow-hidden">
+            <div className="flex-1 flex justify-center px-4 lg:px-8 min-w-0 overflow-hidden">
               <NavigationItems />
             </div>
           )}
@@ -121,10 +121,10 @@ const Header = () => {
           <div className="flex items-center space-x-2 flex-shrink-0">
             {user ? (
               <>
-                {/* Mobile/Tablet Menu Button */}
+                {/* Mobile/Tablet Menu Button - Only visible on mobile/tablet */}
                 <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="xl:hidden">
+                    <Button variant="ghost" size="icon" className="lg:hidden">
                       <Menu className="h-6 w-6" />
                     </Button>
                   </SheetTrigger>
@@ -192,10 +192,10 @@ const Header = () => {
                   </SheetContent>
                 </Sheet>
 
-                {/* Desktop User Menu - Hidden on mobile/tablet */}
+                {/* Desktop User Menu - Only visible on desktop */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full hidden xl:flex">
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full hidden lg:flex">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                           {user?.email?.[0]?.toUpperCase() || 'U'}
