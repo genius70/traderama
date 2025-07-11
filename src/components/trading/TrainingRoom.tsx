@@ -1,8 +1,25 @@
 import { useState } from 'react';
 import { Play, X, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
 
-const TrainingRoom = ({ trainingPlans = [] }) => {
-  const [selectedVideo, setSelectedVideo] = useState(null);
+interface TrainingPlan {
+  strategy: string;
+  name?: string;
+  sentiment?: string;
+  videoSrc?: string;
+  embedId?: string;
+  description?: string;
+  sponsor?: string;
+  sponsorUrl?: string;
+  summary?: string;
+  hasCustomContent?: boolean;
+}
+
+interface TrainingRoomProps {
+  trainingPlans?: TrainingPlan[];
+}
+
+const TrainingRoom = ({ trainingPlans = [] }: TrainingRoomProps) => {
+  const [selectedVideo, setSelectedVideo] = useState<TrainingPlan | null>(null);
 
   const defaultStrategies = [
     { name: "Long Call", sentiment: "Bullish", color: "bg-green-500", embedId: "dQw4w9WgXcQ" },
@@ -48,7 +65,7 @@ const TrainingRoom = ({ trainingPlans = [] }) => {
         hasCustomContent: true
       };
     }
-    return defaultStrategy;
+    return { ...defaultStrategy, hasCustomContent: false };
   });
 
   const getSentimentIcon = (sentiment) => {

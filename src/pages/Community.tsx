@@ -1,4 +1,4 @@
-
+import Header from '@/components/layout/Header';
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,7 @@ const Community = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+    <Header />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Trading Community</h1>

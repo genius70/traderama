@@ -1,65 +1,592 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, Settings, TrendingUp } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { AlertTriangle, Settings, TrendingUp, Link, DollarSign, Shield, Activity, Play, Pause, Power, CheckCircle } from 'lucide-react';
 import { LiveTradingEngine } from '@/components/trading';
+import { IGBrokerConnect } from '@/components/brokers';
+import Header from '@/components/layout/Header';
+import { useIGBroker } from '@/hooks/useIGBroker';
+
+interface TradingParameters {
+  maxPositionSize: number;
+  dailyLossLimit: number;
+  maxTradePercentage: number;
+  maxOpenPositions: number;
+  stopLoss: number;
+  takeProfit: number;
+  riskPerTrade: number;
+}
+
+interface Strategy {
+  id: number;
+  name: string;
+  status: 'active' | 'paused' | 'stopped';
+  pnl: number;
+  trades: number;
+  winRate: number;
+  drawdown: number;
+  isLive: boolean;
+  lastTrade?: string;
+}
+
+interface Trade {
+  id: string;
+  strategy: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  size: number;
+  price: number;
+  pnl: number;
+  timestamp: string;
+  status: 'open' | 'closed';
+}
 
 const AutoTrading = () => {
-  const [strategies] = useState([
-    { id: 1, name: 'Iron Condor Weekly', status: 'active', pnl: 450.25 },
-    { id: 2, name: 'Momentum Scalping', status: 'paused', pnl: -125.50 },
-    { id: 3, name: 'Mean Reversion', status: 'active', pnl: 280.75 },
+  const [strategies, setStrategies] = useState<Strategy[]>([
+    { id: 1, name: 'Iron Condor Weekly', status: 'active', pnl: 450.25, trades: 12, winRate: 75, drawdown: 2.5, isLive: false },
+    { id: 2, name: 'Momentum Scalping', status: 'paused', pnl: -125.50, trades: 8, winRate: 62.5, drawdown: 5.2, isLive: false },
+    { id: 3, name: 'Mean Reversion', status: 'active', pnl: 280.75, trades: 15, winRate: 80, drawdown: 1.8, isLive: false },
   ]);
+
+  const [tradingParameters, setTradingParameters] = useState<TradingParameters>({
+    maxPositionSize: 5000,
+    dailyLossLimit: 500,
+    maxTradePercentage: 2,
+    maxOpenPositions: 10,
+    stopLoss: 5,
+    takeProfit: 10,
+    riskPerTrade: 1
+  });
+
+  const [showParametersDialog, setShowParametersDialog] = useState(false);
+  const [showFeeDialog, setShowFeeDialog] = useState(false);
+  const [accountBalance, setAccountBalance] = useState(25000);
+  const [platformFee] = useState(0.10);
+  const [dailyPnL, setDailyPnL] = useState(125.75);
+  const [monthlyFees, setMonthlyFees] = useState(340.50);
+  const [isTradingActive, setIsTradingActive] = useState(false);
+  const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
+  const [tradingEngine, setTradingEngine] = useState<NodeJS.Timeout | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [tradingStarted, setTradingStarted] = useState(false);
+
+  const { 
+    isConnected, 
+    accountInfo, 
+    connectionStatus, 
+    connect, 
+    disconnect,
+    getAccountBalance,
+    placeOrder,
+    getPositions
+  } = useIGBroker();
+
+  useEffect(() => {
+    if (isConnected) {
+      // Fetch real account balance when connected
+      getAccountBalance().then(balance => {
+        if (balance) setAccountBalance(balance);
+      });
+    }
+  }, [isConnected, getAccountBalance]);
+
+  // Enhanced connect broker function
+  const handleConnectBroker = async () => {
+    setIsConnecting(true);
+    try {
+      console.log('Attempting to connect to broker...');
+      await connect();
+      console.log('Broker connection successful');
+      
+      // Simulate connection process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Fetch account details
+      const balance = await getAccountBalance();
+      if (balance) {
+        setAccountBalance(balance);
+      }
+      
+      console.log('Account data fetched successfully');
+    } catch (error) {
+      console.error('Broker connection failed:', error);
+      alert('Failed to connect to broker. Please check your credentials.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = () => {
+    disconnect();
+    setIsTradingActive(false);
+    setTradingStarted(false);
+    if (tradingEngine) {
+      clearInterval(tradingEngine);
+      setTradingEngine(null);
+    }
+  };
+
+  // Enhanced start trading function
+  const handleStartTrading = async () => {
+    if (!isConnected) {
+      alert('Please connect to your broker account first');
+      return;
+    }
+
+    const activeStrategies = strategies.filter(s => s.status === 'active');
+    if (activeStrategies.length === 0) {
+      alert('Please activate at least one strategy before starting trading');
+      return;
+    }
+
+    console.log('Starting trading engine...');
+    console.log('Active strategies:', activeStrategies.map(s => s.name));
+    console.log('Trading parameters:', tradingParameters);
+
+    setIsTradingActive(true);
+    setTradingStarted(true);
+    
+    // Update strategies to live mode
+    setStrategies(prev => 
+      prev.map(strategy => ({
+        ...strategy,
+        isLive: strategy.status === 'active',
+      }))
+    );
+    
+    // Start the trading engine
+    const engine = setInterval(() => {
+      simulateTrade();
+    }, 5000); // Execute trades every 5 seconds for demo
+
+    setTradingEngine(engine);
+    
+    console.log('Trading engine started successfully');
+    return { success: true, message: 'Trading engine started', activeStrategies: activeStrategies.length };
+  };
+
+  const handleStopTrading = () => {
+    console.log('Stopping trading engine...');
+    setIsTradingActive(false);
+    setTradingStarted(false);
+    if (tradingEngine) {
+      clearInterval(tradingEngine);
+      setTradingEngine(null);
+    }
+    
+    // Set all strategies to paused
+    setStrategies(prev => 
+      prev.map(strategy => ({
+        ...strategy,
+        isLive: false,
+        status: 'paused'
+      }))
+    );
+    
+    console.log('Trading engine stopped');
+  };
+
+  // Simulate trading activity
+  const simulateTrade = () => {
+    const activeStrategies = strategies.filter(s => s.status === 'active');
+    if (activeStrategies.length === 0) return;
+
+    const randomStrategy = activeStrategies[Math.floor(Math.random() * activeStrategies.length)];
+    const symbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD'];
+    const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+    
+    const trade: Trade = {
+      id: `trade_${Date.now()}`,
+      strategy: randomStrategy.name,
+      symbol: randomSymbol,
+      side: Math.random() > 0.5 ? 'buy' : 'sell',
+      size: Math.floor(Math.random() * 1000) + 100,
+      price: 1.0500 + Math.random() * 0.1,
+      pnl: (Math.random() - 0.4) * 100, // Slightly positive bias
+      timestamp: new Date().toLocaleTimeString(),
+      status: Math.random() > 0.7 ? 'open' : 'closed'
+    };
+
+    setRecentTrades(prev => [trade, ...prev.slice(0, 9)]); // Keep last 10 trades
+
+    // Update strategy stats
+    setStrategies(prev => 
+      prev.map(strategy => {
+        if (strategy.id === randomStrategy.id) {
+          const newTrades = strategy.trades + 1;
+          const newPnL = strategy.pnl + trade.pnl;
+          const newWinRate = trade.pnl > 0 ? 
+            Math.min(95, strategy.winRate + 1) : 
+            Math.max(50, strategy.winRate - 1);
+          
+          return {
+            ...strategy,
+            trades: newTrades,
+            pnl: newPnL,
+            winRate: newWinRate,
+            lastTrade: trade.timestamp,
+            isLive: true
+          };
+        }
+        return strategy;
+      })
+    );
+
+    // Update daily P&L
+    setDailyPnL(prev => prev + trade.pnl);
+    
+    console.log('Trade executed:', trade);
+  };
+
+  const handleParameterChange = (param: keyof TradingParameters, value: number) => {
+    setTradingParameters(prev => ({
+      ...prev,
+      [param]: value
+    }));
+  };
+
+  const handleStrategyToggle = (strategyId: number, newStatus: 'active' | 'paused') => {
+    setStrategies(prev => 
+      prev.map(strategy => 
+        strategy.id === strategyId 
+          ? { ...strategy, status: newStatus, isLive: newStatus === 'active' && isTradingActive }
+          : strategy
+      )
+    );
+  };
+
+  const calculatePlatformFee = (profit: number) => {
+    return profit > 0 ? profit * platformFee : 0;
+  };
+
+  const totalActivePnL = strategies
+    .filter(s => s.status === 'active')
+    .reduce((sum, s) => sum + s.pnl, 0);
+
+  const totalPlatformFees = calculatePlatformFee(totalActivePnL);
+
+  useEffect(() => {
+    return () => {
+      if (tradingEngine) {
+        clearInterval(tradingEngine);
+      }
+    };
+  }, [tradingEngine]);
 
   return (
     <div className="space-y-6">
+      <Header />
+      
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Auto Trading</h1>
-          <p className="text-gray-600">Automated trading strategies and live execution</p>
+          <h1 className="text-3xl font-bold">Auto Trading Platform</h1>
+          <p className="text-gray-600">Live automated trading with broker integration</p>
         </div>
-        <Button variant="outline">
-          <Settings className="h-4 w-4 mr-2" />
-          Settings
-        </Button>
+        <div className="flex space-x-2">
+          <Dialog open={showFeeDialog} onOpenChange={setShowFeeDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <DollarSign className="h-4 w-4 mr-2" />
+                Fee Structure
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Platform Fee Structure</DialogTitle>
+                <DialogDescription>
+                  Transparent pricing for automated trading services
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-blue-900">Performance Fee</h3>
+                  <p className="text-blue-700">10% of profitable trades only</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Current Month P&L:</span>
+                    <span className="font-semibold">${totalActivePnL.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Platform Fee (10%):</span>
+                    <span className="font-semibold">${totalPlatformFees.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Fees Paid:</span>
+                    <span className="font-semibold">${monthlyFees.toFixed(2)}</span>
+                  </div>
+                </div>
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Fees are only charged on profitable trades. No fees on losses.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showParametersDialog} onOpenChange={setShowParametersDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Settings className="h-4 w-4 mr-2" />
+                Parameters
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Trading Parameters</DialogTitle>
+                <DialogDescription>
+                  Configure your risk management and trading limits
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Max Position Size ($)</Label>
+                  <Input
+                    type="number"
+                    value={tradingParameters.maxPositionSize}
+                    onChange={(e) => handleParameterChange('maxPositionSize', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Daily Loss Limit ($)</Label>
+                  <Input
+                    type="number"
+                    value={tradingParameters.dailyLossLimit}
+                    onChange={(e) => handleParameterChange('dailyLossLimit', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max Trade Percentage (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={tradingParameters.maxTradePercentage}
+                    onChange={(e) => handleParameterChange('maxTradePercentage', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max Open Positions</Label>
+                  <Input
+                    type="number"
+                    value={tradingParameters.maxOpenPositions}
+                    onChange={(e) => handleParameterChange('maxOpenPositions', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Stop Loss (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={tradingParameters.stopLoss}
+                    onChange={(e) => handleParameterChange('stopLoss', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Take Profit (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={tradingParameters.takeProfit}
+                    onChange={(e) => handleParameterChange('takeProfit', Number(e.target.value))}
+                  />
+                </div>
+              </div>
+              <Button onClick={() => setShowParametersDialog(false)}>
+                Save Parameters
+              </Button>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* Live Trading Engine */}
-      <LiveTradingEngine />
+      {/* Main Trading Controls */}
+      <Card className="border-2 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Power className="h-5 w-5 mr-2" />
+              Trading Engine Control
+            </div>
+            <Badge variant={isTradingActive ? "default" : "secondary"} className="text-sm">
+              {isTradingActive ? "ACTIVE" : "INACTIVE"}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm">Broker: {isConnected ? 'Connected' : 'Disconnected'}</span>
+              </div>
+              {isConnected && (
+                <div className="text-sm text-gray-600">
+                  Balance: ${accountBalance.toLocaleString()}
+                </div>
+              )}
+            </div>
+            <div className="flex space-x-2">
+              {!isConnected ? (
+                <Button 
+                  onClick={handleConnectBroker} 
+                  disabled={isConnecting}
+                  className="bg-red-600 hover:bg-blue-600 text-white transition-colors duration-200"
+                >
+                  <Link className="h-4 w-4 mr-2" />
+                  {isConnecting ? 'Connecting...' : 'Connect Broker'}
+                </Button>
+              ) : (
+                <Button onClick={handleDisconnect} variant="outline">
+                  <Link className="h-4 w-4 mr-2" />
+                  Disconnect
+                </Button>
+              )}
+              
+              {!isTradingActive ? (
+                <Button 
+                  onClick={handleStartTrading} 
+                  disabled={!isConnected}
+                  className="bg-green-600 hover:bg-blue-600 text-white transition-colors duration-200"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Trading
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleStopTrading}
+                  variant="destructive"
+                >
+                  <Pause className="h-4 w-4 mr-2" />
+                  Stop Trading
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          {isTradingActive && (
+            <Alert className="mt-4 bg-green-50 border-green-200">
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                Auto trading is active! Strategies are executing trades automatically.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Strategy Overview */}
+      {/* Recent Trades */}
+      {recentTrades.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Trades</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {recentTrades.map((trade) => (
+                <div key={trade.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <Badge variant={trade.side === 'buy' ? 'default' : 'secondary'}>
+                      {trade.side.toUpperCase()}
+                    </Badge>
+                    <span className="font-medium">{trade.symbol}</span>
+                    <span className="text-sm text-gray-600">{trade.strategy}</span>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm">{trade.size} units @ {trade.price.toFixed(4)}</span>
+                    <span className={`font-medium ${trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)}
+                    </span>
+                    <span className="text-sm text-gray-500">{trade.timestamp}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Trading Strategies */}
       <Card>
         <CardHeader>
-          <CardTitle>Active Strategies</CardTitle>
+          <CardTitle>Trading Strategies</CardTitle>
           <CardDescription>
-            Monitor and manage your automated trading strategies
+            Manage your automated trading strategies
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {strategies.map((strategy) => (
-              <div key={strategy.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <Switch defaultChecked={strategy.status === 'active'} />
-                  <div>
-                    <p className="font-medium">{strategy.name}</p>
-                    <Badge variant={strategy.status === 'active' ? 'default' : 'secondary'}>
-                      {strategy.status}
-                    </Badge>
+              <div key={strategy.id} className="p-4 border rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch 
+                        checked={strategy.status === 'active'} 
+                        onCheckedChange={(checked) => 
+                          handleStrategyToggle(strategy.id, checked ? 'active' : 'paused')
+                        }
+                      />
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-medium">{strategy.name}</p>
+                          {strategy.isLive && <Badge variant="destructive">LIVE</Badge>}
+                        </div>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant={strategy.status === 'active' ? 'default' : 'secondary'}>
+                            {strategy.status}
+                          </Badge>
+                          <span className="text-sm text-gray-500">
+                            {strategy.trades} trades | {strategy.winRate}% win rate
+                          </span>
+                          {strategy.lastTrade && (
+                            <span className="text-sm text-gray-500">
+                              Last: {strategy.lastTrade}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="h-4 w-4" />
+                      <span className={`font-medium ${
+                        strategy.pnl >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Fee: ${calculatePlatformFee(strategy.pnl).toFixed(2)}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center space-x-2">
-                    <TrendingUp className="h-4 w-4" />
-                    <span className={`font-medium ${
-                      strategy.pnl >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toFixed(2)}
-                    </span>
+                <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Drawdown:</span>
+                    <span className="ml-2 font-medium">{strategy.drawdown}%</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Status:</span>
+                    <span className="ml-2 font-medium capitalize">{strategy.status}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Mode:</span>
+                    <span className="ml-2 font-medium">{strategy.isLive ? 'Live' : 'Paper'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Active:</span>
+                    <span className="ml-2 font-medium">{isTradingActive && strategy.status === 'active' ? 'Yes' : 'No'}</span>
                   </div>
                 </div>
               </div>
@@ -68,30 +595,39 @@ const AutoTrading = () => {
         </CardContent>
       </Card>
 
-      {/* Risk Management */}
+      {/* Risk Management Dashboard */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2" />
+            <Shield className="h-5 w-5 mr-2" />
             Risk Management
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label>Daily Loss Limit</Label>
-              <p className="text-2xl font-bold text-red-600">$500</p>
-              <p className="text-sm text-gray-500">Current: $125</p>
+              <Label>Daily P&L</Label>
+              <p className={`text-2xl font-bold ${dailyPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {dailyPnL >= 0 ? '+' : ''}${dailyPnL.toFixed(2)}
+              </p>
+              <p className="text-sm text-gray-500">
+                Limit: ${tradingParameters.dailyLossLimit}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Max Position Size</Label>
-              <p className="text-2xl font-bold">$5,000</p>
+              <p className="text-2xl font-bold">${tradingParameters.maxPositionSize.toLocaleString()}</p>
               <p className="text-sm text-gray-500">Per trade</p>
             </div>
             <div className="space-y-2">
               <Label>Open Positions</Label>
-              <p className="text-2xl font-bold">7/10</p>
-              <p className="text-sm text-gray-500">Maximum allowed</p>
+              <p className="text-2xl font-bold">{recentTrades.filter(t => t.status === 'open').length}/{tradingParameters.maxOpenPositions}</p>
+              <p className="text-sm text-gray-500">Active positions</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Platform Fees</Label>
+              <p className="text-2xl font-bold">${totalPlatformFees.toFixed(2)}</p>
+              <p className="text-sm text-gray-500">This month</p>
             </div>
           </div>
         </CardContent>

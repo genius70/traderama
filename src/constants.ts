@@ -100,6 +100,7 @@ export const ANALYTICS_EVENTS = {
   STRATEGY_CREATE: 'strategy_create',
   STRATEGY_SUBSCRIBE: 'strategy_subscribe',
   TRADE_EXECUTE: 'trade_execute',
+  USER_ACTIVITY: 'user_activity',
 } as const;
 
 export type AnalyticsEvent = typeof ANALYTICS_EVENTS[keyof typeof ANALYTICS_EVENTS];

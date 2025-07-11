@@ -6,6 +6,7 @@ interface AnalyticsContextType {
   trackEvent: (event: AnalyticsEvent, properties?: Record<string, unknown>) => void;
   trackPageView: (page: string, properties?: Record<string, unknown>) => void;
   trackFeatureUsage: (featureName: string, timeSpent?: number, success?: boolean) => void;
+  trackActivity: (activity: string, properties?: Record<string, unknown>) => void;
 }
 
 const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
@@ -67,10 +68,18 @@ export const AnalyticsProvider: React.FC<AnalyticsProviderProps> = ({ children }
     });
   };
 
+  const trackActivity = (activity: string, properties: Record<string, unknown> = {}) => {
+    trackEvent(ANALYTICS_EVENTS.USER_ACTIVITY, {
+      activity_name: activity,
+      ...properties
+    });
+  };
+
   const contextValue: AnalyticsContextType = {
     trackEvent,
     trackPageView,
-    trackFeatureUsage
+    trackFeatureUsage,
+    trackActivity
   };
 
   return (

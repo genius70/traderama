@@ -1,15 +1,33 @@
+// src/utils/LiveOptionsChainModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { X, Search } from 'lucide-react';
-import { fetchLiveOptionsChain, type LiveOptionContract } from './liveTradingAPI';
+import { fetchOptionsChain, IGAuthTokens } from '@/utils/igTradingAPI';
+import { useToast } from '@/hooks/use-toast';
+
+interface LiveOptionContract {
+  epic: string;
+  strike: number;
+  type: 'Call' | 'Put';
+  bid: number;
+  ask: number;
+  volume: number;
+  openInterest: number;
+  impliedVolatility: number;
+  delta: number;
+  percentChange: number;
+  expiration: string;
+  underlying: string;
+}
 
 interface LiveOptionsChainModalProps {
   isOpen: boolean;
   onClose: () => void;
   symbol: string;
+  expiry: string; // Added to pass selectedExpiry
   onSelectContract: (contract: LiveOptionContract) => void;
 }
 
@@ -17,38 +35,75 @@ const LiveOptionsChainModal: React.FC<LiveOptionsChainModalProps> = ({
   isOpen,
   onClose,
   symbol,
-  onSelectContract
+  expiry,
+  onSelectContract,
 }) => {
+  const { toast } = useToast();
   const [contracts, setContracts] = useState<LiveOptionContract[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchStrike, setSearchStrike] = useState('');
-  const [selectedExpiry, setSelectedExpiry] = useState('2024-02-16');
+  const [authTokens, setAuthTokens] = useState<IGAuthTokens | null>(null);
 
-  // Wrap loadOptionsChain in useCallback to prevent unnecessary re-renders
+  // Authenticate with IG API on mount
+  useEffect(() => {
+    const authenticate = async () => {
+      try {
+        const tokens = await supabase.functions.invoke('get-auth-tokens', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${user?.id}` },
+        });
+        setAuthTokens(tokens);
+      } catch (err) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Unable to authenticate with the broker.',
+          variant: 'destructive',
+        });
+      }
+    };
+    if (isOpen) authenticate();
+  }, [isOpen, toast]);
+
+  // Load options chain data
   const loadOptionsChain = useCallback(async () => {
+    if (!authTokens || !symbol || !expiry) return;
     setLoading(true);
     try {
-      const data = await fetchLiveOptionsChain(symbol, selectedExpiry);
-      setContracts(data);
+      const data = await fetchOptionsChain({ auth: authTokens, underlying: symbol, expiration: expiry });
+      // Map IG API data to LiveOptionContract, adding mock Greeks for now
+      const enrichedData = data.map((contract) => ({
+        ...contract,
+        volume: Math.floor(Math.random() * 1000), // Mock volume
+        openInterest: Math.floor(Math.random() * 500), // Mock open interest
+        impliedVolatility: Math.random() * 0.5, // Mock IV
+        delta: Math.random() * (contract.type === 'Call' ? 1 : -1), // Mock delta
+        percentChange: (Math.random() - 0.5) * 10, // Mock percent change
+      }));
+      setContracts(enrichedData);
     } catch (error) {
       console.error('Failed to load options chain:', error);
+      toast({
+        title: 'Error fetching options chain',
+        description: 'Unable to retrieve data from the broker.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
-  }, [symbol, selectedExpiry]);
+  }, [authTokens, symbol, expiry, toast]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && authTokens) {
       loadOptionsChain();
     }
-  }, [isOpen, loadOptionsChain]);
+  }, [isOpen, authTokens, loadOptionsChain]);
 
-  const filteredContracts = contracts.filter(contract => 
+  const filteredContracts = contracts.filter((contract) =>
     !searchStrike || contract.strike.toString().includes(searchStrike)
   );
 
-  const callContracts = filteredContracts.filter(c => c.type === 'Call');
-  const putContracts = filteredContracts.filter(c => c.type === 'Put');
+  const callContracts = filteredContracts.filter((c) => c.type === 'Call');
+  const putContracts = filteredContracts.filter((c) => c.type === 'Put');
 
   if (!isOpen) return null;
 
@@ -72,15 +127,6 @@ const LiveOptionsChainModal: React.FC<LiveOptionsChainModalProps> = ({
                 className="w-40"
               />
             </div>
-            <select 
-              value={selectedExpiry}
-              onChange={(e) => setSelectedExpiry(e.target.value)}
-              className="px-3 py-2 border rounded-md"
-            >
-              <option value="2024-02-16">Feb 16, 2024</option>
-              <option value="2024-03-15">Mar 15, 2024</option>
-              <option value="2024-04-19">Apr 19, 2024</option>
-            </select>
           </div>
 
           {loading ? (

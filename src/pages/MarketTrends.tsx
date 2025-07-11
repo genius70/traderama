@@ -9,6 +9,7 @@ import MarketChart from '@/components/market/MarketChart';
 import SpyReturnsDistribution from '@/components/strategies/SpyReturnsDistribution';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import Header from '@/components/layout/Header';
 
 interface MarketData {
   symbol: string;
@@ -25,24 +26,20 @@ interface ChartData {
   volume: number;
   sma20: number;
   rsi: number;
+  macd: number;
+  signal: number;
+  upperBB: number;
+  lowerBB: number;
 }
 
-// Mock data constants moved outside component to prevent recreating on every render
-const MOCK_MARKET_DATA: MarketData[] = [
-  { symbol: 'SPY', price: 423.45, change: 2.34, changePercent: 0.56, volume: 45234567 },
-  { symbol: 'QQQ', price: 367.23, change: -1.45, changePercent: -0.39, volume: 32456789 },
-  { symbol: 'IWM', price: 198.76, change: 0.89, changePercent: 0.45, volume: 23456789 },
-  { symbol: 'VIX', price: 18.43, change: -2.34, changePercent: -11.25, volume: 0 },
-  { symbol: 'GLD', price: 189.45, change: 1.23, changePercent: 0.65, volume: 12345678 }
-];
-
-const MOCK_CHART_DATA: ChartData[] = Array.from({ length: 30 }, (_, i) => ({
-  date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  price: 420 + Math.random() * 20 - 10,
-  volume: 40000000 + Math.random() * 20000000,
-  sma20: 422 + Math.random() * 6 - 3,
-  rsi: 30 + Math.random() * 40
-}));
+const ALPHA_VANTAGE_API_KEY = '8AQPB7J6D8TUCDJA';
+const TIMEFRAMES = {
+  hourly: 'TIME_SERIES_INTRADAY&interval=60min',
+  daily: 'TIME_SERIES_DAILY',
+  weekly: 'TIME_SERIES_WEEKLY',
+  monthly: 'TIME_SERIES_MONTHLY',
+  yearly: 'TIME_SERIES_MONTHLY'
+};
 
 const MarketTrends = () => {
   const [selectedSymbol, setSelectedSymbol] = useState('SPY');
@@ -50,114 +47,257 @@ const MarketTrends = () => {
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTimeframe, setSelectedTimeframe] = useState<keyof typeof TIMEFRAMES>('daily');
   const { toast } = useToast();
 
-  // Fetch live market data from database
+  const calculateIndicators = (prices: number[]): { sma20: number[], rsi: number[], macd: number[], signal: number[], upperBB: number[], lowerBB: number[] } => {
+    const sma20: number[] = [];
+    const rsi: number[] = [];
+    const macd: number[] = [];
+    const signal: number[] = [];
+    const upperBB: number[] = [];
+    const lowerBB: number[] = [];
+
+    for (let i = 0; i < prices.length; i++) {
+      if (i < 20) {
+        sma20.push(0);
+      } else {
+        const sum = prices.slice(i - 20, i).reduce((a, b) => a + b, 0);
+        sma20.push(sum / 20);
+      }
+    }
+
+    let gains = 0;
+    let losses = 0;
+    for (let i = 1; i < prices.length; i++) {
+      const diff = prices[i] - prices[i - 1];
+      if (diff > 0) gains += diff;
+      else losses -= diff;
+      
+      if (i >= 14) {
+        const avgGain = gains / 14;
+        const avgLoss = losses / 14;
+        const rs = avgGain / (avgLoss || 1);
+        rsi.push(100 - (100 / (1 + rs)));
+      } else {
+        rsi.push(50);
+      }
+    }
+
+    const ema12 = calculateEMA(prices, 12);
+    const ema26 = calculateEMA(prices, 26);
+    for (let i = 0; i < prices.length; i++) {
+      macd.push(ema12[i] - ema26[i]);
+    }
+    const signalLine = calculateEMA(macd, 9);
+    signal.push(...signalLine);
+
+    for (let i = 0; i < prices.length; i++) {
+      if (i < 20) {
+        upperBB.push(0);
+        lowerBB.push(0);
+      } else {
+        const slice = prices.slice(i - 20, i);
+        const mean = slice.reduce((a, b) => a + b) / 20;
+        const stdDev = Math.sqrt(slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / 20);
+        upperBB.push(mean + 2 * stdDev);
+        lowerBB.push(mean - 2 * stdDev);
+      }
+    }
+
+    return { sma20, rsi, macd, signal, upperBB, lowerBB };
+  };
+
+  const calculateEMA = (prices: number[], period: number): number[] => {
+    const k = 2 / (period + 1);
+    const ema: number[] = [prices[0]];
+    for (let i = 1; i < prices.length; i++) {
+      ema.push(prices[i] * k + ema[i - 1] * (1 - k));
+    }
+    return ema;
+  };
+
   const fetchMarketData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Try to fetch from market_data table
-      const { data: liveData, error: marketError } = await supabase
-        .from('market_data')
-        .select('*')
-        .in('symbol', ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'])
-        .order('updated_at', { ascending: false });
+      const symbols = ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'];
+      const marketDataPromises = symbols.map(async (symbol, index) => {
+        // Add delay to avoid rate limits (200ms between requests)
+        await new Promise(resolve => setTimeout(resolve, index * 200));
+        const response = await fetch(
+          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
+        );
+        const data = await response.json();
 
-      if (marketError) {
-        console.warn('Failed to fetch live market data:', marketError);
-        throw new Error('Database fetch failed');
-      }
+        // Check for API errors
+        if (data['Error Message'] || data['Note'] || !data['Global Quote']) {
+          throw new Error(`API error for ${symbol}: ${data['Error Message'] || data['Note'] || 'No quote data'}`);
+        }
 
-      if (liveData && liveData.length > 0) {
-        // Transform database data to match our interface
-        const transformedData: MarketData[] = liveData.map(item => ({
+        const quote = data['Global Quote'];
+        return {
+          symbol,
+          price: parseFloat(quote['05. price'] || '0') || 0,
+          change: parseFloat(quote['09. change'] || '0') || 0,
+          changePercent: parseFloat(quote['10. change percent']?.replace('%', '') || '0') || 0,
+          volume: parseInt(quote['06. volume'] || '0') || 0,
+        };
+      });
+
+      const liveData = await Promise.all(marketDataPromises);
+      setMarketData(liveData);
+
+      // Save to Supabase
+      await supabase.from('market_data')
+        .upsert(liveData.map(item => ({
           symbol: item.symbol,
-          price: item.price || 0,
-          change: item.change || 0,
-          changePercent: item.change_percent || 0,
-          volume: item.volume || 0,
-          marketCap: item.market_cap
-        }));
-        setMarketData(transformedData);
-      } else {
-        // Fallback to mock data if no live data available
-        console.info('No live market data available, using mock data');
-        setMarketData(MOCK_MARKET_DATA);
-      }
+          price: item.price,
+          change: item.change,
+          change_percent: item.changePercent,
+          volume: item.volume,
+          updated_at: new Date().toISOString()
+        })));
     } catch (err) {
       console.error('Error fetching market data:', err);
-      setError('Failed to fetch market data');
-      // Fallback to mock data on error
-      setMarketData(MOCK_MARKET_DATA);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch market data from Alpha Vantage';
+      setError(errorMessage);
       toast({
-        title: "Using Demo Data",
-        description: "Live market data unavailable, showing demo data instead.",
-        variant: "default",
+        title: "Data Error",
+        description: errorMessage,
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  // Fetch historical chart data
-  const fetchChartData = useCallback(async (symbol: string) => {
+  const fetchChartData = useCallback(async (symbol: string, timeframe: keyof typeof TIMEFRAMES) => {
     try {
-      // Try to fetch from price_history table
-      const { data: historyData, error: historyError } = await supabase
-        .from('price_history')
-        .select('*')
-        .eq('symbol', symbol)
-        .order('date', { ascending: true })
-        .limit(30);
+      const endpoint = TIMEFRAMES[timeframe];
+      const response = await fetch(
+        `https://www.alphavantage.co/query?function=${endpoint}&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
+      );
+      const data = await response.json();
 
-      if (historyError) {
-        console.warn('Failed to fetch chart data:', historyError);
-        throw new Error('Chart data fetch failed');
+      // Check for API errors
+      if (data['Error Message'] || data['Note']) {
+        throw new Error(`API error for ${symbol}: ${data['Error Message'] || data['Note'] || 'No time series data'}`);
       }
 
-      if (historyData && historyData.length > 0) {
-        // Transform database data to match our interface
-        const transformedChartData: ChartData[] = historyData.map(item => ({
-          date: item.date,
-          price: item.price || 0,
-          volume: item.volume || 0,
-          sma20: item.sma20 || 0,
-          rsi: item.rsi || 50
-        }));
-        setChartData(transformedChartData);
+      let timeSeriesKey: string;
+      switch (timeframe) {
+        case 'hourly':
+          timeSeriesKey = 'Time Series (60min)';
+          break;
+        case 'daily':
+          timeSeriesKey = 'Time Series (Daily)';
+          break;
+        case 'weekly':
+          timeSeriesKey = 'Weekly Time Series';
+          break;
+        default:
+          timeSeriesKey = 'Monthly Time Series';
+      }
+
+      const timeSeries = data[timeSeriesKey];
+      if (!timeSeries) {
+        throw new Error('No time series data available');
+      }
+
+      const prices = Object.entries(timeSeries).map(([date, values]: [string, any]) => ({
+        date,
+        price: parseFloat(values['4. close'] || '0') || 0,
+        volume: parseInt(values['5. volume'] || '0') || 0
+      }));
+
+      // Calculate indicators
+      const priceValues = prices.map(p => p.price);
+      const { sma20, rsi, macd, signal, upperBB, lowerBB } = calculateIndicators(priceValues);
+
+      const transformedChartData: ChartData[] = prices.map((item, index) => ({
+        date: item.date,
+        price: item.price,
+        volume: item.volume,
+        sma20: sma20[index],
+        rsi: rsi[index],
+        macd: macd[index],
+        signal: signal[index],
+        upperBB: upperBB[index],
+        lowerBB: lowerBB[index]
+      }));
+
+      if (timeframe === 'yearly') {
+        const yearlyData: ChartData[] = [];
+        const years = new Set(transformedChartData.map(d => new Date(d.date).getFullYear()));
+        
+        years.forEach(year => {
+          const yearData = transformedChartData.filter(d => new Date(d.date).getFullYear() === year);
+          if (yearData.length > 0) {
+            const avgPrice = yearData.reduce((sum, d) => sum + d.price, 0) / yearData.length;
+            const avgVolume = yearData.reduce((sum, d) => sum + d.volume, 0) / yearData.length;
+            yearlyData.push({
+              date: year.toString(),
+              price: avgPrice,
+              volume: avgVolume,
+              sma20: yearData[yearData.length - 1].sma20,
+              rsi: yearData[yearData.length - 1].rsi,
+              macd: yearData[yearData.length - 1].macd,
+              signal: yearData[yearData.length - 1].signal,
+              upperBB: yearData[yearData.length - 1].upperBB,
+              lowerBB: yearData[yearData.length - 1].lowerBB
+            });
+          }
+        });
+        setChartData(yearlyData);
       } else {
-        // Fallback to mock data
-        console.info('No chart data available, using mock data');
-        setChartData(MOCK_CHART_DATA);
+        setChartData(transformedChartData.slice(0, 30));
       }
+
+      // Save to Supabase
+      await supabase.from('price_history').upsert(
+        transformedChartData.map(item => ({
+          symbol,
+          date: item.date,
+          price: item.price,
+          volume: item.volume,
+          sma20: item.sma20,
+          rsi: item.rsi,
+          macd: item.macd,
+          signal: item.signal,
+          upperBB: item.upperBB,
+          lowerBB: item.lowerBB
+        }))
+      );
     } catch (err) {
       console.error('Error fetching chart data:', err);
-      // Fallback to mock data on error
-      setChartData(MOCK_CHART_DATA);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chart data';
+      setError(errorMessage);
+      toast({
+        title: "Data Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
-  }, []);
+  }, [toast]);
 
-  // Initial data fetch
   useEffect(() => {
     fetchMarketData();
   }, [fetchMarketData]);
 
-  // Fetch chart data when symbol changes
   useEffect(() => {
-    fetchChartData(selectedSymbol);
-  }, [selectedSymbol, fetchChartData]);
+    fetchChartData(selectedSymbol, selectedTimeframe);
+  }, [selectedSymbol, selectedTimeframe, fetchChartData]);
 
-  // Auto-refresh data every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       fetchMarketData();
-      fetchChartData(selectedSymbol);
-    }, 5 * 60 * 1000); // 5 minutes
+      fetchChartData(selectedSymbol, selectedTimeframe);
+    }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [fetchMarketData, fetchChartData, selectedSymbol]);
+  }, [fetchMarketData, fetchChartData, selectedSymbol, selectedTimeframe]);
 
   const topMovers = marketData
     .filter(item => item.symbol !== 'VIX')
@@ -188,13 +328,14 @@ const MarketTrends = () => {
 
   return (
     <div className="space-y-6">
+      <Header />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Market Trends</h1>
           <p className="text-gray-600">Real-time market analysis and trading opportunities</p>
           {error && (
             <p className="text-sm text-amber-600 mt-1">
-              ⚠️ Using demo data - Live data connection unavailable
+              ⚠️ {error}
             </p>
           )}
         </div>
@@ -207,7 +348,7 @@ const MarketTrends = () => {
             size="sm"
             onClick={() => {
               fetchMarketData();
-              fetchChartData(selectedSymbol);
+              fetchChartData(selectedSymbol, selectedTimeframe);
             }}
           >
             Refresh
@@ -224,7 +365,6 @@ const MarketTrends = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Market Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {marketData.slice(0, 4).map((item) => (
               <Card key={item.symbol} className="hover:shadow-md transition-shadow cursor-pointer">
@@ -255,7 +395,6 @@ const MarketTrends = () => {
             ))}
           </div>
 
-          {/* Top Movers */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -288,13 +427,12 @@ const MarketTrends = () => {
             </CardContent>
           </Card>
 
-          {/* Market Chart */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Market Chart - {selectedSymbol}</CardTitle>
-                  <CardDescription>30-day price movement</CardDescription>
+                  <CardDescription>{selectedTimeframe.charAt(0).toUpperCase() + selectedTimeframe.slice(1)} price movement</CardDescription>
                 </div>
                 <div className="flex space-x-2">
                   {['SPY', 'QQQ', 'IWM'].map((symbol) => (
@@ -307,11 +445,38 @@ const MarketTrends = () => {
                       {symbol}
                     </Button>
                   ))}
+                  {['hourly', 'daily', 'weekly', 'monthly', 'yearly'].map((tf) => (
+                    <Button
+                      key={tf}
+                      variant={selectedTimeframe === tf ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedTimeframe(tf as keyof typeof TIMEFRAMES)}
+                    >
+                      {tf.charAt(0).toUpperCase() + tf.slice(1)}
+                    </Button>
+                  ))}
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <MarketChart data={chartData} />
+              <div className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} />
+                    <Tooltip />
+                    <Line yAxisId="left" type="monotone" dataKey="price" stroke="#8884d8" name="Price" />
+                    <Line yAxisId="left" type="monotone" dataKey="sma20" stroke="#82ca9d" name="SMA20" />
+                    <Line yAxisId="left" type="monotone" dataKey="upperBB" stroke="#ff7300" name="Upper BB" strokeDasharray="3 3" />
+                    <Line yAxisId="left" type="monotone" dataKey="lowerBB" stroke="#ff7300" name="Lower BB" strokeDasharray="3 3" />
+                    <Line yAxisId="right" type="monotone" dataKey="rsi" stroke="#ff0000" name="RSI" />
+                    <Line yAxisId="left" type="monotone" dataKey="macd" stroke="#00ff00" name="MACD" />
+                    <Line yAxisId="left" type="monotone" dataKey="signal" stroke="#0000ff" name="Signal" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -330,26 +495,32 @@ const MarketTrends = () => {
                   <div className="flex justify-between items-center">
                     <span>RSI (14)</span>
                     <Badge variant="secondary">
-                      {chartData.length > 0 ? chartData[chartData.length - 1].rsi.toFixed(1) : '45.2'}
+                      {chartData.length > 0 ? chartData[chartData.length - 1].rsi.toFixed(1) : 'N/A'}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>MACD</span>
-                    <Badge variant="default">Bullish</Badge>
+                    <Badge variant={chartData.length > 0 && chartData[chartData.length - 1].macd > chartData[chartData.length - 1].signal ? 'default' : 'destructive'}>
+                      {chartData.length > 0 ? (chartData[chartData.length - 1].macd > chartData[chartData.length - 1].signal ? 'Bullish' : 'Bearish') : 'N/A'}
+                    </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Moving Average (20)</span>
                     <Badge variant="secondary">
-                      ${chartData.length > 0 ? chartData[chartData.length - 1].sma20.toFixed(2) : '422.15'}
+                      ${chartData.length > 0 ? chartData[chartData.length - 1].sma20.toFixed(2) : 'N/A'}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>Support Level</span>
-                    <Badge variant="outline">$415.00</Badge>
+                    <span>Upper Bollinger Band</span>
+                    <Badge variant="outline">
+                      ${chartData.length > 0 ? chartData[chartData.length - 1].upperBB.toFixed(2) : 'N/A'}
+                    </Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>Resistance Level</span>
-                    <Badge variant="outline">$430.00</Badge>
+                    <span>Lower Bollinger Band</span>
+                    <Badge variant="outline">
+                      ${chartData.length > 0 ? chartData[chartData.length - 1].lowerBB.toFixed(2) : 'N/A'}
+                    </Badge>
                   </div>
                 </div>
               </CardContent>
@@ -364,18 +535,28 @@ const MarketTrends = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <div className="p-3 border-l-4 border-yellow-500 bg-yellow-50">
-                    <p className="font-medium">Volume Spike</p>
-                    <p className="text-sm text-gray-600">SPY volume 50% above average</p>
-                  </div>
-                  <div className="p-3 border-l-4 border-green-500 bg-green-50">
-                    <p className="font-medium">Breakout Alert</p>
-                    <p className="text-sm text-gray-600">QQQ broke above resistance at $365</p>
-                  </div>
-                  <div className="p-3 border-l-4 border-red-500 bg-red-50">
-                    <p className="font-medium">Support Test</p>
-                    <p className="text-sm text-gray-600">IWM testing key support at $195</p>
-                  </div>
+                  {chartData.length > 0 && (
+                    <>
+                      {chartData[chartData.length - 1].volume > chartData.slice(-10, -1).reduce((a, b) => a + b.volume, 0) / 9 * 1.5 && (
+                        <div className="p-3 border-l-4 border-yellow-500 bg-yellow-50">
+                          <p className="font-medium">Volume Spike</p>
+                          <p className="text-sm text-gray-600">{selectedSymbol} volume significantly above average</p>
+                        </div>
+                      )}
+                      {chartData[chartData.length - 1].price > chartData[chartData.length - 1].upperBB && (
+                        <div className="p-3 border-l-4 border-green-500 bg-green-50">
+                          <p className="font-medium">Breakout Alert</p>
+                          <p className="text-sm text-gray-600">{selectedSymbol} broke above upper Bollinger Band</p>
+                        </div>
+                      )}
+                      {chartData[chartData.length - 1].price < chartData[chartData.length - 1].lowerBB && (
+                        <div className="p-3 border-l-4 border-red-500 bg-red-50">
+                          <p className="font-medium">Support Test</p>
+                          <p className="text-sm text-gray-600">{selectedSymbol} testing lower Bollinger Band</p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -396,12 +577,10 @@ const MarketTrends = () => {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[
-                    { sector: 'Technology', performance: 1.2 },
-                    { sector: 'Healthcare', performance: 0.8 },
-                    { sector: 'Finance', performance: -0.3 },
-                    { sector: 'Energy', performance: 2.1 },
-                    { sector: 'Consumer', performance: 0.5 },
-                    { sector: 'Industrial', performance: -0.1 }
+                    { sector: 'Technology', performance: marketData.find(d => d.symbol === 'QQQ')?.changePercent || 0 },
+                    { sector: 'Broad Market', performance: marketData.find(d => d.symbol === 'SPY')?.changePercent || 0 },
+                    { sector: 'Small Caps', performance: marketData.find(d => d.symbol === 'IWM')?.changePercent || 0 },
+                    { sector: 'Commodities', performance: marketData.find(d => d.symbol === 'GLD')?.changePercent || 0 },
                   ]}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="sector" />
