@@ -34,6 +34,43 @@ export interface Contract {
   underlying: string; // e.g., 'SPY'
 }
 
+export interface StrategyCondition {
+  id: string;
+  type: 'entry' | 'exit';
+  indicator: string;
+  operator: string;
+  value: string;
+  timeframe: string;
+}
+
+export interface TradingLeg {
+  id: string;
+  strike: string;
+  type: 'Call' | 'Put';
+  expiration: string; // e.g., '2025-08-15'
+  buySell: 'Buy' | 'Sell';
+  size: number;
+  price: string;
+  underlying: string; // e.g., 'SPY'
+  epic: string; // IG's market identifier
+}
+
+export interface StrategyConfig {
+  conditions: StrategyCondition[];
+  legs: TradingLeg[];
+  name: string;
+}
+
+export interface BacktestResult {
+  id: string;
+  strategyId: string;
+  returns: number;
+  sharpeRatio: number;
+  maxDrawdown: number;
+  trades: number;
+  createdAt: string;
+}
+
 export async function authenticateIG(): Promise<IGAuthTokens> {
   const response = await axios.post(
     `${IG_API_BASE_URL}/session`,
@@ -165,6 +202,52 @@ export async function fetchOptionsChain({
     }));
   } catch (error) {
     console.error('Error fetching options chain:', error);
+    throw error;
+  }
+}
+
+export async function deployStrategyToBroker({
+  strategyId,
+  strategyConfig,
+  action,
+}: {
+  strategyId: string;
+  strategyConfig: StrategyConfig;
+  action: 'backtest' | 'deploy';
+}): Promise<{ strategyId: string; results?: BacktestResult[] }> {
+  try {
+    const auth = await authenticateIG();
+
+    if (action === 'deploy') {
+      // Execute trades for each leg using placeTrade
+      for (const leg of strategyConfig.legs) {
+        await placeTrade(auth, {
+          epic: leg.epic,
+          size: leg.size,
+          direction: leg.buySell,
+          orderType: 'MARKET',
+          expiry: leg.expiration,
+          currencyCode: 'USD',
+        });
+      }
+      return { strategyId };
+    } else {
+      // Backtest: Simulate trades in IG's demo account or return mock results
+      // Note: IG API lacks a direct backtest endpoint; using mock results as placeholder
+      // Replace with paper trading or historical data API if available
+      const mockResult: BacktestResult = {
+        id: Date.now().toString(),
+        strategyId,
+        returns: Math.random() * 20 + 5, // Mock return value
+        sharpeRatio: Math.random() * 2 + 0.5, // Mock Sharpe ratio
+        maxDrawdown: Math.random() * 10, // Mock drawdown
+        trades: Math.floor(Math.random() * 100), // Mock trade count
+        createdAt: new Date().toISOString(),
+      };
+      return { strategyId, results: [mockResult] };
+    }
+  } catch (error) {
+    console.error(`Error in ${action} strategy:`, error);
     throw error;
   }
 }
