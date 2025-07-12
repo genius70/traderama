@@ -21,7 +21,7 @@ interface LiveOptionsChainProps {
 }
 
 const POLYGON_WS_URL = 'wss://socket.polygon.io/options';
-const POLYGON_API_KEY = process.env.REACT_APP_POLYGON_API_KEY || 'YOUR_POLYGON_API_KEY';
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY ;
 
 const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract }) => {
   const { toast } = useToast();
