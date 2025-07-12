@@ -16,7 +16,7 @@ import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector'
 import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
 import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
 import MockOptionsChain from '@/components/trading/MockOptionsChain';
-import LiveOptionsChain from '@/utils/LiveOptionsChain';
+import LiveOptionsChain from '@/components/trading/LiveOptionsChain';
 import StrategyPreview from '@/components/trading/StrategyPreview';
 import { authenticateIG } from '@/utils/igTradingAPI';
 
