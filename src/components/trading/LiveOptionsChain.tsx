@@ -1,36 +1,38 @@
-// src/components/trading/LiveOptionsChain.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react';
-import { fetchOptionsChain } from '@/utils/igTradingAPI';
 import { useToast } from '@/hooks/use-toast';
+import { fetchOptionsChain, fetchOptionsChainMetadata } from '@/utils/polygonAPI';
 
 interface Contract {
-  id: string;
+  id: string; // Maps to Polygon.io's contract ticker (e.g., O:SPY250117C00450000)
   strike: number;
   type: 'Call' | 'Put';
   ask: number;
   bid: number;
-  expiration: string;
-  underlying: string;
+  expiration: string; // YYYY-MM-DD
+  underlying: string; // e.g., SPY, SPX
 }
 
 interface LiveOptionsChainProps {
   onSelectContract: (contract: { strike: number; type: 'Call' | 'Put'; ask: number }) => void;
 }
 
+const POLYGON_WS_URL = 'wss://socket.polygon.io/options';
+const POLYGON_API_KEY = process.env.REACT_APP_POLYGON_API_KEY || 'YOUR_POLYGON_API_KEY';
+
 const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract }) => {
   const { toast } = useToast();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [underlying, setUnderlying] = useState<string>(''); // e.g., 'SPY'
-  const [expiration, setExpiration] = useState<string>(''); // e.g., '2025-08-15'
+  const [underlying, setUnderlying] = useState<string>('');
+  const [expiration, setExpiration] = useState<string>('');
   const [availableUnderlyings, setAvailableUnderlyings] = useState<string[]>([]);
   const [availableExpirations, setAvailableExpirations] = useState<string[]>([]);
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
   // Fetch available underlyings and expirations on mount
   useEffect(() => {
@@ -50,7 +52,60 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       }
     };
     fetchMetadata();
-  }, []);
+  }, [toast]);
+
+  // Initialize WebSocket connection
+  const initializeWebSocket = useCallback(() => {
+    if (!underlying || !expiration) return;
+    const socket = new WebSocket(POLYGON_WS_URL);
+
+    socket.onopen = () => {
+      // Authenticate WebSocket
+      socket.send(JSON.stringify({ action: 'auth', params: POLYGON_API_KEY }));
+      // Subscribe to options quotes for the underlying and expiration
+      socket.send(
+        JSON.stringify({
+          action: 'subscribe',
+          params: `Q.O:${underlying}${expiration.replace(/-/g, '').slice(2)}*`, // e.g., Q.O:SPY250117*
+        })
+      );
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.ev === 'Q') {
+        // Update contracts with real-time quote data
+        setContracts((prevContracts) =>
+          prevContracts.map((contract) =>
+            contract.id === data.sym
+              ? {
+                  ...contract,
+                  bid: data.bp || contract.bid,
+                  ask: data.ap || contract.ask,
+                }
+              : contract
+          )
+        );
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      toast({
+        title: 'WebSocket Error',
+        description: 'Failed to connect to live data feed.',
+        variant: 'destructive',
+      });
+    };
+
+    socket.onclose = () => {
+      // Attempt to reconnect after 5 seconds
+      setTimeout(initializeWebSocket, 5000);
+    };
+
+    setWs(socket);
+    return () => socket.close();
+  }, [underlying, expiration, toast]);
 
   // Fetch options chain when underlying or expiration changes
   useEffect(() => {
@@ -66,7 +121,7 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
         setError('Failed to load options chain');
         toast({
           title: 'Error fetching options chain',
-          description: 'Unable to retrieve data from the broker.',
+          description: 'Unable to retrieve data from Polygon.io.',
           variant: 'destructive',
         });
       } finally {
@@ -74,7 +129,9 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       }
     };
     fetchData();
-  }, [underlying, expiration, toast]);
+    const cleanup = initializeWebSocket();
+    return cleanup;
+  }, [underlying, expiration, toast, initializeWebSocket]);
 
   return (
     <Card>
