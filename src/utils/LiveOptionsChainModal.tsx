@@ -1,35 +1,39 @@
-// src/utils/LiveOptionsChainModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { X, Search } from 'lucide-react';
-import { fetchOptionsChain, IGAuthTokens } from '@/utils/igTradingAPI';
 import { useToast } from '@/hooks/use-toast';
 
+// Interface for Polygon.io options contract data
 interface LiveOptionContract {
-  epic: string;
+  epic: string; // Maps to Polygon.io's contract ticker (e.g., O:SPY250117C00450000)
   strike: number;
   type: 'Call' | 'Put';
   bid: number;
   ask: number;
   volume: number;
   openInterest: number;
-  impliedVolatility: number;
-  delta: number;
+  impliedVolatility: number; // Note: May require third-party calculation or Intrinio for IV
+  delta: number; // Note: May require third-party calculation
   percentChange: number;
-  expiration: string;
-  underlying: string;
+  expiration: string; // Formatted as YYYY-MM-DD
+  underlying: string; // e.g., SPY, SPX
 }
 
 interface LiveOptionsChainModalProps {
   isOpen: boolean;
   onClose: () => void;
-  symbol: string;
-  expiry: string; // Added to pass selectedExpiry
+  symbol: string; // e.g., SPY, SPX, QQQ
+  expiry: string; // YYYY-MM-DD format
   onSelectContract: (contract: LiveOptionContract) => void;
 }
+
+// Placeholder for Polygon.io API key (replace with your key or env variable)
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY ;
+const POLYGON_REST_BASE_URL = 'https://api.polygon.io';
+const POLYGON_WS_URL = 'wss://socket.polygon.io/options';
 
 const LiveOptionsChainModal: React.FC<LiveOptionsChainModalProps> = ({
   isOpen,
@@ -42,66 +46,121 @@ const LiveOptionsChainModal: React.FC<LiveOptionsChainModalProps> = ({
   const [contracts, setContracts] = useState<LiveOptionContract[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchStrike, setSearchStrike] = useState('');
-  const [authTokens, setAuthTokens] = useState<IGAuthTokens | null>(null);
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
-  // Authenticate with IG API on mount
-  useEffect(() => {
-    const authenticate = async () => {
-      try {
-        const tokens = await supabase.functions.invoke('get-auth-tokens', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${user?.id}` },
-        });
-        setAuthTokens(tokens);
-      } catch (err) {
-        toast({
-          title: 'Authentication Error',
-          description: 'Unable to authenticate with the broker.',
-          variant: 'destructive',
-        });
+  // Initialize WebSocket connection
+  const initializeWebSocket = useCallback(() => {
+    const socket = new WebSocket(POLYGON_WS_URL);
+
+    socket.onopen = () => {
+      // Authenticate WebSocket
+      socket.send(JSON.stringify({ action: 'auth', params: POLYGON_API_KEY }));
+      // Subscribe to options quotes for the symbol and expiry
+      socket.send(
+        JSON.stringify({
+          action: 'subscribe',
+          params: `Q.O:${symbol}${expiry.replace(/-/g, '').slice(2)}*`, // e.g., Q.O:SPY250117*
+        })
+      );
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.ev === 'Q') {
+        // Update contracts with real-time quote data
+        setContracts((prevContracts) =>
+          prevContracts.map((contract) =>
+            contract.epic === data.sym
+              ? {
+                  ...contract,
+                  bid: data.bp || contract.bid,
+                  ask: data.ap || contract.ask,
+                  volume: data.bv || contract.volume,
+                  percentChange: data.lp ? ((data.lp - contract.bid) / contract.bid) * 100 : contract.percentChange,
+                }
+              : contract
+          )
+        );
       }
     };
-    if (isOpen) authenticate();
-  }, [isOpen, toast]);
 
-  // Load options chain data
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      toast({
+        title: 'WebSocket Error',
+        description: 'Failed to connect to live data feed.',
+        variant: 'destructive',
+      });
+    };
+
+    socket.onclose = () => {
+      // Attempt to reconnect after 5 seconds
+      setTimeout(initializeWebSocket, 5000);
+    };
+
+    setWs(socket);
+    return () => socket.close();
+  }, [symbol, expiry, toast]);
+
+  // Load options chain data via Polygon.io REST API
   const loadOptionsChain = useCallback(async () => {
-    if (!authTokens || !symbol || !expiry) return;
+    if (!symbol || !expiry) return;
     setLoading(true);
     try {
-      const data = await fetchOptionsChain({ auth: authTokens, underlying: symbol, expiration: expiry });
-      // Map IG API data to LiveOptionContract, adding mock Greeks for now
-      const enrichedData = data.map((contract) => ({
-        ...contract,
-        volume: Math.floor(Math.random() * 1000), // Mock volume
-        openInterest: Math.floor(Math.random() * 500), // Mock open interest
-        impliedVolatility: Math.random() * 0.5, // Mock IV
-        delta: Math.random() * (contract.type === 'Call' ? 1 : -1), // Mock delta
-        percentChange: (Math.random() - 0.5) * 10, // Mock percent change
-      }));
+      // Fetch options chain snapshot
+      const response = await fetch(
+        `${POLYGON_REST_BASE_URL}/v2/snapshot/options/${symbol}?expiration_date=${expiry}&apiKey=${POLYGON_API_KEY}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch options chain');
+      const data = await response.json();
+
+      // Map Polygon.io data to LiveOptionContract
+      const enrichedData: LiveOptionContract[] = data.results.map((contract: any) => {
+        const isCall = contract.details.contract_type === 'call';
+        return {
+          epic: contract.details.ticker, // e.g., O:SPY250117C00450000
+          strike: contract.details.strike_price,
+          type: isCall ? 'Call' : 'Put',
+          bid: contract.day.bid || 0,
+          ask: contract.day.ask || 0,
+          volume: contract.day.volume || 0,
+          openInterest: contract.open_interest || 0,
+          impliedVolatility: 0, // Placeholder: Polygon.io doesn't provide IV; consider Intrinio or custom calculation
+          delta: 0, // Placeholder: Requires external calculation (e.g., Black-Scholes model)
+          percentChange: contract.day.change_percent || 0,
+          expiration: contract.details.expiration_date,
+          underlying: contract.underlying_asset.ticker,
+        };
+      });
+
       setContracts(enrichedData);
     } catch (error) {
       console.error('Failed to load options chain:', error);
       toast({
         title: 'Error fetching options chain',
-        description: 'Unable to retrieve data from the broker.',
+        description: 'Unable to retrieve data from Polygon.io.',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
-  }, [authTokens, symbol, expiry, toast]);
+  }, [symbol, expiry, toast]);
 
+  // Fetch initial data and initialize WebSocket when modal opens
   useEffect(() => {
-    if (isOpen && authTokens) {
+    if (isOpen) {
       loadOptionsChain();
+      const cleanup = initializeWebSocket();
+      return cleanup;
     }
-  }, [isOpen, authTokens, loadOptionsChain]);
+    // Clean up WebSocket on modal close
+    return () => ws?.close();
+  }, [isOpen, loadOptionsChain, initializeWebSocket, ws]);
 
-  const filteredContracts = contracts.filter((contract) =>
-    !searchStrike || contract.strike.toString().includes(searchStrike)
+  // Filter contracts by strike price
+  const filteredContracts = contracts.filter(
+    (contract) => !searchStrike || contract.strike.toString().includes(searchStrike)
   );
-
   const callContracts = filteredContracts.filter((c) => c.type === 'Call');
   const putContracts = filteredContracts.filter((c) => c.type === 'Put');
 
