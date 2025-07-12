@@ -207,8 +207,8 @@ const CreateStrategy = () => {
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="legs">Options Legs</TabsTrigger>
             <TabsTrigger value="chain">Options Chain</TabsTrigger>
+           <TabsTrigger value="legs">Options Legs</TabsTrigger>
             <TabsTrigger value="conditions">Conditions</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
