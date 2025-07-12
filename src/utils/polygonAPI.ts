@@ -1,5 +1,5 @@
 // src/utils/polygonAPI.ts
-import { Contract } from '@/components/trading/LiveOptionsChain';
+import { Contract } from '@/utils/igTradingAPI';
 
 // Placeholder for Polygon.io API key (replace with your key or env variable)
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY ;
@@ -37,9 +37,10 @@ export const fetchOptionsChain = async ({
     throw new Error('Failed to fetch options chain');
   }
   const data = await response.json();
-  
+
+  // Map Polygon.io data to Contract interface
   return data.results.map((contract: PolygonContract) => ({
-    id: contract.details.ticker, // e.g., O:SPY250117C00450000
+    epic: contract.details.ticker, // Placeholder: Map to IG epic via fetchMarketDetails if needed
     strike: contract.details.strike_price,
     type: contract.details.contract_type === 'call' ? 'Call' : 'Put',
     ask: contract.day.ask || 0,
@@ -54,7 +55,7 @@ export const fetchOptionsChainMetadata = async (): Promise<{
   underlyings: string[];
   expirations: string[];
 }> => {
-  // For simplicity, return a static list of underlyings; optionally fetch dynamically
+  // Static list of underlyings (extend with /v3/reference/tickers if needed)
   const underlyings = ['SPY', 'QQQ', 'SPX', 'VIX'];
 
   // Fetch expirations for the first underlying (e.g., SPY) as a default
