@@ -5,23 +5,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchOptionsChain, fetchOptionsChainMetadata } from '@/utils/polygonAPI';
-
-interface Contract {
-  id: string; // Maps to Polygon.io's contract ticker (e.g., O:SPY250117C00450000)
-  strike: number;
-  type: 'Call' | 'Put';
-  ask: number;
-  bid: number;
-  expiration: string; // YYYY-MM-DD
-  underlying: string; // e.g., SPY, SPX
-}
+import { authenticateIG, placeTrade, IGAuthTokens, Contract } from '@/utils/igTradingAPI';
 
 interface LiveOptionsChainProps {
   onSelectContract: (contract: { strike: number; type: 'Call' | 'Put'; ask: number }) => void;
 }
 
 const POLYGON_WS_URL = 'wss://socket.polygon.io/options';
-const POLYGON_API_KEY = process.env.POLYGON_API_KEY ;
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
 
 const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract }) => {
   const { toast } = useToast();
@@ -33,6 +24,24 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
   const [availableUnderlyings, setAvailableUnderlyings] = useState<string[]>([]);
   const [availableExpirations, setAvailableExpirations] = useState<string[]>([]);
   const [ws, setWs] = useState<WebSocket | null>(null);
+  const [authTokens, setAuthTokens] = useState<IGAuthTokens | null>(null);
+
+  // Authenticate with IG API on mount
+  useEffect(() => {
+    const authenticate = async () => {
+      try {
+        const tokens = await authenticateIG();
+        setAuthTokens(tokens);
+      } catch (err) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Unable to authenticate with IG Brokers.',
+          variant: 'destructive',
+        });
+      }
+    };
+    authenticate();
+  }, [toast]);
 
   // Fetch available underlyings and expirations on mount
   useEffect(() => {
@@ -54,15 +63,13 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
     fetchMetadata();
   }, [toast]);
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection for Polygon.io
   const initializeWebSocket = useCallback(() => {
     if (!underlying || !expiration) return;
     const socket = new WebSocket(POLYGON_WS_URL);
 
     socket.onopen = () => {
-      // Authenticate WebSocket
       socket.send(JSON.stringify({ action: 'auth', params: POLYGON_API_KEY }));
-      // Subscribe to options quotes for the underlying and expiration
       socket.send(
         JSON.stringify({
           action: 'subscribe',
@@ -74,10 +81,9 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.ev === 'Q') {
-        // Update contracts with real-time quote data
         setContracts((prevContracts) =>
           prevContracts.map((contract) =>
-            contract.id === data.sym
+            contract.epic === data.sym
               ? {
                   ...contract,
                   bid: data.bp || contract.bid,
@@ -99,7 +105,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
     };
 
     socket.onclose = () => {
-      // Attempt to reconnect after 5 seconds
       setTimeout(initializeWebSocket, 5000);
     };
 
@@ -116,7 +121,15 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       setError(null);
       try {
         const data = await fetchOptionsChain({ underlying, expiration });
-        setContracts(data);
+        // Map Polygon.io tickers to IG epics (placeholder logic)
+        const mappedContracts = await Promise.all(
+          data.map(async (contract) => {
+            // Placeholder: Call IG API to map Polygon.io ticker to IG epic
+            // Replace with actual IG market lookup if needed
+            return { ...contract, epic: contract.epic }; // Assuming epic mapping is handled
+          })
+        );
+        setContracts(mappedContracts);
       } catch (err) {
         setError('Failed to load options chain');
         toast({
@@ -132,6 +145,45 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
     const cleanup = initializeWebSocket();
     return cleanup;
   }, [underlying, expiration, toast, initializeWebSocket]);
+
+  // Handle contract selection and trade placement
+  const handleSelectContract = async (contract: Contract) => {
+    if (!authTokens) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Not authenticated with IG Brokers.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Place trade with IG Brokers
+      const tradeResponse = await placeTrade(authTokens, {
+        epic: contract.epic,
+        size: 1, // Adjust size as needed
+        direction: 'BUY', // Adjust based on strategy
+        orderType: 'MARKET',
+        expiry: contract.expiration,
+        currencyCode: 'USD',
+      });
+      onSelectContract({
+        strike: contract.strike,
+        type: contract.type,
+        ask: contract.ask,
+      });
+      toast({
+        title: 'Trade Placed',
+        description: `Trade placed successfully: ${tradeResponse.dealReference}`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Trade Error',
+        description: 'Failed to place trade with IG Brokers.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <Card>
@@ -189,15 +241,7 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
                   <span>
                     {contract.underlying} {contract.type} Strike: {contract.strike}, Ask: {contract.ask.toFixed(2)}, Expires: {contract.expiration}
                   </span>
-                  <Button
-                    onClick={() => onSelectContract({
-                      strike: contract.strike,
-                      type: contract.type,
-                      ask: contract.ask,
-                    })}
-                  >
-                    Select
-                  </Button>
+                  <Button onClick={() => handleSelectContract(contract)}>Select</Button>
                 </div>
               ))}
             </div>
