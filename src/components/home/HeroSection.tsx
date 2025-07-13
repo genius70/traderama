@@ -32,7 +32,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user }) => {
           </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white max-w-4xl mx-auto leading-tight">
-            Master Iron Condor Trading with
+            Master Iron Condor Among Other Options Trading Strategies with
             <span className="text-blue-400"> Professional Tools</span>
           </h2>
 
