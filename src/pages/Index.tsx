@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import HeroSection from "@/components/home/HeroSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
 import StrategiesSection from "@/components/home/StrategiesSection";
@@ -29,6 +30,7 @@ const Index: React.FC = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchStrategies();
@@ -112,6 +114,7 @@ const Index: React.FC = () => {
         description: "Please sign in to subscribe to strategies",
         variant: "destructive",
       });
+      navigate("/auth");
       return;
     }
 
