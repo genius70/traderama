@@ -26,12 +26,14 @@ interface Strategy {
 const Index: React.FC = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchStrategies();
-  }, []);
+    fetchUserRole();
+  }, [user]);
 
   const fetchStrategies = async (): Promise<void> => {
     try {
@@ -44,7 +46,7 @@ const Index: React.FC = () => {
             name,
             email
           )
-        `,
+        `
         )
         .eq("status", "published")
         .order("created_at", { ascending: false })
@@ -65,6 +67,41 @@ const Index: React.FC = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserRole = async (): Promise<void> => {
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching user role:", error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch user role. Defaulting to user access.",
+            variant: "destructive",
+          });
+          setUserRole("user");
+          return;
+        }
+
+        setUserRole(data?.role || "user");
+      } catch (err) {
+        console.error("Error fetching user role:", err);
+        toast({
+          title: "Error",
+          description: "Failed to fetch user role. Defaulting to user access.",
+          variant: "destructive",
+        });
+        setUserRole("user");
+      }
+    } else {
+      setUserRole(null);
     }
   };
 
@@ -105,7 +142,7 @@ const Index: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <HeroSection user={user} />
+      <HeroSection user={user} userRole={userRole} />
       <FeaturesSection />
       <StrategiesSection
         strategies={strategies}
