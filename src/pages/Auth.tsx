@@ -1,112 +1,90 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuth } from "@/hooks/useAuth";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const { user, signIn, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [isRoleLoading, setIsRoleLoading] = useState(false);
   const [hasRedirected, setHasRedirected] = useState(false);
 
   // Fetch user role when user changes
   useEffect(() => {
     const fetchUserRole = async () => {
       if (user) {
-        setIsRoleLoading(true);
         try {
           const { data, error } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", user.id)
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
             .single();
 
           if (error) {
-            console.error("Error fetching user role:", error);
-            toast({
-              title: "Error",
-              description: "Failed to fetch user role. Defaulting to user access.",
-              variant: "destructive",
-            });
-            setUserRole("user");
+            console.error('Error fetching user role:', error);
             return;
           }
 
-          setUserRole(data?. chapel || "user");
+          setUserRole(data?.role || 'user');
         } catch (err) {
-          console.error("Error fetching user role:", err);
-          toast({
-            title: "Error",
-            description: "Failed to fetch user role. Defaulting to user access.",
-            variant: "destructive",
-          });
-          setUserRole("user");
-        } finally {
-          setIsRoleLoading(false);
+          console.error('Error fetching user role:', err);
+          setUserRole('user'); // Default to user role
         }
       } else {
         setUserRole(null);
-        setHasRedirected(false);
+        setHasRedirected(false); // Reset redirect flag when user logs out
       }
     };
 
     fetchUserRole();
-  }, [user, toast]);
+  }, [user]);
 
   // Handle redirects based on user role
   useEffect(() => {
     if (user && userRole && !hasRedirected) {
-      const isOnAdminDashboard = location.pathname.startsWith("/admin");
-      const isOnCreatorDashboard = location.pathname.startsWith("/creator-dashboard");
-      const isOnUserDashboard = location.pathname.startsWith("/user-dashboard");
-
-      if (userRole === "admin" && !isOnAdminDashboard) {
+      // Check if we're already on the correct dashboard page
+      const isOnAdminDashboard = location.pathname === '/admin';
+      const isOnCreatorDashboard = location.pathname === '/creator-dashboard';
+      const isOnUserDashboard = location.pathname === '/user-dashboard';
+      
+      if (userRole === 'admin' && !isOnAdminDashboard) {
         setHasRedirected(true);
-        setError("");
-        setSuccess("");
-        navigate("/admin");
-      } else if (userRole === "strategy_creator" && !isOnCreatorDashboard) {
+        navigate('/admin');
+      } else if (userRole === 'strategy_creator' && !isOnCreatorDashboard) {
         setHasRedirected(true);
-        setError("");
-        setSuccess("");
-        navigate("/creator-dashboard");
-      } else if (userRole === "user" && !isOnUserDashboard) {
+        navigate('/creator-dashboard');
+      } else if (userRole === 'user' && !isOnUserDashboard) {
         setHasRedirected(true);
-        setError("");
-        setSuccess("");
-        navigate("/user-dashboard");
+        navigate('/user-dashboard');
       }
     }
   }, [user, userRole, navigate, location.pathname, hasRedirected]);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setIsSubmitting(true);
 
     try {
       if (isSignUp) {
         if (password !== confirmPassword) {
-          setError("Passwords do not match");
+          setError('Passwords do not match');
           return;
         }
 
@@ -120,24 +98,24 @@ const Auth = () => {
 
         if (error) throw error;
 
-        setSuccess("Please check your email to confirm your account");
+        setSuccess('Please check your email to confirm your account');
       } else {
         await signIn(email, password);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    setError("");
+    setError('');
     setIsSubmitting(true);
 
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
+        provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`,
         },
@@ -145,7 +123,7 @@ const Auth = () => {
 
       if (error) throw error;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsSubmitting(false);
     }
@@ -153,11 +131,11 @@ const Auth = () => {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      setError("Please enter your email address");
+      setError('Please enter your email address');
       return;
     }
 
-    setError("");
+    setError('');
     setIsSubmitting(true);
 
     try {
@@ -167,15 +145,15 @@ const Auth = () => {
 
       if (error) throw error;
 
-      setSuccess("Password reset instructions sent to your email");
+      setSuccess('Password reset instructions sent to your email');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading || isRoleLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -192,20 +170,16 @@ const Auth = () => {
           </CardTitle>
           <CardDescription className="text-center">
             {user ? (
-              userRole === "admin"
-                ? "Admin Access"
-                : userRole === "strategy_creator"
-                ? "Strategy Creator Dashboard"
-                : "User Dashboard"
-            ) : isSignUp ? (
-              "Create your account"
+              userRole === 'admin' ? 'Admin Access' : 
+              userRole === 'strategy_creator' ? 'Strategy Creator Dashboard' : 
+              'User Dashboard'
             ) : (
-              "Sign in to your account"
+              isSignUp ? 'Create your account' : 'Sign in to your account'
             )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {user && userRole === "admin" && !location.pathname.startsWith("/admin") && (
+          {user && userRole === 'admin' && (
             <div className="space-y-4">
               <Alert>
                 <AlertDescription>
@@ -213,60 +187,55 @@ const Auth = () => {
                 </AlertDescription>
               </Alert>
               <div className="grid grid-cols-1 gap-2">
-                <Button onClick={() => navigate("/admin")} className="w-full">
+                <Button onClick={() => navigate('/admin')} className="w-full">
                   Go to Admin Dashboard
                 </Button>
-                <Button onClick={() => navigate("/")} variant="outline" className="w-full">
+                <Button onClick={() => navigate('/')} variant="outline" className="w-full">
                   Go to Home Page
                 </Button>
               </div>
             </div>
           )}
 
-          {user &&
-            userRole === "strategy_creator" &&
-            !location.pathname.startsWith("/creator-dashboard") && (
-              <div className="space-y-4">
-                <Alert>
-                  <AlertDescription>
-                    Welcome, Strategy Creator! You have premium access to create and manage
-                    strategies.
-                  </AlertDescription>
-                </Alert>
-                <div className="grid grid-cols-1 gap-2">
-                  <Button onClick={() => navigate("/creator-dashboard")} className="w-full">
-                    Go to Strategy Creator Dashboard
-                  </Button>
-                  <Button onClick={() => navigate("/")} variant="outline" className="w-full">
-                    Go to Home Page
-                  </Button>
-                </div>
+          {user && userRole === 'strategy_creator' && (
+            <div className="space-y-4">
+              <Alert>
+                <AlertDescription>
+                  Welcome, Strategy Creator! You have premium access to create and manage strategies.
+                </AlertDescription>
+              </Alert>
+              <div className="grid grid-cols-1 gap-2">
+                <Button onClick={() => navigate('/creator-dashboard')} className="w-full">
+                  Go to Strategy Creator Dashboard
+                </Button>
+                <Button onClick={() => navigate('/')} variant="outline" className="w-full">
+                  Go to Home Page
+                </Button>
               </div>
-            )}
+            </div>
+          )}
 
-          {user &&
-            userRole === "user" &&
-            !location.pathname.startsWith("/user-dashboard") && (
-              <div className="space-y-4">
-                <Alert>
-                  <AlertDescription>
-                    Welcome back! You're being redirected to your dashboard.
-                  </AlertDescription>
-                </Alert>
-                <div className="grid grid-cols-1 gap-2">
-                  <Button onClick={() => navigate("/user-dashboard")} className="w-full">
-                    Go to User Dashboard
-                  </Button>
-                  <Button onClick={() => navigate("/")} variant="outline" className="w-full">
-                    Go to Home Page
-                  </Button>
-                </div>
+          {user && userRole === 'user' && (
+            <div className="space-y-4">
+              <Alert>
+                <AlertDescription>
+                  Welcome back! You're being redirected to your dashboard.
+                </AlertDescription>
+              </Alert>
+              <div className="grid grid-cols-1 gap-2">
+                <Button onClick={() => navigate('/user-dashboard')} className="w-full">
+                  Go to User Dashboard
+                </Button>
+                <Button onClick={() => navigate('/')} variant="outline" className="w-full">
+                  Go to Home Page
+                </Button>
               </div>
-            )}
+            </div>
+          )}
 
           {!user && (
             <>
-              <Tabs value={isSignUp ? "signup" : "signin"} className="w-full">
+              <Tabs value={isSignUp ? 'signup' : 'signin'} className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="signin" onClick={() => setIsSignUp(false)}>
                     Sign In
@@ -295,7 +264,7 @@ const Auth = () => {
                       <div className="relative">
                         <Input
                           id="password"
-                          type={showPassword ? "text" : "password"}
+                          type={showPassword ? 'text' : 'password'}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
@@ -349,7 +318,7 @@ const Auth = () => {
                       <div className="relative">
                         <Input
                           id="signup-password"
-                          type={showPassword ? "text" : "password"}
+                          type={showPassword ? 'text' : 'password'}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
