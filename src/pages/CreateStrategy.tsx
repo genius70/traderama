@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,12 +11,14 @@ import { Calculator, TrendingUp, AlertTriangle, Save, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import Header from "@/components/layout/Header";
+import Header from '@/components/layout/Header';
 import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
 import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
 import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
 import MockOptionsChain from '@/components/trading/MockOptionsChain';
+import LiveOptionsChain from '@/components/trading/LiveOptionsChain';
 import StrategyPreview from '@/components/trading/StrategyPreview';
+import { authenticateIG } from '@/utils/igTradingAPI';
 
 interface StrategyCondition {
   id: string;
@@ -36,6 +37,8 @@ interface TradingLeg {
   buySell: 'Buy' | 'Sell';
   size: number;
   price: string;
+  underlying: string; // Added to match igTradingAPI
+  epic: string; // Added to match igTradingAPI
 }
 
 const CreateStrategy = () => {
@@ -50,19 +53,28 @@ const CreateStrategy = () => {
   const [legs, setLegs] = useState<TradingLeg[]>([]);
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [useMockData, setUseMockData] = useState(false);
 
-  const indicators = [
-    'RSI',
-    'MACD',
-    'Moving Average',
-    'Bollinger Bands',
-    'Stochastic',
-    'Volume',
-    'Price Action'
-  ];
-
+  const indicators = ['RSI', 'MACD', 'Moving Average', 'Bollinger Bands', 'Stochastic', 'Volume', 'Price Action'];
   const operators = ['>', '<', '>=', '<=', '=', 'crosses above', 'crosses below'];
   const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
+
+  // Authenticate with IG API on mount
+  useEffect(() => {
+    const authenticate = async () => {
+      try {
+        await authenticateIG();
+      } catch (err) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Unable to authenticate with IG Brokers. Using mock data as fallback.',
+          variant: 'destructive',
+        });
+        setUseMockData(true); // Fallback to mock data if IG authentication fails
+      }
+    };
+    authenticate();
+  }, [toast]);
 
   const addCondition = () => {
     const newCondition: StrategyCondition = {
@@ -71,65 +83,76 @@ const CreateStrategy = () => {
       indicator: '',
       operator: '',
       value: '',
-      timeframe: '15m'
+      timeframe: '15m',
     };
     setConditions([...conditions, newCondition]);
   };
 
   const updateCondition = (id: string, field: keyof StrategyCondition, value: string) => {
-    setConditions(conditions.map(condition => 
-      condition.id === id ? { ...condition, [field]: value } : condition
-    ));
+    setConditions(conditions.map((condition) => (condition.id === id ? { ...condition, [field]: value } : condition)));
   };
 
   const removeCondition = (id: string) => {
-    setConditions(conditions.filter(condition => condition.id !== id));
+    setConditions(conditions.filter((condition) => condition.id !== id));
   };
 
   const handleTemplateSelect = (option: { id: string; name: string; template: { legs: TradingLeg[] } }) => {
     setStrategyName(option.name);
     setCategory('Options Trading');
-    setLegs(option.template.legs.map(leg => ({ ...leg, id: Date.now().toString() + Math.random() })));
+    setLegs(option.template.legs.map((leg) => ({ ...leg, id: Date.now().toString() + Math.random() })));
+  };
+
+  const handleSelectContract = (contract: { strike: number; type: 'Call' | 'Put'; ask: number; underlying: string; epic: string }) => {
+    const newLeg: TradingLeg = {
+      id: Date.now().toString(),
+      strike: contract.strike.toString(),
+      type: contract.type,
+      expiration: '30', // Placeholder: Update based on contract.expiration
+      buySell: 'Buy',
+      size: 1,
+      price: contract.ask.toFixed(2),
+      underlying: contract.underlying,
+      epic: contract.epic, // Use Polygon.io ticker or mapped IG epic
+    };
+    setLegs([...legs, newLeg]);
   };
 
   const handleSave = async () => {
     if (!user) {
       toast({
-        title: "Authentication required",
-        variant: "destructive"
+        title: 'Authentication required',
+        variant: 'destructive',
       });
       return;
     }
 
     if (!strategyName.trim() || !description.trim() || !category) {
       toast({
-        title: "Missing information",
-        variant: "destructive"
+        title: 'Missing information',
+        variant: 'destructive',
       });
       return;
     }
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('trading_strategies')
-        .insert([
-          {
-            title: strategyName,
-            description,
-            category,
-            is_premium_only: isPremium,
-            fee_percentage: parseFloat(feePercentage),
-            creator_id: user.id,
-            strategy_config: { conditions, legs },
-            status: 'draft'
-          }
-        ]);
+      const { error } = await supabase.from('trading_strategies').insert([
+        {
+          title: strategyName,
+          description,
+          category,
+          is_premium_only: isPremium,
+          fee_percentage: parseFloat(feePercentage),
+          creator_id: user.id,
+          strategy_config: { conditions, legs },
+          status: 'draft',
+        },
+      ]);
 
       if (error) throw error;
 
       toast({
-        title: "Strategy created!"
+        title: 'Strategy created!',
       });
 
       // Reset form
@@ -141,8 +164,8 @@ const CreateStrategy = () => {
     } catch (error) {
       console.error('Error creating strategy:', error);
       toast({
-        title: "Error creating strategy",
-        variant: "destructive"
+        title: 'Error creating strategy',
+        variant: 'destructive',
       });
     } finally {
       setIsSaving(false);
@@ -184,8 +207,8 @@ const CreateStrategy = () => {
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="legs">Options Legs</TabsTrigger>
             <TabsTrigger value="chain">Options Chain</TabsTrigger>
+           <TabsTrigger value="legs">Options Legs</TabsTrigger>
             <TabsTrigger value="conditions">Conditions</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -205,28 +228,35 @@ const CreateStrategy = () => {
             />
           </TabsContent>
 
-          <TabsContent value="legs">
+          <TabsContent value="chain">
+            {useMockData ? (
+              <MockOptionsChain
+                onSelectContract={(contract) => {
+                  const newLeg: TradingLeg = {
+                    id: Date.now().toString(),
+                    strike: contract.strike.toString(),
+                    type: contract.type,
+                    expiration: '30', // Mock expiration
+                    buySell: 'Buy',
+                    size: 1,
+                    price: contract.ask.toFixed(2),
+                    underlying: contract.underlying || 'SPY', // Mock default
+                    epic: contract.epic || `MOCK_${contract.strike}_${contract.type}`, // Mock epic
+                  };
+                  setLegs([...legs, newLeg]);
+                }}
+              />
+            ) : (
+              <LiveOptionsChain
+                onSelectContract={handleSelectContract}
+              />
+            )}
+          </TabsContent>
+           <TabsContent value="legs">
             <EnhancedTradingTemplate
               strategyName={strategyName || 'Strategy'}
               legs={legs}
               onLegsChange={setLegs}
-            />
-          </TabsContent>
-
-          <TabsContent value="chain">
-            <MockOptionsChain
-              onSelectContract={(contract) => {
-                const newLeg: TradingLeg = {
-                  id: Date.now().toString(),
-                  strike: contract.strike.toString(),
-                  type: contract.type,
-                  expiration: '30',
-                  buySell: 'Buy',
-                  size: 1,
-                  price: contract.ask.toFixed(2)
-                };
-                setLegs([...legs, newLeg]);
-              }}
             />
           </TabsContent>
 

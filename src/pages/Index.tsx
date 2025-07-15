@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import HeroSection from "@/components/home/HeroSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
 import StrategiesSection from "@/components/home/StrategiesSection";
@@ -26,12 +27,15 @@ interface Strategy {
 const Index: React.FC = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchStrategies();
-  }, []);
+    fetchUserRole();
+  }, [user]);
 
   const fetchStrategies = async (): Promise<void> => {
     try {
@@ -44,7 +48,7 @@ const Index: React.FC = () => {
             name,
             email
           )
-        `,
+        `
         )
         .eq("status", "published")
         .order("created_at", { ascending: false })
@@ -68,6 +72,41 @@ const Index: React.FC = () => {
     }
   };
 
+  const fetchUserRole = async (): Promise<void> => {
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching user role:", error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch user role. Defaulting to user access.",
+            variant: "destructive",
+          });
+          setUserRole("user");
+          return;
+        }
+
+        setUserRole(data?.role || "user");
+      } catch (err) {
+        console.error("Error fetching user role:", err);
+        toast({
+          title: "Error",
+          description: "Failed to fetch user role. Defaulting to user access.",
+          variant: "destructive",
+        });
+        setUserRole("user");
+      }
+    } else {
+      setUserRole(null);
+    }
+  };
+
   const subscribeToStrategy = async (strategyId: string): Promise<void> => {
     if (!user) {
       toast({
@@ -75,6 +114,7 @@ const Index: React.FC = () => {
         description: "Please sign in to subscribe to strategies",
         variant: "destructive",
       });
+      navigate("/auth");
       return;
     }
 
@@ -105,7 +145,7 @@ const Index: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <HeroSection user={user} />
+      <HeroSection user={user} userRole={userRole} />
       <FeaturesSection />
       <StrategiesSection
         strategies={strategies}

@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import UserDashboard from '@/components/dashboard/UserDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import CreatorDashboard from '@/components/dashboard/CreatorDashboard';
+import AdminAnalytics from '@/pages/AdminAnalytics'; // Import AdminAnalytics
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -49,7 +50,6 @@ const Dashboard = () => {
 
   if (!user) {
     return (
-
       <div className="flex items-center justify-center min-h-[400px]">
         <p>Please sign in to view your dashboard.</p>
       </div>
@@ -57,27 +57,28 @@ const Dashboard = () => {
   }
 
   const renderDashboard = () => {
-    switch (userRole) {
-      case 'admin':
-      case 'super_admin':
+    switch (true) {
+      case userRole === "super_admin" && user.email === "royan.shaw@gmail.com":
+        return <AdminAnalytics />;
+      case userRole === "admin":
         return <AdminDashboard />;
-      case 'strategy_creator':
+      case userRole === "strategy_creator" || userRole === "premium_member":
         return <CreatorDashboard />;
-      case 'user':
+      case "user":
       default:
         return <UserDashboard />;
     }
   };
 
   return (
-   <>
-    <div className="max-w-4xl mx-auto space-y-4">
-      <Header />  
-  </div>  
-     <div className="space-y-6">
-      {renderDashboard()}
-    </div>
-   </>
+    <>
+      <div className="max-w-4xl mx-auto space-y-4">
+        <Header />
+      </div>
+      <div className="space-y-6">
+        {renderDashboard()}
+      </div>
+    </>
   );
 };
 

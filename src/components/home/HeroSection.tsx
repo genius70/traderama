@@ -5,9 +5,10 @@ import { Link } from "react-router-dom";
 
 interface HeroSectionProps {
   user: any;
+  userRole: string | null;
 }
 
-const HeroSection: React.FC<HeroSectionProps> = ({ user }) => {
+const HeroSection: React.FC<HeroSectionProps> = ({ user, userRole }) => {
   const benefits = [
     "Professional-grade iron condor strategies",
     "Copy successful traders automatically",
@@ -16,6 +17,19 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user }) => {
     "Automated trading capabilities",
     "24/7 market monitoring",
   ];
+
+  const getRedirectPath = () => {
+    if (!user) return "/auth";
+    switch (userRole) {
+      case "super_admin":
+        return "/admin"; // Super admin dashboard
+      case "admin":
+      case "strategy_creator":
+      case "user":
+      default:
+        return "/dashboard"; // Role-based dashboard rendering
+    }
+  };
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
@@ -32,7 +46,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user }) => {
           </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white max-w-4xl mx-auto leading-tight">
-            Master Iron Condor Trading with
+            Master Iron Condor Among Other Options Trading Strategies with
             <span className="text-blue-400"> Professional Tools</span>
           </h2>
 
@@ -43,7 +57,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user }) => {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/auth">
+            <Link to={getRedirectPath()}>
               <Button
                 size="lg"
                 className="w-full sm:w-auto px-8 py-4 text-lg bg-blue-600 hover:bg-red-600 text-white transition-all duration-300"
@@ -52,7 +66,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user }) => {
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             </Link>
-            {user &&
+            {user && (userRole === "strategy_creator" || userRole === "admin" || userRole === "super_admin") && (
               <Link to="/create-strategy">
                 <Button
                   size="lg"
@@ -61,18 +75,17 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user }) => {
                   <Plus className="h-5 w-5 mr-2" />
                   Create Strategy
                 </Button>
-              </Link>}
+              </Link>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-8 text-gray-300 text-sm">
-            {benefits.map((benefit, index) =>
+            {benefits.map((benefit, index) => (
               <div key={index} className="flex items-center space-x-2">
                 <CheckCircle className="h-4 w-4 text-green-400" />
-                <span>
-                  {benefit}
-                </span>
-              </div>,
-            )}
+                <span>{benefit}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
