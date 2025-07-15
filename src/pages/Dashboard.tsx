@@ -6,7 +6,7 @@ import CreatorDashboard from '@/components/dashboard/CreatorDashboard';
 import AdminAnalytics from '@/pages/AdminAnalytics'; // Import AdminAnalytics
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
-import Header from '@/components/layout/Header';
+
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -73,7 +73,7 @@ const Dashboard = () => {
   return (
     <>
       <div className="max-w-4xl mx-auto space-y-4">
-        <Header />
+      <hr />
       </div>
       <div className="space-y-6">
         {renderDashboard()}
