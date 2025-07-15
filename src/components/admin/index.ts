@@ -1,4 +1,4 @@
-
+export * from './ContactManagement';
 export { default as AssetManagement } from './AssetManagement';
 export { default as AssetForm } from './AssetForm';
 export { default as AssetListItem } from './AssetListItem';
