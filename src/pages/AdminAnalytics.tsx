@@ -1,10 +1,10 @@
-
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import AssetManagement from '@/components/admin/AssetManagement';
+import ContactManagement from '@/components/admin/ContactManagement';
 import { DollarSign, Target, TrendingUp } from "lucide-react";
 import UserAnalyticsPanel from "@/components/admin/UserAnalyticsPanel";
 import AdminCharts from "@/components/admin/AdminCharts";
@@ -40,11 +40,12 @@ const AdminAnalytics = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="trading">Trading</TabsTrigger>
             <TabsTrigger value="assets">Assets</TabsTrigger>
+            <TabsTrigger value="contacts">Email Users</TabsTrigger>
           </TabsList>
 
           {/* OVERVIEW - core stats & advanced charts */}
@@ -113,6 +114,11 @@ const AdminAnalytics = () => {
           <TabsContent value="assets">
             <AssetManagement />
           </TabsContent>
+
+          {/* CONTACTS TAB */}
+          <TabsContent value="Email Users">
+            <ContactManagement />
+          </TabsContent>
         </Tabs>
       </main>
     </div>
@@ -120,4 +126,3 @@ const AdminAnalytics = () => {
 };
 
 export default AdminAnalytics;
-

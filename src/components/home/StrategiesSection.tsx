@@ -177,7 +177,7 @@ const StrategiesSection: React.FC<StrategiesSectionProps> = ({
                 </Link>
               ) : (
                 <Link to="/auth">
-                  <Button variant="outline" size="lg" className="px-8">
+                  <Button variant="outline" size="lg" className="px-8 hover:bg-red-600 hover:text-white transition-all duration-300">
                     Sign In to Create Strategies
                   </Button>
                 </Link>
