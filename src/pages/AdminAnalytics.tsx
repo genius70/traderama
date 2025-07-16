@@ -45,7 +45,7 @@ const AdminAnalytics = () => {
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="trading">Trading</TabsTrigger>
             <TabsTrigger value="assets">Assets</TabsTrigger>
-            <TabsTrigger value="contacts">Contacts</TabsTrigger>
+            <TabsTrigger value="contacts">Email Users</TabsTrigger>
           </TabsList>
 
           {/* OVERVIEW - core stats & advanced charts */}
