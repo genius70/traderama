@@ -109,6 +109,7 @@
 │   │   │   ├── AssetForm.tsx
 │   │   │   ├── AssetListItem.tsx
 │   │   │   ├── AssetManagement.tsx
+│   │   │   ├── ContactManagement.tsx
 │   │   │   ├── UserAnalyticsPanel.tsx
 │   │   │   └── index.ts
 │   │   ├── analytics
@@ -312,4 +313,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-36 directories, 277 files
+36 directories, 278 files
