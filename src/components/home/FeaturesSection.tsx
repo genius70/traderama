@@ -66,7 +66,7 @@ const FeaturesSection: React.FC = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
-            Everything You Need for Iron Condor Success
+            Everything You Need for Options Traders' Success
           </h3>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Professional tools and strategies designed for options trading
