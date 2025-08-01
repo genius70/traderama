@@ -97,7 +97,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setError(AUTH_ERRORS.INVALID_CREDENTIALS);
           toast({
             title: 'Sign in failed',
-            description: AUTH_ERRORS.INVALID_CREDENTIALS,
             variant: 'destructive',
           });
         } else {

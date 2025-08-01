@@ -17,6 +17,8 @@ type ToasterToast = ToastProps & {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
+let globalDispatch: React.Dispatch<Action> | null = null;
+
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
     return
@@ -24,10 +26,12 @@ const addToRemoveQueue = (toastId: string) => {
 
   const timeout = setTimeout(() => {
     toastTimeouts.delete(toastId)
-    dispatch({
-      type: "REMOVE_TOAST",
-      toastId: toastId,
-    })
+    if (globalDispatch) {
+      globalDispatch({
+        type: "REMOVE_TOAST",
+        toastId: toastId,
+      })
+    }
   }, TOAST_REMOVE_DELAY)
 
   toastTimeouts.set(toastId, timeout)
@@ -118,6 +122,13 @@ export const reducer = (state: State, action: Action): State => {
 
 const useToast = () => {
   const [state, dispatch] = React.useReducer(reducer, DEFAULT_STATE)
+  
+  React.useEffect(() => {
+    globalDispatch = dispatch;
+    return () => {
+      globalDispatch = null;
+    };
+  }, [dispatch]);
 
   const toast = React.useCallback(
     (props: ToastProps) => {
@@ -133,12 +144,12 @@ const useToast = () => {
 
       addToRemoveQueue(id)
     },
-    []
+    [dispatch]
   )
 
   const dismiss = React.useCallback((toastId?: string) => {
     dispatch({ type: "DISMISS_TOAST", toastId })
-  }, [])
+  }, [dispatch])
 
   return {
     ...state,
