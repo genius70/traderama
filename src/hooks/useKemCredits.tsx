@@ -26,9 +26,9 @@ export const useKemCredits = () => {
 
     if (data) {
       setCredits({
-        earned: data.credits_earned,
-        spent: data.credits_spent,
-        available: data.credits_earned - data.credits_spent
+        earned: data.credits_earned || 0,
+        spent: data.credits_spent || 0,
+        available: (data.credits_earned || 0) - (data.credits_spent || 0)
       });
     }
   }, [user]);
@@ -99,7 +99,7 @@ export const useKemCredits = () => {
             await supabase
               .from('kem_credits')
               .update({
-                credits_earned: referrerCredits.credits_earned + 2,
+                credits_earned: (referrerCredits.credits_earned || 0) + 2,
                 updated_at: new Date().toISOString()
               })
               .eq('user_id', referrerProfile.id);
@@ -111,14 +111,12 @@ export const useKemCredits = () => {
 
       toast({
         title: "Credits Earned!",
-        description: `You earned ${creditsAmount} KEM credits for ${activityType.replace('_', ' ')}.`,
       });
 
     } catch (error: unknown) {
       console.error('Error awarding credits:', error);
       toast({
         title: "Error",
-        description: "Failed to award credits.",
         variant: "destructive",
       });
     } finally {

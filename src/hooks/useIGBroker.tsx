@@ -30,7 +30,7 @@ export const useIGBroker = () => {
     
     try {
       const { data, error } = await supabase.functions.invoke('ig-broker-connect', {
-        body: credentials,
+        body: credentials || undefined,
       });
 
       if (error) {
@@ -41,7 +41,6 @@ export const useIGBroker = () => {
         setConnection(data.connection);
         toast({
           title: "Connection Successful",
-          description: "Your IG Broker account has been connected successfully.",
         });
         return { success: true };
       } else {
@@ -51,7 +50,6 @@ export const useIGBroker = () => {
       console.error('IG Broker connection error:', error);
       toast({
         title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Failed to connect to IG Broker. Please check your credentials and try again.",
         variant: "destructive",
       });
       return { success: false, error };
@@ -65,7 +63,7 @@ export const useIGBroker = () => {
     
     try {
       const { data, error } = await supabase.functions.invoke('ig-broker-connect', {
-        body: null,
+        body: undefined,
       });
 
       if (error) {

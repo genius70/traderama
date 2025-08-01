@@ -1,24 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   BarChart,
   Bar,
@@ -27,23 +25,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
-  ScatterChart,
-  Scatter,
-  Cell,
-  PieChart,
-  Pie,
-} from "recharts";
-import {
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
-  Target,
-  AlertTriangle,
-  Calculator,
-  Download,
-} from "lucide-react";
+} from 'recharts';
+import { BarChart3, AlertTriangle } from 'lucide-react';
 
 interface ReturnsData {
   range: string;
@@ -56,6 +39,13 @@ interface StrategyConfig {
   timeframe: string;
   startDate: string;
   endDate: string;
+}
+
+interface PerformanceMetrics {
+  annualReturn: number;
+  volatility: number;
+  sharpeRatio: number;
+  maxDrawdown: number;
 }
 
 interface TooltipPayload {
@@ -73,62 +63,189 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   title,
   value,
   description,
-}) =>
+}) => (
   <Card>
     <CardHeader className="pb-2">
-      <CardTitle className="text-sm font-medium">
-        {title}
-      </CardTitle>
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
     </CardHeader>
     <CardContent>
-      <div className="text-2xl font-bold">
-        {value}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {description}
-      </p>
+      <div className="text-2xl font-bold">{value}</div>
+      <p className="text-xs text-muted-foreground">{description}</p>
     </CardContent>
-  </Card>;
+  </Card>
+);
 
 const SpyReturnsDistribution: React.FC = () => {
+  // Set default date range (last 12 months)
+  const today = new Date();
+  const defaultEndDate = today.toISOString().split('T')[0];
+  const defaultStartDate = new Date(today.setFullYear(today.getFullYear() - 1))
+    .toISOString()
+    .split('T')[0];
+
   const [config, setConfig] = useState<StrategyConfig>({
-    symbol: "SPY",
-    timeframe: "1d",
-    startDate: "2023-01-01",
-    endDate: "2023-12-31",
+    symbol: 'SPY',
+    timeframe: '1d',
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
   });
-
-  // Sample data for SPY returns distribution
-  const [returnsData, setReturnsData] = useState<ReturnsData[]>([
-    { range: "-10% to -5%", frequency: 5, percentage: 2.1 },
-    { range: "-5% to -3%", frequency: 12, percentage: 5.0 },
-    { range: "-3% to -1%", frequency: 28, percentage: 11.7 },
-    { range: "-1% to 0%", frequency: 45, percentage: 18.8 },
-    { range: "0% to 1%", frequency: 52, percentage: 21.7 },
-    { range: "1% to 3%", frequency: 38, percentage: 15.8 },
-    { range: "3% to 5%", frequency: 25, percentage: 10.4 },
-    { range: "5% to 10%", frequency: 18, percentage: 7.5 },
-    { range: "10%+", frequency: 12, percentage: 5.0 },
-  ]);
-
+  const [returnsData, setReturnsData] = useState<ReturnsData[]>([]);
+  const [performance, setPerformance] = useState<PerformanceMetrics | null>(null);
   const [loadingData, setLoadingData] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
 
-  const performance = {
-    annualReturn: 12.5,
-    volatility: 18.2,
-    sharpeRatio: 0.68,
-    maxDrawdown: -23.4,
+  // Top 15 options indices/ETFs
+  const optionsIndices = [
+    'SPY', // SPDR S&P 500 ETF
+    'QQQ', // Invesco QQQ Trust (Nasdaq-100)
+    'IWM', // iShares Russell 2000 ETF
+    'DIA', // SPDR Dow Jones Industrial Average ETF
+    'XLF', // Financial Select Sector SPDR Fund
+    'XLE', // Energy Select Sector SPDR Fund
+    'XLK', // Technology Select Sector SPDR Fund
+    'XLV', // Health Care Select Sector SPDR Fund
+    'XLY', // Consumer Discretionary Select Sector SPDR Fund
+    'XLI', // Industrial Select Sector SPDR Fund
+    'XLB', // Materials Select Sector SPDR Fund
+    'XLP', // Consumer Staples Select Sector SPDR Fund
+    'XLU', // Utilities Select Sector SPDR Fund
+    'GLD', // SPDR Gold Shares
+    'SLV', // iShares Silver Trust
+  ];
+
+  // Validate date inputs
+  const validateDates = (start: string, end: string): boolean => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const maxDate = new Date();
+    const minDate = new Date('2000-01-01'); // Polygon.io data availability
+
+    if (startDate > endDate) {
+      setDateError('Start date must be before end date');
+      return false;
+    }
+    if (endDate > maxDate) {
+      setDateError('End date cannot be in the future');
+      return false;
+    }
+    if (startDate < minDate) {
+      setDateError('Start date is too early (data available from 2000)');
+      return false;
+    }
+    setDateError(null);
+    return true;
   };
 
+  const fetchMarketData = async () => {
+    if (!validateDates(config.startDate, config.endDate)) {
+      return;
+    }
+
+    setLoadingData(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        'https://your-project-ref.supabase.co/functions/v1/fetch-polygon-data',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify(config),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const prices = data.results.map((item: any) => ({
+        close: item.c,
+        timestamp: item.t,
+      }));
+
+      // Calculate daily returns
+      const returns = prices
+        .slice(1)
+        .map((current: any, index: number) => {
+          const previous = prices[index];
+          return ((current.close - previous.close) / previous.close) * 100;
+        });
+
+      // Create returns distribution
+      const bins = [
+        { range: '<-10%', min: -Infinity, max: -10 },
+        { range: '-10% to -5%', min: -10, max: -5 },
+        { range: '-5% to -3%', min: -5, max: -3 },
+        { range: '-3% to -1%', min: -3, max: -1 },
+        { range: '-1% to 0%', min: -1, max: 0 },
+        { range: '0% to 1%', min: 0, max: 1 },
+        { range: '1% to 3%', min: 1, max: 3 },
+        { range: '3% to 5%', min: 3, max: 5 },
+        { range: '5% to 10%', min: 5, max: 10 },
+        { range: '>10%', min: 10, max: Infinity },
+      ];
+
+      const distribution = bins.map((bin) => {
+        const frequency = returns.filter(
+          (r: number) => r > bin.min && r <= bin.max
+        ).length;
+        const percentage = returns.length ? (frequency / returns.length) * 100 : 0;
+        return { range: bin.range, frequency, percentage };
+      });
+
+      setReturnsData(distribution);
+
+      // Calculate performance metrics
+      const meanReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length;
+      const annualReturn = meanReturn * 252; // Assuming 252 trading days
+      const variance = returns.reduce(
+        (sum: number, r: number) => sum + Math.pow(r - meanReturn, 2),
+        0
+      ) / returns.length;
+      const volatility = Math.sqrt(variance) * Math.sqrt(252);
+      const sharpeRatio = volatility ? annualReturn / volatility : 0; // Avoid division by zero
+      const cumulativeReturns = returns.reduce((acc: number[], r: number, i: number) => {
+        acc.push((acc[i - 1] || 0) + r);
+        return acc;
+      }, []);
+      const maxDrawdown = cumulativeReturns.length
+        ? Math.min(
+            ...cumulativeReturns.map((r: number, i: number) => {
+              const peak = Math.max(...cumulativeReturns.slice(0, i + 1));
+              return peak ? (r - peak) / peak : 0;
+            })
+          ) * 100
+        : 0;
+
+      setPerformance({
+        annualReturn: parseFloat(annualReturn.toFixed(2)),
+        volatility: parseFloat(volatility.toFixed(2)),
+        sharpeRatio: parseFloat(sharpeRatio.toFixed(2)),
+        maxDrawdown: parseFloat(maxDrawdown.toFixed(2)),
+      });
+    } catch (err) {
+      setError('Failed to fetch market data. Please check your configuration or try again.');
+      console.error(err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMarketData();
+  }, [config.symbol, config.timeframe]);
+
   const handleConfigChange = (field: keyof StrategyConfig, value: string) => {
-    setConfig({ ...config, [field]: value });
+    setConfig((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSimulate = () => {
-    setLoadingData(true);
-    setTimeout(() => {
-      setLoadingData(false);
-    }, 1500);
+    fetchMarketData();
   };
 
   const CustomTooltip = ({
@@ -155,37 +272,49 @@ const SpyReturnsDistribution: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">
-          SPY Returns Distribution Analysis
-        </h2>
-        <p className="text-gray-600">
-          Historical daily returns distribution for S&P 500 ETF (SPY)
-        </p>
+        <h2 className="text-2xl font-bold">Returns Distribution Analysis</h2>
+        <p className="text-gray-600">Historical returns distribution for selected index/ETF</p>
       </div>
 
+      {/* Error Alerts */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {dateError && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{dateError}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Key Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatisticsCard
-          title="Annual Return"
-          value={`${performance.annualReturn}%`}
-          description="Average annual return"
-        />
-        <StatisticsCard
-          title="Volatility"
-          value={`${performance.volatility}%`}
-          description="Annual volatility"
-        />
-        <StatisticsCard
-          title="Sharpe Ratio"
-          value={performance.sharpeRatio.toString()}
-          description="Risk-adjusted return"
-        />
-        <StatisticsCard
-          title="Max Drawdown"
-          value={`${performance.maxDrawdown}%`}
-          description="Largest peak-to-trough decline"
-        />
-      </div>
+      {performance && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatisticsCard
+            title="Annual Return"
+            value={`${performance.annualReturn}%`}
+            description="Average annual return"
+          />
+          <StatisticsCard
+            title="Volatility"
+            value={`${performance.volatility}%`}
+            description="Annual volatility"
+          />
+          <StatisticsCard
+            title="Sharpe Ratio"
+            value={performance.sharpeRatio.toString()}
+            description="Risk-adjusted return"
+          />
+          <StatisticsCard
+            title="Max Drawdown"
+            value={`${performance.maxDrawdown}%`}
+            description="Largest peak-to-trough decline"
+          />
+        </div>
+      )}
 
       {/* Configuration Panel */}
       <Card>
@@ -202,15 +331,17 @@ const SpyReturnsDistribution: React.FC = () => {
               <Label htmlFor="symbol">Symbol</Label>
               <Select
                 value={config.symbol}
-                onValueChange={value => handleConfigChange("symbol", value)}
+                onValueChange={(value) => handleConfigChange('symbol', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="SPY">SPY</SelectItem>
-                  <SelectItem value="QQQ">QQQ</SelectItem>
-                  <SelectItem value="IWM">IWM</SelectItem>
+                  {optionsIndices.map((symbol) => (
+                    <SelectItem key={symbol} value={symbol}>
+                      {symbol}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -219,7 +350,7 @@ const SpyReturnsDistribution: React.FC = () => {
               <Label htmlFor="timeframe">Timeframe</Label>
               <Select
                 value={config.timeframe}
-                onValueChange={value => handleConfigChange("timeframe", value)}
+                onValueChange={(value) => handleConfigChange('timeframe', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -238,109 +369,110 @@ const SpyReturnsDistribution: React.FC = () => {
                 <Input
                   type="date"
                   value={config.startDate}
-                  onChange={e =>
-                    handleConfigChange("startDate", e.target.value)}
+                  onChange={(e) => handleConfigChange('startDate', e.target.value)}
+                  max={defaultEndDate}
+                  min="2000-01-01"
                 />
                 <Input
                   type="date"
                   value={config.endDate}
-                  onChange={e => handleConfigChange("endDate", e.target.value)}
+                  onChange={(e) => handleConfigChange('endDate', e.target.value)}
+                  max={defaultEndDate}
+                  min="2000-01-01"
                 />
               </div>
             </div>
           </div>
 
-          <Button
-            onClick={handleSimulate}
-            disabled={loadingData}
-            className="w-full"
-          >
-            {loadingData ? "Simulating..." : "Simulate"}
+          <Button onClick={handleSimulate} disabled={loadingData || !!dateError} className="w-full">
+            {loadingData ? 'Simulating...' : 'Simulate'}
           </Button>
         </CardContent>
       </Card>
 
       {/* Returns Distribution Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Daily Returns Distribution</CardTitle>
-          <CardDescription>
-            Frequency distribution of daily returns over the past 5 years
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={returnsData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="range"
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  fontSize={12}
-                />
-                <YAxis />
-                <Tooltip
-                  formatter={(value: number, name: string) => [
-                    name === "frequency" ? `${value} days` : `${value}%`,
-                    name === "frequency" ? "Frequency" : "Percentage",
-                  ]}
-                />
-                <Bar dataKey="frequency" fill="#3b82f6" name="frequency" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+      {returnsData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {config.timeframe === '1d' ? 'Daily' : config.timeframe === '1w' ? 'Weekly' : 'Monthly'} Returns Distribution
+            </CardTitle>
+            <CardDescription>
+              Frequency distribution of returns for {config.symbol}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={returnsData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="range"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    fontSize={12}
+                  />
+                  <YAxis />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      name === 'frequency' ? `${value} periods` : `${value}%`,
+                      name === 'frequency' ? 'Frequency' : 'Percentage',
+                    ]}
+                  />
+                  <Bar dataKey="frequency" fill="#3b82f6" name="frequency" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Statistical Insights */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Key Insights</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h4 className="font-semibold text-sm text-gray-700">
-                Normal Distribution
-              </h4>
-              <p className="text-sm text-gray-600">
-                SPY returns approximately follow a normal distribution with
-                slight negative skew during market stress periods.
-              </p>
+      {returnsData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Key Insights</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700">Normal Distribution</h4>
+                <p className="text-sm text-gray-600">
+                  {config.symbol} returns approximately follow a normal distribution with
+                  slight negative skew during market stress periods.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700">Risk Management</h4>
+                <p className="text-sm text-gray-600">
+                  About 68% of {config.timeframe === '1d' ? 'daily' : config.timeframe === '1w' ? 'weekly' : 'monthly'} returns fall within ±1% range, making it
+                  suitable for various options strategies.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700">Tail Risk</h4>
+                <p className="text-sm text-gray-600">
+                  Extreme moves (5% or more) occur approximately{' '}
+                  {(returnsData.find((d) => d.range === '>10%')?.percentage || 0) +
+                    (returnsData.find((d) => d.range === '5% to 10%')?.percentage || 0)}% of the time,
+                  highlighting the importance of position sizing.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700">Trading Opportunities</h4>
+                <p className="text-sm text-gray-600">
+                  The predictable distribution pattern creates opportunities for
+                  systematic options trading strategies.
+                </p>
+              </div>
             </div>
-            <div>
-              <h4 className="font-semibold text-sm text-gray-700">
-                Risk Management
-              </h4>
-              <p className="text-sm text-gray-600">
-                About 68% of daily returns fall within ±1% range, making it
-                suitable for various options strategies.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-sm text-gray-700">Tail Risk</h4>
-              <p className="text-sm text-gray-600">
-                Extreme moves (5%) or more occur approximately 12.5% of the time,
-                highlighting the importance of position sizing.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-sm text-gray-700">
-                Trading Opportunities
-              </h4>
-              <p className="text-sm text-gray-600">
-                The predictable distribution pattern creates opportunities for
-                systematic options trading strategies.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

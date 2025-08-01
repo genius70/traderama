@@ -35,7 +35,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       } catch (err) {
         toast({
           title: 'Authentication Error',
-          description: 'Unable to authenticate with IG Brokers.',
           variant: 'destructive',
         });
       }
@@ -55,7 +54,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       } catch (err) {
         toast({
           title: 'Error fetching metadata',
-          description: 'Unable to load underlyings or expirations.',
           variant: 'destructive',
         });
       }
@@ -99,7 +97,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       console.error('WebSocket error:', error);
       toast({
         title: 'WebSocket Error',
-        description: 'Failed to connect to live data feed.',
         variant: 'destructive',
       });
     };
@@ -134,7 +131,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
         setError('Failed to load options chain');
         toast({
           title: 'Error fetching options chain',
-          description: 'Unable to retrieve data from Polygon.io.',
           variant: 'destructive',
         });
       } finally {
@@ -151,7 +147,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
     if (!authTokens) {
       toast({
         title: 'Authentication Error',
-        description: 'Not authenticated with IG Brokers.',
         variant: 'destructive',
       });
       return;
@@ -174,12 +169,10 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       });
       toast({
         title: 'Trade Placed',
-        description: `Trade placed successfully: ${tradeResponse.dealReference}`,
       });
     } catch (err) {
       toast({
         title: 'Trade Error',
-        description: 'Failed to place trade with IG Brokers.',
         variant: 'destructive',
       });
     }
@@ -237,7 +230,7 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
           ) : (
             <div className="space-y-2">
               {contracts.map((contract) => (
-                <div key={contract.id} className="flex items-center justify-between p-2 border rounded">
+                <div key={`${contract.epic}-${contract.strike}-${contract.type}`} className="flex items-center justify-between p-2 border rounded">
                   <span>
                     {contract.underlying} {contract.type} Strike: {contract.strike}, Ask: {contract.ask.toFixed(2)}, Expires: {contract.expiration}
                   </span>

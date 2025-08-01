@@ -1,5 +1,5 @@
 
-export { useToast, toast } from './use-toast';
+export { useToast } from './use-toast';
 export { Toaster } from './toaster';
 export { Button } from './button';
 export { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card';

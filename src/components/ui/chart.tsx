@@ -235,14 +235,20 @@ const ChartTooltip = React.forwardRef<
 )
 ChartTooltip.displayName = "ChartTooltip"
 
-const ChartLegend = ResponsiveContainer.Legend
-
+const ChartLegend = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div">
+>((props, ref) => (
+  <div ref={ref} {...props} />
+))
+ChartLegend.displayName = "ChartLegend"
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<ResponsiveContainer.LegendProps, "payload" | "verticalAlign"> & {
-      hideIcon?: boolean
-      nameKey?: string
+  React.ComponentProps<"div"> & {
+    hideIcon?: boolean
+    nameKey?: string
+    payload?: Array<any>
+    verticalAlign?: string
     }
 >(
   (
@@ -334,7 +340,6 @@ function getPayloadConfigFromPayload(
 export {
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
   ChartStyle,

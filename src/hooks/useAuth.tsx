@@ -97,14 +97,12 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setError(AUTH_ERRORS.INVALID_CREDENTIALS);
           toast({
             title: 'Sign in failed',
-            description: AUTH_ERRORS.INVALID_CREDENTIALS,
             variant: 'destructive',
           });
         } else {
           setError(AUTH_ERRORS.UNKNOWN_ERROR);
           toast({
             title: 'Sign in failed',
-            description: error.message,
             variant: 'destructive',
           });
         }
@@ -116,7 +114,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setState(AUTH_STATES.ERROR);
       toast({
         title: 'Sign in failed',
-        description: AUTH_ERRORS.NETWORK_ERROR,
         variant: 'destructive',
       });
     } finally {
@@ -140,13 +137,11 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setState(AUTH_STATES.ERROR);
         toast({
           title: 'Sign up failed',
-          description: error.message,
           variant: 'destructive',
         });
       } else {
         toast({
           title: 'Sign up successful',
-          description: 'Please check your email to confirm your account',
         });
       }
     } catch (err) {
@@ -155,7 +150,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setState(AUTH_STATES.ERROR);
       toast({
         title: 'Sign up failed',
-        description: AUTH_ERRORS.NETWORK_ERROR,
         variant: 'destructive',
       });
     } finally {
@@ -176,7 +170,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setState(AUTH_STATES.ERROR);
         toast({
           title: 'Sign out failed',
-          description: error.message,
           variant: 'destructive',
         });
       }
@@ -186,7 +179,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setState(AUTH_STATES.ERROR);
       toast({
         title: 'Sign out failed',
-        description: AUTH_ERRORS.NETWORK_ERROR,
         variant: 'destructive',
       });
     } finally {
@@ -207,13 +199,11 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setState(AUTH_STATES.ERROR);
         toast({
           title: 'Password reset failed',
-          description: error.message,
           variant: 'destructive',
         });
       } else {
         toast({
           title: 'Password reset sent',
-          description: 'Please check your email for reset instructions',
         });
       }
     } catch (err) {
@@ -222,7 +212,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setState(AUTH_STATES.ERROR);
       toast({
         title: 'Password reset failed',
-        description: AUTH_ERRORS.NETWORK_ERROR,
         variant: 'destructive',
       });
     } finally {
@@ -245,13 +234,11 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setState(AUTH_STATES.ERROR);
         toast({
           title: 'Password update failed',
-          description: error.message,
           variant: 'destructive',
         });
       } else {
         toast({
           title: 'Password updated',
-          description: 'Your password has been successfully updated',
         });
       }
     } catch (err) {
@@ -260,7 +247,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setState(AUTH_STATES.ERROR);
       toast({
         title: 'Password update failed',
-        description: AUTH_ERRORS.NETWORK_ERROR,
         variant: 'destructive',
       });
     } finally {

@@ -166,21 +166,21 @@ const TrainingRoom = ({ trainingPlans = [] }: TrainingRoomProps) => {
                 </h3>
                 
                 <p className="text-gray-400 text-sm mb-4 leading-relaxed">
-                  {strategy.summary || `Learn the step-by-step process for implementing this ${strategy.sentiment.toLowerCase()} options strategy effectively.`}
+                  {(strategy as any).summary || `Learn the step-by-step process for implementing this ${strategy.sentiment.toLowerCase()} options strategy effectively.`}
                 </p>
 
                 {/* Sponsor Information */}
-                {strategy.sponsor && (
+                {(strategy as any).sponsor && (
                   <div className="mb-4 p-2 bg-gray-800/50 rounded-lg border border-gray-700">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-gray-400">Sponsored by:</span>
                       <a 
-                        href={strategy.sponsorUrl} 
+                        href={(strategy as any).sponsorUrl} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-blue-400 text-xs hover:text-blue-300 flex items-center space-x-1"
                       >
-                        <span>{strategy.sponsor}</span>
+                        <span>{(strategy as any).sponsor}</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
@@ -250,16 +250,16 @@ const TrainingRoom = ({ trainingPlans = [] }: TrainingRoomProps) => {
                 {selectedVideo.description || 
                  `Master the ${selectedVideo.name} strategy with this comprehensive tutorial covering setup, risk management, and profit optimization.`}
               </p>
-              {selectedVideo.sponsor && (
+              {(selectedVideo as any).sponsor && (
                 <div className="flex items-center justify-between mt-4 p-3 bg-gray-700/50 rounded-lg">
                   <span className="text-gray-400 text-sm">This video is sponsored by:</span>
                   <a 
-                    href={selectedVideo.sponsorUrl} 
+                    href={(selectedVideo as any).sponsorUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-blue-400 hover:text-blue-300 flex items-center space-x-2"
                   >
-                    <span>{selectedVideo.sponsor}</span>
+                    <span>{(selectedVideo as any).sponsor}</span>
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </div>

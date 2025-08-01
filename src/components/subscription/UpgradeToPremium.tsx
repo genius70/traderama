@@ -77,7 +77,6 @@ const UpgradeToPremium = () => {
         window.open(wiseUrl, "_blank");
         toast({
           title: "Wise Payment",
-          description: "Complete your payment on Wise. Your subscription will be activated within 24 hours.",
         });
       }
       toast({
@@ -86,7 +85,8 @@ const UpgradeToPremium = () => {
     } catch (error) {
       console.error('Upgrade error:', error);
       toast({
-        title: "Upgrade failed"
+        title: "Error",
+        variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
