@@ -64,20 +64,18 @@ const WalletSettings = () => {
   const handleDeposit = () => {
     const amount = parseFloat(depositAmount);
     if (!amount || amount <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid deposit amount",
-        variant: "destructive",
-      });
+    toast({
+      title: "Invalid amount",
+      variant: "destructive",
+    });
       return;
     }
 
     if (!selectedProvider) {
-      toast({
-        title: "Payment provider required",
-        description: "Please select a payment provider",
-        variant: "destructive",
-      });
+    toast({
+      title: "Payment provider required",
+      variant: "destructive",
+    });
       return;
     }
 
@@ -87,29 +85,26 @@ const WalletSettings = () => {
     setSelectedProvider('');
     setShowDepositForm(false);
 
-    toast({
-      title: "Deposit initiated",
-      description: `$${amount} deposit is being processed via ${paymentProviders.find(p => p.value === selectedProvider)?.label}`,
-    });
+  toast({
+    title: "Deposit initiated",
+  });
   };
 
   const handleWithdraw = () => {
     const amount = parseFloat(withdrawAmount);
     if (!amount || amount <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid withdrawal amount",
-        variant: "destructive",
-      });
+    toast({
+      title: "Invalid amount",
+      variant: "destructive",
+    });
       return;
     }
 
     if (amount > balance) {
-      toast({
-        title: "Insufficient funds",
-        description: "You don't have enough balance for this withdrawal",
-        variant: "destructive",
-      });
+    toast({
+      title: "Insufficient funds",
+      variant: "destructive",
+    });
       return;
     }
 
@@ -118,10 +113,9 @@ const WalletSettings = () => {
     setWithdrawAmount('');
     setShowWithdrawForm(false);
 
-    toast({
-      title: "Withdrawal initiated",
-      description: `$${amount} withdrawal is being processed`,
-    });
+  toast({
+    title: "Withdrawal initiated",
+  });
   };
 
   const getTransactionIcon = (type: string) => {

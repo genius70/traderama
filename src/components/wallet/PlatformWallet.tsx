@@ -83,7 +83,6 @@ const PlatformWallet = () => {
     if (!amount || amount <= 0) {
       toast({
         title: "Invalid amount",
-        description: "Please enter a valid transfer amount",
         variant: "destructive",
       });
       return;
@@ -92,7 +91,6 @@ const PlatformWallet = () => {
     if (transferDirection === 'from_platform' && amount > platformBalance) {
       toast({
         title: "Insufficient platform balance",
-        description: "You don't have enough balance in your platform wallet",
         variant: "destructive",
       });
       return;
@@ -105,6 +103,8 @@ const PlatformWallet = () => {
         ? platformBalance + amount 
         : platformBalance - amount;
 
+      if (!user?.id) return;
+      
       const { error } = await supabase
         .from('escrow_accounts')
         .update({ balance: newBalance })
@@ -118,13 +118,11 @@ const PlatformWallet = () => {
 
       toast({
         title: "Transfer completed",
-        description: `Successfully ${transferDirection === 'to_platform' ? 'deposited' : 'withdrew'} $${amount.toFixed(2)}`,
       });
     } catch (error) {
       console.error('Error processing transfer:', error);
       toast({
         title: "Transfer failed",
-        description: "Failed to process transfer",
         variant: "destructive",
       });
     } finally {
@@ -136,7 +134,6 @@ const PlatformWallet = () => {
     if (credits.available < 100) {
       toast({
         title: "Insufficient KEM credits",
-        description: "You need at least 100 KEM credits to convert",
         variant: "destructive",
       });
       return;
@@ -150,6 +147,8 @@ const PlatformWallet = () => {
       const kemCreditsUsed = 100;
       const newBalance = platformBalance + usdAmount;
 
+      if (!user?.id) return;
+      
       const { error } = await supabase
         .from('escrow_accounts')
         .update({ balance: newBalance })
@@ -161,13 +160,11 @@ const PlatformWallet = () => {
 
       toast({
         title: "Conversion completed",
-        description: `Converted ${kemCreditsUsed} KEM credits to $${usdAmount}`,
       });
     } catch (error) {
       console.error('Error converting KEM credits:', error);
       toast({
         title: "Conversion failed",
-        description: "Failed to convert KEM credits",
         variant: "destructive",
       });
     } finally {
