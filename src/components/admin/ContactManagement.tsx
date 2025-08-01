@@ -63,7 +63,6 @@ const ContactManagement: React.FC = () => {
     if (!user || user.email !== 'royan.shaw@gmail.com' || user.role !== 'super_admin') {
       toast({
         title: 'Access Denied',
-        description: 'Only the super admin can access this module.',
         variant: 'destructive',
       });
       return;
@@ -129,8 +128,7 @@ const ContactManagement: React.FC = () => {
           .subscribe();
       } catch (error) {
         toast({
-          title: 'Error',
-          description: 'Failed to load data.',
+          title: 'Error loading data',
           variant: 'destructive',
         });
       } finally {
@@ -185,8 +183,7 @@ const ContactManagement: React.FC = () => {
   const handleSendMessage = async (isScheduled: boolean = false) => {
     if (!subject || !message || (!isScheduled && !deliveryMethod)) {
       toast({
-        title: 'Error',
-        description: 'Subject, message, and delivery method are required.',
+        title: 'Required fields missing',
         variant: 'destructive',
       });
       return;
@@ -229,10 +226,7 @@ const ContactManagement: React.FC = () => {
       if (error) throw new Error('Error logging message');
 
       toast({
-        title: 'Success',
-        description: isScheduled
-          ? `Message scheduled for ${userIds.length} users.`
-          : `Message queued for ${userIds.length} users.`,
+        title: isScheduled ? 'Message scheduled' : 'Message sent',
       });
       setSubject('');
       setMessage('');
@@ -241,8 +235,7 @@ const ContactManagement: React.FC = () => {
       setIsDialogOpen(false);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to process message.',
+        title: 'Failed to process message',
         variant: 'destructive',
       });
     } finally {
