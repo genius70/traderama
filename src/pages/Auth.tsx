@@ -43,7 +43,6 @@ const Auth = () => {
             console.error("Error fetching user role:", error);
             toast({
               title: "Error",
-              description: "Failed to fetch user role. Defaulting to user access.",
               variant: "destructive",
             });
             setUserRole("user");
@@ -55,7 +54,6 @@ const Auth = () => {
           console.error("Error fetching user role:", err);
           toast({
             title: "Error",
-            description: "Failed to fetch user role. Defaulting to user access.",
             variant: "destructive",
           });
           setUserRole("user");

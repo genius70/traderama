@@ -70,7 +70,7 @@ export const useAnalytics = () => {
             keepalive: true
           }).catch(() => {
             // Fallback - try to update session directly
-            supabase.rpc('end_user_session', { p_session_id: sessionIdRef.current });
+            supabase.rpc('end_user_session', { p_session_id: sessionIdRef.current || '' });
           });
         }
       };
