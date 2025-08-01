@@ -1,100 +1,98 @@
-
-# A string used to distinguish different Supabase projects on the same host. Defaults to the
-# working directory name when running `supabase init`.
+# A string used to distinguish different Supabase projects on the same host.
 project_id = "qyadjaahgiqkohvucfmg"
 
 [api]
 enabled = true
-# Port to use for the API URL.
+# Port for the API URL (default for local development).
 port = 54321
-# Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
-# endpoints. public and storage are always included.
-schemas = ["public", "storage", "graphql_public"]
-# Extra schemas to add to the search_path of every request. public is always included.
-extra_search_path = ["public", "extensions"]
-# The maximum number of rows returned from a table in a single request. Infinity means no limit.
-max_rows = 1000
+# Schemas exposed in the API (includes trading-related schemas).
+schemas = ["public", "storage", "graphql_public", "trading"]
+# Extra schemas in search_path (includes extensions for trading analytics).
+extra_search_path = ["public", "extensions", "trading"]
+# Maximum rows returned per request (increased for market data).
+max_rows = 5000
+
+[db]
+# Port for local database access.
+port = 54322
+# Major PostgreSQL version (latest supported by Supabase).
+major_version = 15
 
 [auth]
 enabled = true
-# The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
-# in emails.
-site_url = "http://127.0.0.1:3000"
-# A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
-# How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604800 (1 week).
+# Site URL for production (update to your deployed domain in production).
+site_url = "https://traderama.pro"
+# Redirect URLs for auth (includes local and production).
+additional_redirect_urls = ["http://127.0.0.1:3000", "https://traderama.pro"]
+# JWT expiry (1 hour default).
 jwt_expiry = 3600
-# If disabled, the refresh token will never expire.
+# Enable refresh token rotation for security.
 enable_refresh_token_rotation = true
-# Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
-# This requires enable_refresh_token_rotation = true.
+# Refresh token reuse interval (10 seconds).
 refresh_token_reuse_interval = 10
-# Allow/disallow new user signups to your project.
-enable_signup = true
+# Restrict user signups (invite-only for trading platform).
+enable_signup = false
 
 [auth.email]
-# Allow/disallow new user signups via email to your project.
-enable_signup = true
-# If enabled, a user will be required to confirm unknown email change on both the old, and new email addresses. If disabled, only the new email is required to confirm.
+# Disable email signups (use OAuth or invite-only).
+enable_signup = false
+# Require double confirmation for email changes.
 double_confirm_changes = true
-# If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
-
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Require email confirmation before login.
+enable_confirmations = true
 
 [auth.sms]
-# Allow/disallow new user signups via SMS to your project.
-enable_signup = true
-# If enabled, users need to confirm their phone number before signing in.
-enable_confirmations = false
-# Template for sending a confirmation OTP via SMS.
-# Use {{ .Code }} to include the verification code in the template.
-template = "Your code is {{ .Code }} ."
+# Disable SMS signups (use OAuth or invite-only).
+enable_signup = false
+# Require SMS confirmation.
+enable_confirmations = true
+# SMS OTP template.
+template = "Your Traderama Pro verification code is {{ .Code }}."
 
-# Use pre-defined map of phone number to OTP for testing.
-# [auth.sms.test_otp]
-# 4152127777 = "123456"
-
-# Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
-# [auth.sms.twilio]
-# enabled = false
-# account_sid = ""
-# auth_token = ""
-# from_number = ""
-
-# Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
-# `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin`, `notion`, `twitch`,
-# `twitter`, `slack`, `spotify`, `workos`, `zoom`.
-# [auth.external.apple]
-# enabled = false
-# client_id = ""
-# secret = ""
-# # Overrides the default auth redirectUrl.
-# redirect_uri = ""
-# # Overrides the default auth provider URL. Used to support self-hosted gitlab, single-tenant Azure,
-# # or unknown other third-party OIDC providers.
-# url = ""
-
-[edge_functions]
+# External OAuth providers (configured for trading platform users).
+[auth.external.google]
 enabled = true
+client_id = "{{ env.GOOGLE_CLIENT_ID }}"
+secret = "{{ env.GOOGLE_CLIENT_SECRET }}"
+redirect_uri = "https://traderama.pro/auth/callback"
+
+[auth.external.github]
+enabled = true
+client_id = "{{ env.GITHUB_CLIENT_ID }}"
+secret = "{{ env.GITHUB_CLIENT_SECRET }}"
+redirect_uri = "https://traderama.pro/auth/callback"
+
+# Edge Functions configuration (container for individual functions).
+[functions]
+
+[functions.fetch-polygon-data]
+# Fetches Polygon.io market data.
+verify_jwt = true
 
 [functions.create-checkout]
+# Creates Stripe checkout session.
 verify_jwt = true
 
 [functions.customer-portal]
+# Manages Stripe customer portal.
 verify_jwt = true
 
 [functions.send-whatsapp-invites]
+# Sends WhatsApp invites via Twilio.
 verify_jwt = true
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_whatsapp_number
-SMTP_HOST=your_smtp_host
-SMTP_PORT=your_smtp_port
-SMTP_USER=your_smtp_user
-SMTP_PASS=your_smtp_pass
+
+[functions.alpaca-data]
+# Integrates with Alpaca API.
+verify_jwt = true
+
+[functions.alpha-vantage-data]
+# Integrates with Alpha Vantage API.
+verify_jwt = true
+
+[functions.ig-data]
+# Integrates with IG (Interactive Brokers or IG Trading).
+verify_jwt = true
+
+[functions.proton-integration]
+# Integrates with Proton services (e.g., email or VPN).
+verify_jwt = true
