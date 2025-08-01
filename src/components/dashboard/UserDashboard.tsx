@@ -87,13 +87,13 @@ const UserDashboard = () => {
 
   const handleIGSignup = () => {
     trackFeatureUsage('ig_broker_signup');
-    trackActivity('external_link_click', 'ig_broker');
+    trackActivity('external_link_click', { target: 'ig_broker' });
     window.open('https://refer.ig.com/royanuriens-3', '_blank');
   };
 
   const tradViewSignup = () => {
     trackFeatureUsage('tradingview_signup');
-    trackActivity('external_link_click', 'tradingview');
+    trackActivity('external_link_click', { target: 'tradingview' });
     window.open('https://www.tradingview.com/?aff_id=154029', '_blank');
   };
 
@@ -103,7 +103,7 @@ const UserDashboard = () => {
   };
 
   const handleIGConnectSuccess = () => {
-    trackActivity('broker_connected', 'ig', 10); // Award 10 credits for connecting broker
+    trackActivity('broker_connected', { broker: 'ig', credits_awarded: 10 });
     console.log('IG Broker connected successfully');
     // Refresh KEM credits after connection
     fetchUserKemCredits();
@@ -186,7 +186,7 @@ const UserDashboard = () => {
                   className="w-full bg-blue-600 border-red-800 text-white hover:bg-red-600 transition-colors mt-5"
                   onClick={() => {
                     trackFeatureUsage('create_strategy_click');
-                    trackActivity('navigation', 'create_strategy');
+                    trackActivity('navigation', { target: 'create_strategy' });
                   }}
                 >
                   Get Started
@@ -222,7 +222,7 @@ const UserDashboard = () => {
                   className="w-full border-purple-200"
                   onClick={() => {
                     trackFeatureUsage('airdrop_click');
-                    trackActivity('navigation', 'airdrop');
+                    trackActivity('navigation', { target: 'airdrop' });
                   }}
                 >
                   Claim Tokens
@@ -246,7 +246,7 @@ const UserDashboard = () => {
                   className="w-full border-green-200"
                   onClick={() => {
                     trackFeatureUsage('premium_plans_click');
-                    trackActivity('navigation', 'premium_plans');
+                    trackActivity('navigation', { target: 'premium_plans' });
                   }}
                 >
                   View Plans
@@ -325,7 +325,7 @@ const UserDashboard = () => {
                   className="w-full"
                   onClick={() => {
                     trackFeatureUsage('community_click');
-                    trackActivity('navigation', 'community');
+                    trackActivity('navigation', { target: 'community' });
                   }}
                 >
                   Join Discussion
@@ -348,7 +348,7 @@ const UserDashboard = () => {
                   className="w-full bg-green-600 hover:bg-green-700"
                   onClick={() => {
                     trackFeatureUsage('start_trading_click');
-                    trackActivity('navigation', 'trade_positions');
+                    trackActivity('navigation', { target: 'trade_positions' });
                   }}
                 >
                   Start Trading
@@ -374,7 +374,7 @@ const UserDashboard = () => {
                     className="w-full border-blue-200"
                     onClick={() => {
                       trackFeatureUsage('notifications_click');
-                      trackActivity('navigation', 'notifications');
+                      trackActivity('navigation', { target: 'notifications' });
                     }}
                   >
                     Manage Notifications
