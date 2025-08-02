@@ -32,13 +32,18 @@ interface ChartData {
   lowerBB: number;
 }
 
-const ALPHA_VANTAGE_API_KEY = '8AQPB7J6D8TUCDJA';
+// Top 15 major indices and ETFs
+const TOP_15_INDICES = [
+  'SPY', 'QQQ', 'IWM', 'VTI', 'VOO', 'VEA', 'VWO', 'AGG', 
+  'BND', 'GLD', 'SLV', 'VNQ', 'XLF', 'XLK', 'XLE'
+];
+
 const TIMEFRAMES = {
-  hourly: 'TIME_SERIES_INTRADAY&interval=60min',
-  daily: 'TIME_SERIES_DAILY',
-  weekly: 'TIME_SERIES_WEEKLY',
-  monthly: 'TIME_SERIES_MONTHLY',
-  yearly: 'TIME_SERIES_MONTHLY'
+  '1d': '1 day',
+  '1w': '1 week', 
+  '1m': '1 month',
+  '3m': '3 months',
+  '1y': '1 year'
 };
 
 const MarketTrends = () => {
@@ -47,7 +52,7 @@ const MarketTrends = () => {
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<keyof typeof TIMEFRAMES>('daily');
+  const [selectedTimeframe, setSelectedTimeframe] = useState<keyof typeof TIMEFRAMES>('1d');
   const { toast } = useToast();
 
   const calculateIndicators = (prices: number[]): { sma20: number[], rsi: number[], macd: number[], signal: number[], upperBB: number[], lowerBB: number[] } => {
@@ -122,44 +127,107 @@ const MarketTrends = () => {
       setLoading(true);
       setError(null);
 
-      const symbols = ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'];
-      const marketDataPromises = symbols.map(async (symbol, index) => {
-        // Add delay to avoid rate limits (200ms between requests)
-        await new Promise(resolve => setTimeout(resolve, index * 200));
-        const response = await fetch(
-          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
-        );
-        const data = await response.json();
+      // Fetch live quotes for all 15 indices using Polygon.io via Supabase edge function
+      const marketDataPromises = TOP_15_INDICES.map(async (symbol) => {
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          
+          const response = await supabase.functions.invoke('fetch-polygon-data', {
+            body: { 
+              symbol, 
+              timeframe: '1d',
+              startDate: yesterday,
+              endDate: today
+            }
+          });
 
-        // Check for API errors
-        if (data['Error Message'] || data['Note'] || !data['Global Quote']) {
-          throw new Error(`API error for ${symbol}: ${data['Error Message'] || data['Note'] || 'No quote data'}`);
+          if (response.error) {
+            throw new Error(response.error.message);
+          }
+
+          const data = response.data;
+          if (!data.results || data.results.length === 0) {
+            // Fallback: try to get previous trading day data
+            const prevDay = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const fallbackResponse = await supabase.functions.invoke('fetch-polygon-data', {
+              body: { 
+                symbol, 
+                timeframe: '1d',
+                startDate: prevDay,
+                endDate: yesterday
+              }
+            });
+            
+            if (fallbackResponse.data?.results?.length > 0) {
+              const result = fallbackResponse.data.results[fallbackResponse.data.results.length - 1];
+              const change = result.c - result.o;
+              const changePercent = (change / result.o) * 100;
+              
+              return {
+                symbol,
+                price: result.c,
+                change,
+                changePercent,
+                volume: result.v,
+                marketCap: result.c * result.v // Approximate market activity
+              };
+            }
+            
+            // Return placeholder if no data available
+            return {
+              symbol,
+              price: 0,
+              change: 0,
+              changePercent: 0,
+              volume: 0,
+              marketCap: 0
+            };
+          }
+
+          const latestResult = data.results[data.results.length - 1];
+          const change = latestResult.c - latestResult.o;
+          const changePercent = (change / latestResult.o) * 100;
+
+          return {
+            symbol,
+            price: latestResult.c,
+            change,
+            changePercent,
+            volume: latestResult.v,
+            marketCap: latestResult.c * latestResult.v // Approximate market activity
+          };
+        } catch (symbolError) {
+          console.warn(`Error fetching data for ${symbol}:`, symbolError);
+          return {
+            symbol,
+            price: 0,
+            change: 0,
+            changePercent: 0,
+            volume: 0,
+            marketCap: 0
+          };
         }
-
-        const quote = data['Global Quote'];
-        return {
-          symbol,
-          price: parseFloat(quote['05. price'] || '0') || 0,
-          change: parseFloat(quote['09. change'] || '0') || 0,
-          changePercent: parseFloat(quote['10. change percent']?.replace('%', '') || '0') || 0,
-          volume: parseInt(quote['06. volume'] || '0') || 0,
-        };
       });
 
       const liveData = await Promise.all(marketDataPromises);
-      setMarketData(liveData);
+      // Filter out symbols with no data
+      const validData = liveData.filter(item => item.price > 0);
+      setMarketData(validData);
 
       // Save to Supabase
-      await supabase.from('market_data')
-        .upsert(liveData.map(item => ({
-          symbol: item.symbol,
-          close_price: item.price,
-          volume: item.volume,
-          timestamp: new Date().toISOString()
-        })));
+      if (validData.length > 0) {
+        await supabase.from('market_data')
+          .upsert(validData.map(item => ({
+            symbol: item.symbol,
+            close_price: item.price,
+            volume: item.volume,
+            timestamp: new Date().toISOString()
+          })));
+      }
     } catch (err) {
       console.error('Error fetching market data:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch market data from Alpha Vantage';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch market data from Polygon.io';
       setError(errorMessage);
       toast({
         title: `Data Error - ${errorMessage}`,
@@ -172,98 +240,87 @@ const MarketTrends = () => {
 
   const fetchChartData = useCallback(async (symbol: string, timeframe: keyof typeof TIMEFRAMES) => {
     try {
-      const endpoint = TIMEFRAMES[timeframe];
-      const response = await fetch(
-        `https://www.alphavantage.co/query?function=${endpoint}&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
-      );
-      const data = await response.json();
-
-      // Check for API errors
-      if (data['Error Message'] || data['Note']) {
-        throw new Error(`API error for ${symbol}: ${data['Error Message'] || data['Note'] || 'No time series data'}`);
-      }
-
-      let timeSeriesKey: string;
+      // Calculate date range based on timeframe
+      const endDate = new Date().toISOString().split('T')[0];
+      let startDate: string;
+      
       switch (timeframe) {
-        case 'hourly':
-          timeSeriesKey = 'Time Series (60min)';
+        case '1d':
+          startDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           break;
-        case 'daily':
-          timeSeriesKey = 'Time Series (Daily)';
+        case '1w':
+          startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           break;
-        case 'weekly':
-          timeSeriesKey = 'Weekly Time Series';
+        case '1m':
+          startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          break;
+        case '3m':
+          startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          break;
+        case '1y':
+          startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           break;
         default:
-          timeSeriesKey = 'Monthly Time Series';
+          startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       }
 
-      const timeSeries = data[timeSeriesKey];
-      if (!timeSeries) {
+      const response = await supabase.functions.invoke('fetch-polygon-data', {
+        body: { 
+          symbol, 
+          timeframe: '1d',
+          startDate,
+          endDate
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data;
+      if (!data.results || data.results.length === 0) {
         throw new Error('No time series data available');
       }
 
-      const prices = Object.entries(timeSeries).map(([date, values]: [string, any]) => ({
-        date,
-        price: parseFloat(values['4. close'] || '0') || 0,
-        volume: parseInt(values['5. volume'] || '0') || 0
+      const prices = data.results.map((item: any, index: number) => ({
+        date: new Date(item.t).toISOString().split('T')[0],
+        price: item.c,
+        volume: item.v,
+        open: item.o,
+        high: item.h,
+        low: item.l
       }));
 
       // Calculate indicators
-      const priceValues = prices.map(p => p.price);
+      const priceValues = prices.map((p: any) => p.price);
       const { sma20, rsi, macd, signal, upperBB, lowerBB } = calculateIndicators(priceValues);
 
-      const transformedChartData: ChartData[] = prices.map((item, index) => ({
+      const transformedChartData: ChartData[] = prices.map((item: any, index: number) => ({
         date: item.date,
         price: item.price,
         volume: item.volume,
-        sma20: sma20[index],
-        rsi: rsi[index],
-        macd: macd[index],
-        signal: signal[index],
-        upperBB: upperBB[index],
-        lowerBB: lowerBB[index]
+        sma20: sma20[index] || 0,
+        rsi: rsi[index] || 50,
+        macd: macd[index] || 0,
+        signal: signal[index] || 0,
+        upperBB: upperBB[index] || 0,
+        lowerBB: lowerBB[index] || 0
       }));
 
-      if (timeframe === 'yearly') {
-        const yearlyData: ChartData[] = [];
-        const years = new Set(transformedChartData.map(d => new Date(d.date).getFullYear()));
-        
-        years.forEach(year => {
-          const yearData = transformedChartData.filter(d => new Date(d.date).getFullYear() === year);
-          if (yearData.length > 0) {
-            const avgPrice = yearData.reduce((sum, d) => sum + d.price, 0) / yearData.length;
-            const avgVolume = yearData.reduce((sum, d) => sum + d.volume, 0) / yearData.length;
-            yearlyData.push({
-              date: year.toString(),
-              price: avgPrice,
-              volume: avgVolume,
-              sma20: yearData[yearData.length - 1].sma20,
-              rsi: yearData[yearData.length - 1].rsi,
-              macd: yearData[yearData.length - 1].macd,
-              signal: yearData[yearData.length - 1].signal,
-              upperBB: yearData[yearData.length - 1].upperBB,
-              lowerBB: yearData[yearData.length - 1].lowerBB
-            });
-          }
-        });
-        setChartData(yearlyData);
-      } else {
-        setChartData(transformedChartData.slice(0, 30));
-      }
+      setChartData(transformedChartData.slice(-50)); // Show last 50 data points
 
       // Save to Supabase
       await supabase.from('market_data').upsert(
         transformedChartData.map(item => ({
           symbol,
-          timestamp: item.date,
+          timestamp: new Date(item.date).toISOString(),
           close_price: item.price,
           volume: item.volume
         }))
       );
     } catch (err) {
       console.error('Error fetching chart data:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chart data';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chart data from Polygon.io';
       setError(errorMessage);
       toast({
         title: `Data Error - ${errorMessage}`,
@@ -290,16 +347,16 @@ const MarketTrends = () => {
   }, [fetchMarketData, fetchChartData, selectedSymbol, selectedTimeframe]);
 
   const topMovers = marketData
-    .filter(item => item.symbol !== 'VIX')
     .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
-    .slice(0, 5);
+    .slice(0, 8);
 
   const marketSentiment = () => {
-    const vixData = marketData.find(item => item.symbol === 'VIX');
-    if (!vixData) return 'neutral';
+    const positiveCount = marketData.filter(item => item.changePercent > 0).length;
+    const totalCount = marketData.length;
+    const bullishRatio = positiveCount / totalCount;
     
-    if (vixData.price < 20) return 'bullish';
-    if (vixData.price > 30) return 'bearish';
+    if (bullishRatio > 0.6) return 'bullish';
+    if (bullishRatio < 0.4) return 'bearish';
     return 'neutral';
   };
 
@@ -355,8 +412,8 @@ const MarketTrends = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {marketData.slice(0, 4).map((item) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {marketData.slice(0, 15).map((item) => (
               <Card key={item.symbol} className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
@@ -389,9 +446,9 @@ const MarketTrends = () => {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Activity className="h-5 w-5 mr-2" />
-                Top Movers
+                Top Movers ({marketData.length} indices tracked)
               </CardTitle>
-              <CardDescription>Stocks with the highest volatility today</CardDescription>
+              <CardDescription>Indices with the highest volatility today from Polygon.io live data</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -424,8 +481,8 @@ const MarketTrends = () => {
                   <CardTitle>Market Chart - {selectedSymbol}</CardTitle>
                   <CardDescription>{selectedTimeframe.charAt(0).toUpperCase() + selectedTimeframe.slice(1)} price movement</CardDescription>
                 </div>
-                <div className="flex space-x-2">
-                  {['SPY', 'QQQ', 'IWM'].map((symbol) => (
+                <div className="flex flex-wrap gap-2">
+                  {TOP_15_INDICES.slice(0, 8).map((symbol) => (
                     <Button
                       key={symbol}
                       variant={selectedSymbol === symbol ? 'default' : 'outline'}
@@ -435,14 +492,16 @@ const MarketTrends = () => {
                       {symbol}
                     </Button>
                   ))}
-                  {['hourly', 'daily', 'weekly', 'monthly', 'yearly'].map((tf) => (
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {Object.keys(TIMEFRAMES).map((tf) => (
                     <Button
                       key={tf}
                       variant={selectedTimeframe === tf ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setSelectedTimeframe(tf as keyof typeof TIMEFRAMES)}
                     >
-                      {tf.charAt(0).toUpperCase() + tf.slice(1)}
+                      {TIMEFRAMES[tf as keyof typeof TIMEFRAMES]}
                     </Button>
                   ))}
                 </div>
