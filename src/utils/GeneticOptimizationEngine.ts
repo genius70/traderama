@@ -9,6 +9,7 @@ interface StrategyCondition {
   operator: string;
   value: string;
   timeframe: string;
+  [key: string]: string; // Add index signature for JSON compatibility
 }
 
 interface OptimizationResult {
@@ -32,13 +33,24 @@ interface OptimizationConfig {
   mutationRate: number;
 }
 
+interface Individual {
+  conditions: StrategyCondition[];
+  legs: TradingLeg[];
+  metrics?: {
+    returns: number;
+    maxDrawdown: number;
+    winRate: number;
+    sharpeRatio: number;
+  };
+}
+
 // Generate initial population for genetic algorithm
 const generatePopulation = (
   baseConditions: StrategyCondition[], 
   baseLegs: TradingLeg[], 
   size: number, 
   mutationRate: number
-) => {
+): Individual[] => {
   return Array.from({ length: size }, () => ({
     conditions: baseConditions.map(c => ({ ...c })),
     legs: baseLegs.map(l => ({ ...l }))
@@ -46,14 +58,15 @@ const generatePopulation = (
 };
 
 // Select top performing strategies
-const selectTopStrategies = (population: any[], count: number) => {
+const selectTopStrategies = (population: Individual[], count: number): Individual[] => {
   return population
-    .sort((a, b) => b.metrics.returns - a.metrics.returns)
+    .filter(ind => ind.metrics)
+    .sort((a, b) => (b.metrics!.returns || 0) - (a.metrics!.returns || 0))
     .slice(0, count);
 };
 
 // Crossover function for genetic algorithm
-const crossover = (parent1: any, parent2: any) => {
+const crossover = (parent1: Individual, parent2: Individual): Individual => {
   return {
     conditions: parent1.conditions,
     legs: parent1.legs
@@ -85,8 +98,8 @@ export const optimizeStrategy = async (
 
     let population = generatePopulation(strategy.conditions, strategy.legs, config.populationSize, config.mutationRate);
 
-    const evaluatedPopulation = await Promise.all(
-      population.map(async (individual) => ({
+    const evaluatedPopulation: Individual[] = await Promise.all(
+      population.map(async (individual): Promise<Individual> => ({
         ...individual,
         metrics: await evaluateStrategy(auth, individual.conditions, individual.legs),
       }))
@@ -96,7 +109,7 @@ export const optimizeStrategy = async (
 
     for (let generation = 0; generation < config.generations; generation++) {
       const selected = selectTopStrategies(evaluatedPopulation, Math.floor(config.populationSize / 2));
-      const newPopulation = [];
+      const newPopulation: Individual[] = [];
       
       while (newPopulation.length < config.populationSize) {
         const parent1 = selected[Math.floor(Math.random() * selected.length)];
@@ -105,8 +118,8 @@ export const optimizeStrategy = async (
         newPopulation.push(child);
       }
 
-      const newEvaluated = await Promise.all(
-        newPopulation.map(async (individual) => ({
+      const newEvaluated: Individual[] = await Promise.all(
+        newPopulation.map(async (individual): Promise<Individual> => ({
           ...individual,
           metrics: await evaluateStrategy(auth, individual.conditions, individual.legs),
         }))
@@ -115,28 +128,44 @@ export const optimizeStrategy = async (
       population = newEvaluated;
       const generationBest = selectTopStrategies(newEvaluated, 1)[0];
       
-      if (generationBest.metrics.returns > bestStrategy.metrics.returns) {
+      if (generationBest.metrics && bestStrategy.metrics && 
+          generationBest.metrics.returns > bestStrategy.metrics.returns) {
         bestStrategy = generationBest;
       }
     }
 
-    // Save optimization result
-    await supabase.from('trading_strategies').insert([
-      {
-        title: `Optimized Strategy ${Date.now()}`,
-        description: 'Genetically optimized trading strategy',
-        strategy_config: {
-          conditions: bestStrategy.conditions,
-          legs: bestStrategy.legs
-        },
-        performance_metrics: bestStrategy.metrics,
-        creator_id: userId,
-        status: 'draft'
-      }
-    ]);
+    // Save optimization result (only if we have a valid strategy with metrics)
+    if (bestStrategy?.metrics) {
+      await supabase.from('trading_strategies').insert([
+        {
+          title: `Optimized Strategy ${Date.now()}`,
+          description: 'Genetically optimized trading strategy',
+          strategy_config: {
+            conditions: bestStrategy.conditions,
+            legs: bestStrategy.legs
+          } as any, // Type assertion for JSON compatibility
+          performance_metrics: bestStrategy.metrics as any, // Type assertion for JSON compatibility
+          creator_id: userId,
+          status: 'draft' as any
+        }
+      ]);
+    }
 
     return {
-      bestStrategy,
+      bestStrategy: bestStrategy.metrics ? {
+        conditions: bestStrategy.conditions,
+        legs: bestStrategy.legs,
+        metrics: bestStrategy.metrics
+      } : {
+        conditions: strategy.conditions,
+        legs: strategy.legs,
+        metrics: {
+          returns: 0,
+          maxDrawdown: 0,
+          winRate: 0,
+          sharpeRatio: 0
+        }
+      },
       generations: config.generations,
       improvements: 1
     };
