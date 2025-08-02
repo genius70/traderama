@@ -16,7 +16,7 @@ interface Profile {
   id: string;
   name: string;
   email: string;
-  bio?: string;
+  bio?: string | null;
   role: string;
   referral_code: string;
   created_at: string;
@@ -54,12 +54,19 @@ const Profile = () => {
         .single();
 
       if (error) throw error;
-      setProfile(data);
+      setProfile(data ? {
+        id: data.id,
+        name: data.name || 'Unknown User',
+        email: data.email,
+        bio: data.bio || '',
+        role: data.role,
+        referral_code: data.referral_code || '',
+        created_at: data.created_at
+      } : null);
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast({
-        title: "Error loading profile",
-        description: "Failed to load profile data",
+        title: "Error loading profile - Failed to load profile data",
         variant: "destructive",
       });
     } finally {
@@ -106,15 +113,13 @@ const Profile = () => {
       if (error) throw error;
 
       toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated",
+        title: "Profile updated - Your profile has been successfully updated",
       });
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
-        title: "Update failed",
-        description: "Failed to update profile",
+        title: "Update failed - Failed to update profile",
         variant: "destructive",
       });
     } finally {

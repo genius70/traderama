@@ -66,7 +66,7 @@ export const fetchOptionsChainMetadata = async (): Promise<{
     throw new Error('Failed to fetch metadata');
   }
   const data = await response.json();
-  const expirations = [...new Set(data.results.map((contract: any) => contract.expiration_date))].sort();
+  const expirations = [...new Set(data.results.map((contract: any) => contract.expiration_date).filter(Boolean))].sort() as string[];
 
   return { underlyings, expirations };
 };

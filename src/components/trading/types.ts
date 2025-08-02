@@ -3,12 +3,15 @@ export type OptionType = "Call" | "Put";
 export type BuySell = "Buy" | "Sell";
 
 export interface TradingLeg {
+  id?: string;
   strike: string;
   type: OptionType;
   expiration: string;
   buySell: BuySell;
   size: number;
   price: string;
+  underlying: string;
+  epic: string;
 }
 
 export interface ContractRow {

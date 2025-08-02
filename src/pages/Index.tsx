@@ -64,7 +64,11 @@ const Index: React.FC = () => {
         description: strategy.description || '',
         fee_percentage: strategy.fee_percentage || 0,
         is_premium_only: strategy.is_premium_only || false,
-        created_at: strategy.created_at || new Date().toISOString()
+        created_at: strategy.created_at || new Date().toISOString(),
+        profiles: strategy.profiles ? {
+          ...strategy.profiles,
+          name: strategy.profiles.name || 'Unknown User'
+        } : { name: 'Unknown User', email: '' }
       })));
     } catch (error) {
       console.error("Error fetching strategies:", error);

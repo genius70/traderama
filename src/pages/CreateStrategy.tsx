@@ -29,17 +29,7 @@ interface StrategyCondition {
   timeframe: string;
 }
 
-interface TradingLeg {
-  id?: string;
-  strike: string;
-  type: 'Call' | 'Put';
-  expiration: string;
-  buySell: 'Buy' | 'Sell';
-  size: number;
-  price: string;
-  underlying: string;
-  epic: string;
-}
+import { TradingLeg } from '@/components/trading/types';
 
 const CreateStrategy = () => {
   const { user } = useAuth();

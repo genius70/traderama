@@ -224,7 +224,7 @@ export async function deployStrategyToBroker({
         await placeTrade(auth, {
           epic: leg.epic,
           size: leg.size,
-          direction: leg.buySell,
+          direction: leg.buySell.toUpperCase() as 'BUY' | 'SELL',
           orderType: 'MARKET',
           expiry: leg.expiration,
           currencyCode: 'USD',

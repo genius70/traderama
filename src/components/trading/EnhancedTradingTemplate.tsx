@@ -6,15 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2 } from 'lucide-react';
 
-interface TradingLeg {
-  id?: string;
-  strike: string;
-  type: 'Call' | 'Put';
-  expiration: string;
-  buySell: 'Buy' | 'Sell';
-  size: number;
-  price: string;
-}
+import { TradingLeg } from './types';
 
 interface EnhancedTradingTemplateProps {
   strategyName: string;
@@ -41,7 +33,9 @@ const EnhancedTradingTemplate: React.FC<EnhancedTradingTemplateProps> = ({
       expiration: '30',
       buySell: 'Buy',
       size: 1,
-      price: ''
+      price: '',
+      underlying: 'SPY',
+      epic: 'TEMPLATE_LEG'
     };
     onLegsChange([...legs, newLeg]);
   };
