@@ -54,8 +54,7 @@ for (const profile of profiles) {
         to: profile.email,
         subject,
         text: personalizedMessage,
-        html: `<p>${personalizedMessage.replace(/\n/g, '
-')}</p>`,
+        html: `<p>${personalizedMessage.replace(/\n/g, '<br>')}</p>`,
       });
     } catch (error) {
       errors.push(`Email failed for ${profile.email}: ${error.message}`);
