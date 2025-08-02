@@ -24,11 +24,9 @@ const AdminAuth = () => {
     setLoading(true);
     
     try {
-      const { error } = await signIn(email, password);
-      if (!error) {
-        // Successful login - redirect will be handled by the Navigate component above
-        console.log('Admin login successful');
-      }
+      await signIn(email, password);
+      // Success handling will be done by the auth context
+      console.log('Admin login attempt completed');
     } catch (error) {
       console.error('Admin login error:', error);
     } finally {

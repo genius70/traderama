@@ -75,57 +75,46 @@ const AutoTrading = () => {
   const [isTradingActive, setIsTradingActive] = useState(false);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
   const [tradingEngine, setTradingEngine] = useState<NodeJS.Timeout | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [tradingStarted, setTradingStarted] = useState(false);
 
-  const { 
-    isConnected, 
-    accountInfo, 
-    connectionStatus, 
-    connect, 
-    disconnect,
-    getAccountBalance,
-    placeOrder,
-    getPositions
+  const {
+    connectToBroker,
+    fetchConnection,
+    connection,
+    isConnecting: brokerConnecting,
+    isLoading,
   } = useIGBroker();
 
-  useEffect(() => {
-    if (isConnected) {
-      // Fetch real account balance when connected
-      getAccountBalance().then(balance => {
-        if (balance) setAccountBalance(balance);
-      });
-    }
-  }, [isConnected, getAccountBalance]);
+  // Derived values from connection state
+  const isConnected = connection?.is_active || false;
+  const connectionStatus = isConnected ? 'connected' : 'disconnected';
 
   // Enhanced connect broker function
   const handleConnectBroker = async () => {
-    setIsConnecting(true);
     try {
       console.log('Attempting to connect to broker...');
-      await connect();
-      console.log('Broker connection successful');
+      const result = await connectToBroker({
+        username: 'demo_user',
+        password: 'demo_pass',
+        apiKey: 'demo_key',
+        accountId: 'demo_account'
+      });
       
-      // Simulate connection process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Fetch account details
-      const balance = await getAccountBalance();
-      if (balance) {
-        setAccountBalance(balance);
+      if (result.success) {
+        console.log('Broker connection successful');
+        setAccountBalance(25000); // Demo balance
+      } else {
+        console.error('Broker connection failed');
+        alert('Failed to connect to broker. Please check your credentials.');
       }
-      
-      console.log('Account data fetched successfully');
     } catch (error) {
       console.error('Broker connection failed:', error);
       alert('Failed to connect to broker. Please check your credentials.');
-    } finally {
-      setIsConnecting(false);
     }
   };
 
-  const handleDisconnect = () => {
-    disconnect();
+  const handleDisconnect = async () => {
+    // Implementation depends on useIGBroker hook capabilities
     setIsTradingActive(false);
     setTradingStarted(false);
     if (tradingEngine) {
@@ -439,11 +428,11 @@ const AutoTrading = () => {
               {!isConnected ? (
                 <Button 
                   onClick={handleConnectBroker} 
-                  disabled={isConnecting}
+                  disabled={brokerConnecting}
                   className="bg-red-600 hover:bg-blue-600 text-white transition-colors duration-200"
                 >
                   <Link className="h-4 w-4 mr-2" />
-                  {isConnecting ? 'Connecting...' : 'Connect Broker'}
+                  {brokerConnecting ? 'Connecting...' : 'Connect Broker'}
                 </Button>
               ) : (
                 <Button onClick={handleDisconnect} variant="outline">

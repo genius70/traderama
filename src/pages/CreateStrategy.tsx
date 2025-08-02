@@ -140,12 +140,11 @@ const CreateStrategy = () => {
         {
           title: strategyName,
           description,
-          category,
-          is_premium_only: isPremium,
-          fee_percentage: parseFloat(feePercentage),
           creator_id: user.id,
-          strategy_config: { conditions, legs },
-          status: 'draft',
+          strategy_config: JSON.stringify({ conditions, legs }),
+          fee_percentage: parseFloat(feePercentage),
+          is_premium_only: isPremium,
+          status: 'draft' as any,
         },
       ]);
 
