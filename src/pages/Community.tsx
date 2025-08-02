@@ -32,6 +32,7 @@ interface CommunityPost {
     name?: string;
     email?: string;
   };
+  [key: string]: unknown; // Add index signature to match CommunityPostCard
 }
 
 const Community = () => {

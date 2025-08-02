@@ -153,19 +153,16 @@ const MarketTrends = () => {
       await supabase.from('market_data')
         .upsert(liveData.map(item => ({
           symbol: item.symbol,
-          price: item.price,
-          change: item.change,
-          change_percent: item.changePercent,
+          close_price: item.price,
           volume: item.volume,
-          updated_at: new Date().toISOString()
+          timestamp: new Date().toISOString()
         })));
     } catch (err) {
       console.error('Error fetching market data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch market data from Alpha Vantage';
       setError(errorMessage);
       toast({
-        title: "Data Error",
-        description: errorMessage,
+        title: `Data Error - ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -256,18 +253,12 @@ const MarketTrends = () => {
       }
 
       // Save to Supabase
-      await supabase.from('price_history').upsert(
+      await supabase.from('market_data').upsert(
         transformedChartData.map(item => ({
           symbol,
-          date: item.date,
-          price: item.price,
-          volume: item.volume,
-          sma20: item.sma20,
-          rsi: item.rsi,
-          macd: item.macd,
-          signal: item.signal,
-          upperBB: item.upperBB,
-          lowerBB: item.lowerBB
+          timestamp: item.date,
+          close_price: item.price,
+          volume: item.volume
         }))
       );
     } catch (err) {
@@ -275,8 +266,7 @@ const MarketTrends = () => {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chart data';
       setError(errorMessage);
       toast({
-        title: "Data Error",
-        description: errorMessage,
+        title: `Data Error - ${errorMessage}`,
         variant: "destructive",
       });
     }
