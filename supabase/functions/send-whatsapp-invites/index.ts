@@ -1,124 +1,84 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from '@supabase/supabase-js';
+import { serve } from 'https://deno.land/std@0.131.0/http/server.ts';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface Friend {
-  name: string;
-  phoneNumber: string;
-}
-
-interface WhatsAppInviteRequest {
-  friends: Friend[];
-  message: string;
-}
-
-const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { friends, message }: WhatsAppInviteRequest = await req.json();
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!
+    );
 
-    if (!friends || friends.length === 0) {
-      throw new Error("No friends provided");
+    const { phone_numbers, message } = await req.json();
+
+    if (!phone_numbers || !Array.isArray(phone_numbers)) {
+      return new Response(
+        JSON.stringify({ error: 'phone_numbers array is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    if (friends.length > 5) {
-      throw new Error("Maximum 5 friends allowed");
-    }
-
-    const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const twilioWhatsAppNumber = Deno.env.get("TWILIO_WHATSAPP_NUMBER");
+    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN_LIVE');
+    const twilioWhatsAppNumber = Deno.env.get('TWILIO_WHATSAPP_NUMBER');
 
     if (!twilioAccountSid || !twilioAuthToken || !twilioWhatsAppNumber) {
-      throw new Error("Twilio credentials not configured");
+      return new Response(
+        JSON.stringify({ error: 'Twilio credentials not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const results = [];
-
-    // Send WhatsApp message to each friend
-    for (const friend of friends) {
+    
+    for (const phoneNumber of phone_numbers) {
       try {
-        // Append Traderama.com to the message
-        const finalMessage = `Hi ${friend.name}! ${message} Check it out at Traderama.com`;
-
         const response = await fetch(
           `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`,
           {
-            method: "POST",
+            method: 'POST',
             headers: {
-              Authorization: `Basic ${btoa(
-                `${twilioAccountSid}:${twilioAuthToken}`,
-              )}`,
-              "Content-Type": "application/x-www-form-urlencoded",
+              'Authorization': `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: new URLSearchParams({
               From: `whatsapp:${twilioWhatsAppNumber}`,
-              To: `whatsapp:${friend.phoneNumber}`,
-              Body: finalMessage,
+              To: `whatsapp:${phoneNumber}`,
+              Body: message || 'Join Traderama Pro for exclusive trading strategies!',
             }),
-          },
+          }
         );
 
-        if (!response.ok) {
-          const error = await response.text();
-          console.error(`Failed to send to ${friend.name}:`, error);
-          results.push({
-            name: friend.name,
-            phoneNumber: friend.phoneNumber,
-            success: false,
-            error: error,
-          });
+        const data = await response.json();
+        
+        if (response.ok) {
+          results.push({ phoneNumber, success: true, sid: data.sid });
         } else {
-          const result = await response.json();
-          console.log(`Successfully sent to ${friend.name}:`, result.sid);
-          results.push({
-            name: friend.name,
-            phoneNumber: friend.phoneNumber,
-            success: true,
-            messageSid: result.sid,
-          });
+          results.push({ phoneNumber, success: false, error: data.message });
         }
       } catch (error) {
-        console.error(`Error sending to ${friend.name}:`, error);
-        results.push({
-          name: friend.name,
-          phoneNumber: friend.phoneNumber,
-          success: false,
-          error: error.message,
-        });
+        results.push({ phoneNumber, success: false, error: error.message });
       }
     }
 
-    const successCount = results.filter(r => r.success).length;
-
     return new Response(
-      JSON.stringify({
-        message: `Sent ${successCount} of ${friends.length} invites successfully`,
-        results: results,
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      },
+      JSON.stringify({ results }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error("Error in send-whatsapp-invites function:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    console.error('WhatsApp invite error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
-};
-
-serve(handler);
+});
