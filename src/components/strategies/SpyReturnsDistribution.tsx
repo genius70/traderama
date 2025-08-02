@@ -146,7 +146,7 @@ const SpyReturnsDistribution: React.FC = () => {
     setError(null);
     try {
       const response = await fetch(
-        'https://your-project-ref.supabase.co/functions/v1/fetch-polygon-data',
+        'https://qyadjaahgiqkohvucfmg.supabase.co/functions/v1/fetch-polygon-data',
         {
           method: 'POST',
           headers: {
