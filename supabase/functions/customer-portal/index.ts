@@ -1,6 +1,6 @@
 
 import { serve } from "std/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0?deno-std=0.190.0";
+import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
 const corsHeaders = {

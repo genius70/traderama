@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { serve } from "std/http/server.ts";
-import { createTransport } from "https://esm.sh/nodemailer@6.9.15?deno-std=0.131.0";
+import { createTransport } as nodemailer from "nodemailer";
+
 serve(async (req) => {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
   const { user_ids, subject, message, scheduled_at } = await req.json();
