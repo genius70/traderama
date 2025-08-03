@@ -1,6 +1,6 @@
 {
   "imports": {
     "deno_std/": "https://deno.land/std@0.131.0/",
-    "@supabase/supabase-js": "npm:@supabase/supabase-js@^2.0.0"
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@^2.49.8"
   }
 }

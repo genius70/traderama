@@ -4,11 +4,88 @@
 ├── audit_fixes.md
 ├── bun.lockb
 ├── components.json
+├── deno.json
+├── dist
+│   ├── _redirects
+│   ├── a81626f555c83f5c94f9d8fd874be06b.html
+│   ├── android-chrome-192x192.png
+│   ├── android-chrome-512x512.png
+│   ├── apple-touch-icon.png
+│   ├── assets
+│   │   ├── AdminAnalytics-CRlOYsBc.js
+│   │   ├── AdminAuth-BoD86r7h.js
+│   │   ├── AirdropPage-CdvRFbZP.js
+│   │   ├── Auth-ysNgRGrd.js
+│   │   ├── AutoTrading-CbuazOM9.js
+│   │   ├── Community-C_pAZIGx.js
+│   │   ├── CreateStrategy-D5vKDycD.js
+│   │   ├── Dashboard-BKAJa6Xa.js
+│   │   ├── Header-B6Al-3Ti.js
+│   │   ├── Index-DKrus0ie.js
+│   │   ├── MarketTrends-xkXiWx4X.js
+│   │   ├── NotFound-CegJmMky.js
+│   │   ├── NotificationManager-CnD-ursq.js
+│   │   ├── OptionsTrading-BFJmXgVo.js
+│   │   ├── PaymentCancel-CJxD8RkO.js
+│   │   ├── PaymentSuccess-Cx83sGE5.js
+│   │   ├── ProductOffers-BqfxC1Z9.js
+│   │   ├── Profile-nECZtMpQ.js
+│   │   ├── Settings-CO15hCo4.js
+│   │   ├── TradePositions-DUzebmUV.js
+│   │   ├── UserAnalyticsPanel-C6RsDvuf.js
+│   │   ├── alert-CByw7zee.js
+│   │   ├── arrow-left-BAkN8MPL.js
+│   │   ├── avatar-CmNOEP2O.js
+│   │   ├── badge-BheO3OHa.js
+│   │   ├── chart-column-D8iI4mfl.js
+│   │   ├── charts-BNM4GMZt.js
+│   │   ├── check-C472r3qk.js
+│   │   ├── chevron-right-Bb67MJ6X.js
+│   │   ├── circle-check-big-Bun5K5ul.js
+│   │   ├── coins-Blxkna2F.js
+│   │   ├── credit-card-CNQU_mKj.js
+│   │   ├── dialog-BswlskTB.js
+│   │   ├── dollar-sign-3z90mBVS.js
+│   │   ├── external-link-BG1iPWNA.js
+│   │   ├── eye-CfIbIiLV.js
+│   │   ├── index-CIj2JAJq.css
+│   │   ├── index-DAokHbXF.js
+│   │   ├── input-Blm5WO3a.js
+│   │   ├── label-9A0iAlm_.js
+│   │   ├── loader-circle-DThTzvBZ.js
+│   │   ├── pause-CRf7kD5z.js
+│   │   ├── play-CXnkL9vN.js
+│   │   ├── plus-ClZQQDgV.js
+│   │   ├── progress-CAMEu5AJ.js
+│   │   ├── router-Cr-AMHwe.js
+│   │   ├── save-GK0-ici8.js
+│   │   ├── select-Cq9tmJzf.js
+│   │   ├── separator-BRvn6QON.js
+│   │   ├── settings-Bmm9a5sj.js
+│   │   ├── shield-BgoOoTQW.js
+│   │   ├── supabase-Dg8uzWME.js
+│   │   ├── switch-DxAashZs.js
+│   │   ├── tabs-BO2Bxysk.js
+│   │   ├── target-B8X-IJS3.js
+│   │   ├── textarea-wJHoMutj.js
+│   │   ├── trending-down-BFeQOQHe.js
+│   │   ├── trending-up-B1J1W87H.js
+│   │   ├── ui-qxljWBPM.js
+│   │   ├── user-DPSkDNoc.js
+│   │   ├── users-DwbF1_qw.js
+│   │   ├── vendor-CaF-T5DH.js
+│   │   └── wallet-BTXKm9o9.js
+│   ├── favicon-16x16.png
+│   ├── favicon-32x32.png
+│   ├── favicon.ico
+│   ├── index.html
+│   ├── placeholder.svg
+│   ├── robots.txt
+│   └── traderama-favicon.png
 ├── eslint.config.js
 ├── eslint_report.txt
 ├── index.html
 ├── netlify.toml
-├── package-lock.json
 ├── package.json
 ├── postcss.config.js
 ├── public
@@ -170,7 +247,6 @@
 │   │   ├── use-toast.ts
 │   │   ├── useAnalytics.tsx
 │   │   ├── useAuth.tsx
-│   │   ├── useAuthHook.ts
 │   │   ├── useErrorTracking.tsx
 │   │   ├── useIGBroker.tsx
 │   │   ├── useKemCredits.tsx
@@ -221,6 +297,8 @@
 │   │   │   └── index.ts
 │   │   ├── customer-portal
 │   │   │   └── index.ts
+│   │   ├── fetch-polygon-data
+│   │   │   └── index.ts
 │   │   ├── ig-broker-connect
 │   │   │   └── index.ts
 │   │   ├── market-data-sync
@@ -242,11 +320,12 @@
 │       ├── 20250615091811-2bcff5ca-143e-4e98-a31a-e54dcc178abe.sql
 │       ├── 20250615203859-b0d4d443-4b44-4a39-96fa-402eb7299198.sql
 │       ├── 20250701010401-71b137b1-ffe9-4ff2-98e0-a1bc4adce1b0.sql
-│       └── 20250716071501_create_contact_management_tables.sql
+│       ├── 20250716071501_create_contact_management_tables.sql
+│       └── 20250801025540_d196d692-b942-4f8d-b2cd-ad5520b1bb2d.sql
 ├── tailwind.config.ts
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
 
-40 directories, 210 files
+43 directories, 286 files
