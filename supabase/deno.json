@@ -1,9 +1,6 @@
 {
   "imports": {
-    "std/": "https://deno.land/std@0.190.0/",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.49.8",
-    "stripe": "https://esm.sh/stripe@14.21.0?deno-std=0.190.0",
-    "@polygon.io/client-js": "https://esm.sh/@polygon.io/client-js@8.1.0?deno-std=0.190.0",
-    "nodemailer": "https://esm.sh/nodemailer@6.9.15?deno-std=0.190.0"
+    "deno_std/": "https://deno.land/std@0.131.0/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.49.8"
   }
 }
