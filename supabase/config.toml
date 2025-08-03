@@ -64,35 +64,46 @@ redirect_uri = "https://traderama.pro/auth/callback"
 
 # Edge Functions configuration (container for individual functions).
 [functions]
-
 [functions.fetch-polygon-data]
-# Fetches Polygon.io market data.
 verify_jwt = true
 
 [functions.create-checkout]
-# Creates Stripe checkout session.
 verify_jwt = true
-
 [functions.customer-portal]
-# Manages Stripe customer portal.
 verify_jwt = true
 
 [functions.send-whatsapp-invites]
-# Sends WhatsApp invites via Twilio.
 verify_jwt = true
 
 [functions.alpaca-data]
-# Integrates with Alpaca API.
 verify_jwt = true
 
 [functions.alpha-vantage-data]
-# Integrates with Alpha Vantage API.
 verify_jwt = true
 
 [functions.ig-data]
-# Integrates with IG (Interactive Brokers or IG Trading).
 verify_jwt = true
 
 [functions.proton-integration]
-# Integrates with Proton services (e.g., email or VPN).
+verify_jwt = true
+
+[functions.airdrop-distribute]
+verify_jwt = true
+
+[functions.market-data-sync]
+verify_jwt = true
+
+[functions.process-scheduled-messages]
+verify_jwt = true
+
+[functions.send-notifications]
+verify_jwt = true
+
+[functions.strategy-publish]
+verify_jwt = true
+
+[functions.trade-execution]
+verify_jwt = true
+
+[functions.user-analytics]
 verify_jwt = true

@@ -59,12 +59,21 @@ const Index: React.FC = () => {
         throw error;
       }
 
-      setStrategies(data || []);
+      setStrategies((data || []).map(strategy => ({
+        ...strategy,
+        description: strategy.description || '',
+        fee_percentage: strategy.fee_percentage || 0,
+        is_premium_only: strategy.is_premium_only || false,
+        created_at: strategy.created_at || new Date().toISOString(),
+        profiles: strategy.profiles ? {
+          ...strategy.profiles,
+          name: strategy.profiles.name || 'Unknown User'
+        } : { name: 'Unknown User', email: '' }
+      })));
     } catch (error) {
       console.error("Error fetching strategies:", error);
       toast({
-        title: "Error loading strategies",
-        description: "Failed to load trading strategies",
+        title: "Error loading strategies - Failed to load trading strategies",
         variant: "destructive",
       });
     } finally {
@@ -84,8 +93,7 @@ const Index: React.FC = () => {
         if (error) {
           console.error("Error fetching user role:", error);
           toast({
-            title: "Error",
-            description: "Failed to fetch user role. Defaulting to user access.",
+            title: "Error - Failed to fetch user role. Defaulting to user access",
             variant: "destructive",
           });
           setUserRole("user");
@@ -96,8 +104,7 @@ const Index: React.FC = () => {
       } catch (err) {
         console.error("Error fetching user role:", err);
         toast({
-          title: "Error",
-          description: "Failed to fetch user role. Defaulting to user access.",
+          title: "Error - Failed to fetch user role. Defaulting to user access",
           variant: "destructive",
         });
         setUserRole("user");
@@ -110,8 +117,7 @@ const Index: React.FC = () => {
   const subscribeToStrategy = async (strategyId: string): Promise<void> => {
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to subscribe to strategies",
+        title: "Authentication required - Please sign in to subscribe to strategies",
         variant: "destructive",
       });
       navigate("/auth");
@@ -130,14 +136,12 @@ const Index: React.FC = () => {
       }
 
       toast({
-        title: "Strategy subscribed!",
-        description: "You can now copy trades from this strategy",
+        title: "Strategy subscribed! You can now copy trades from this strategy",
       });
     } catch (error) {
       console.error("Error subscribing to strategy:", error);
       toast({
-        title: "Subscription failed",
-        description: "Failed to subscribe to strategy",
+        title: "Subscription failed - Failed to subscribe to strategy",
         variant: "destructive",
       });
     }

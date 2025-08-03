@@ -87,8 +87,7 @@ const LiveOptionsChainModal: React.FC<LiveOptionsChainModalProps> = ({
     socket.onerror = (error) => {
       console.error('WebSocket error:', error);
       toast({
-        title: 'WebSocket Error',
-        description: 'Failed to connect to live data feed.',
+        title: 'WebSocket Error - Failed to connect to live data feed',
         variant: 'destructive',
       });
     };
@@ -137,8 +136,7 @@ const LiveOptionsChainModal: React.FC<LiveOptionsChainModalProps> = ({
     } catch (error) {
       console.error('Failed to load options chain:', error);
       toast({
-        title: 'Error fetching options chain',
-        description: 'Unable to retrieve data from Polygon.io.',
+        title: 'Error fetching options chain - Unable to retrieve data from Polygon.io',
         variant: 'destructive',
       });
     } finally {

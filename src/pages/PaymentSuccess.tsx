@@ -16,8 +16,7 @@ const PaymentSuccess = () => {
 
     if (success === 'true' && sessionId) {
       toast({
-        title: "Payment Successful!",
-        description: "Your premium subscription has been activated.",
+        title: "Payment Successful! Your premium subscription has been activated",
       });
     }
   }, [searchParams, toast]);

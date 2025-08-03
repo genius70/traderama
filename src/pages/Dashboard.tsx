@@ -64,7 +64,7 @@ const Dashboard = () => {
         return <AdminDashboard />;
       case userRole === "strategy_creator" || userRole === "premium_member":
         return <CreatorDashboard />;
-      case "user":
+      case userRole === "user":
       default:
         return <UserDashboard />;
     }

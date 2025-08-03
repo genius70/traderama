@@ -32,6 +32,7 @@ interface CommunityPost {
     name?: string;
     email?: string;
   };
+  [key: string]: unknown; // Add index signature to match CommunityPostCard
 }
 
 const Community = () => {
@@ -55,7 +56,7 @@ const Community = () => {
   async function fetchPosts() {
     try {
       const { data, error } = await supabase
-        .from("community_posts")
+        .from("posts")
         .select(`
           *,
           profiles (name, email)
@@ -74,7 +75,7 @@ const Community = () => {
     setPosting(true);
     try {
       const { error } = await supabase
-        .from("community_posts")
+        .from("posts")
         .insert([{ content: newPost, user_id: user.id }]);
 
       if (error) throw error;
@@ -86,7 +87,6 @@ const Community = () => {
       console.error("Error creating post:", error);
       toast({ 
         title: "Error creating post", 
-        description: "Please try again", 
         variant: "destructive" 
       });
     }

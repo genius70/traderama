@@ -29,17 +29,7 @@ interface StrategyCondition {
   timeframe: string;
 }
 
-interface TradingLeg {
-  id?: string;
-  strike: string;
-  type: 'Call' | 'Put';
-  expiration: string;
-  buySell: 'Buy' | 'Sell';
-  size: number;
-  price: string;
-  underlying: string; // Added to match igTradingAPI
-  epic: string; // Added to match igTradingAPI
-}
+import { TradingLeg } from '@/components/trading/types';
 
 const CreateStrategy = () => {
   const { user } = useAuth();
@@ -66,8 +56,7 @@ const CreateStrategy = () => {
         await authenticateIG();
       } catch (err) {
         toast({
-          title: 'Authentication Error',
-          description: 'Unable to authenticate with IG Brokers. Using mock data as fallback.',
+          title: 'Authentication Error - Using mock data as fallback',
           variant: 'destructive',
         });
         setUseMockData(true); // Fallback to mock data if IG authentication fails
@@ -140,12 +129,11 @@ const CreateStrategy = () => {
         {
           title: strategyName,
           description,
-          category,
-          is_premium_only: isPremium,
-          fee_percentage: parseFloat(feePercentage),
           creator_id: user.id,
-          strategy_config: { conditions, legs },
-          status: 'draft',
+          strategy_config: JSON.stringify({ conditions, legs }),
+          fee_percentage: parseFloat(feePercentage),
+          is_premium_only: isPremium,
+          status: 'draft' as any,
         },
       ]);
 
@@ -214,7 +202,14 @@ const CreateStrategy = () => {
           </TabsList>
 
           <TabsContent value="templates">
-            <TradingOptionsSelector onSelectOption={handleTemplateSelect} />
+            <TradingOptionsSelector onSelectOption={(option) => {
+              const legsWithDetails = option.template.legs.map(leg => ({
+                ...leg,
+                underlying: 'SPY',
+                epic: `TEMPLATE_${leg.strike}_${leg.type}`
+              }));
+              setLegs(legsWithDetails);
+            }} />
           </TabsContent>
 
           <TabsContent value="basic">
@@ -240,15 +235,27 @@ const CreateStrategy = () => {
                     buySell: 'Buy',
                     size: 1,
                     price: contract.ask.toFixed(2),
-                    underlying: contract.underlying || 'SPY', // Mock default
-                    epic: contract.epic || `MOCK_${contract.strike}_${contract.type}`, // Mock epic
+                    underlying: 'SPY', // Mock default
+                    epic: `MOCK_${contract.strike}_${contract.type}`, // Mock epic
                   };
                   setLegs([...legs, newLeg]);
                 }}
               />
             ) : (
               <LiveOptionsChain
-                onSelectContract={handleSelectContract}
+                onSelectContract={(contract) => {
+                  const newLeg: TradingLeg = {
+                    strike: contract.strike.toString(),
+                    type: contract.type,
+                    expiration: '2025-08-15',
+                    buySell: 'Buy',
+                    size: 1,
+                    price: contract.ask.toFixed(2),
+                    underlying: 'SPY',
+                    epic: `LIVE_${contract.strike}_${contract.type}`,
+                  };
+                  setLegs([...legs, newLeg]);
+                }}
               />
             )}
           </TabsContent>

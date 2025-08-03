@@ -1,5 +1,4 @@
-import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,24 +13,31 @@ serve(async (req) => {
 
   try {
     const { symbol, timeframe, startDate, endDate } = await req.json();
-    const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY');
     
-    if (!POLYGON_API_KEY) {
+    const ALPACA_API_KEY = Deno.env.get('ALPACA_API_KEY');
+    const ALPACA_API_SECRET = Deno.env.get('ALPACA_API_SECRET');
+    const ALPACA_API_URL = Deno.env.get('ALPACA_API_URL') || 'https://paper-api.alpaca.markets';
+    
+    if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
       return new Response(
-        JSON.stringify({ error: 'Polygon API key not configured' }),
+        JSON.stringify({ error: 'Alpaca API credentials not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const multiplier = timeframe === '1d' ? 1 : timeframe === '1w' ? 1 : 1;
-    const timespan = timeframe === '1d' ? 'day' : timeframe === '1w' ? 'week' : 'month';
+    const url = `${ALPACA_API_URL}/v2/stocks/${symbol}/bars?timeframe=${timeframe}&start=${startDate}&end=${endDate}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'APCA-API-KEY-ID': ALPACA_API_KEY,
+        'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+      },
+    });
 
-    const url = `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/${multiplier}/${timespan}/${startDate}/${endDate}?apiKey=${POLYGON_API_KEY}`;
-    const response = await fetch(url);
     const data = await response.json();
 
-    if (data.status !== 'OK') {
-      throw new Error(data.error || 'Failed to fetch data from Polygon.io');
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch data from Alpaca');
     }
 
     return new Response(
@@ -39,6 +45,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
+    console.error('Alpaca data error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

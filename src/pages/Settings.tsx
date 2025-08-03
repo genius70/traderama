@@ -54,7 +54,12 @@ const Settings = () => {
 
         if (error && error.code !== "PGRST116") throw error;
         if (data) {
-          setSettings(data);
+          setSettings({
+            notifications_enabled: data.notifications_enabled ?? true,
+            email_notifications: data.email_notifications ?? true,
+            privacy_level: data.privacy_level ?? 'public',
+            theme_preference: data.theme_preference ?? 'system'
+          });
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
@@ -75,7 +80,10 @@ const Settings = () => {
           .single();
 
         if (error) throw error;
-        setProfile(data);
+        setProfile({
+          name: data.name || 'Unknown User',
+          email: data.email
+        });
       } catch (error) {
         console.error("Error fetching profile:", error);
       }
@@ -109,8 +117,7 @@ const Settings = () => {
     } catch (error) {
       console.error("Error updating settings:", error);
       toast({
-        title: "Error updating settings",
-        description: "Failed to update settings",
+        title: "Error updating settings - Failed to update settings",
         variant: "destructive",
       });
     }
@@ -130,8 +137,7 @@ const Settings = () => {
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({
-        title: "Error updating profile",
-        description: "Failed to update profile",
+        title: "Error updating profile - Failed to update profile",
         variant: "destructive",
       });
     }
@@ -365,4 +371,3 @@ const Settings = () => {
 };
 
 export default Settings;
-export type { SettingsProps } from "./Settings.types";
