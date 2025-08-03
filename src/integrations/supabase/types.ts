@@ -79,6 +79,33 @@ export type Database = {
           },
         ]
       }
+      analytics: {
+        Row: {
+          created_at: string | null
+          id: string
+          success_rate: number | null
+          total_trades: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          success_rate?: number | null
+          total_trades?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          success_rate?: number | null
+          total_trades?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       broker_connections: {
         Row: {
           account_id: string
@@ -525,7 +552,9 @@ export type Database = {
           iv_rank: number | null
           low_price: number | null
           open_price: number | null
-          symbol: string
+          price: number | null
+          symbol: string | null
+          ticker: string | null
           timestamp: string
           volume: number | null
         }
@@ -537,7 +566,9 @@ export type Database = {
           iv_rank?: number | null
           low_price?: number | null
           open_price?: number | null
-          symbol: string
+          price?: number | null
+          symbol?: string | null
+          ticker?: string | null
           timestamp: string
           volume?: number | null
         }
@@ -549,7 +580,9 @@ export type Database = {
           iv_rank?: number | null
           low_price?: number | null
           open_price?: number | null
-          symbol?: string
+          price?: number | null
+          symbol?: string | null
+          ticker?: string | null
           timestamp?: string
           volume?: number | null
         }
@@ -1255,6 +1288,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trades: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          id: string
+          profit_loss: number | null
+          status: string
+          strategy_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          profit_loss?: number | null
+          status?: string
+          strategy_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          profit_loss?: number | null
+          status?: string
+          strategy_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       trading_fees: {
         Row: {
