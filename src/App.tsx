@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AuthProvider from "@/hooks/useAuth";
+import { useProfileCompletion } from "@/hooks/useProfileCompletion";
 import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
 import ErrorBoundary from "@/components/analytics/ErrorBoundary";
 
@@ -60,18 +61,14 @@ const queryClient = new QueryClient({
   },
 });
 
-const App: React.FC = () => {
+// Component that includes profile completion checking
+const AppContent: React.FC = () => {
+  useProfileCompletion();
+  
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <AuthProvider>
-            <AnalyticsProvider>
-              <BrowserRouter>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <Routes>
+    <BrowserRouter>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/auth" element={<Auth />} />
@@ -91,9 +88,22 @@ const App: React.FC = () => {
                     <Route path="/success" element={<PaymentSuccess />} />
                     <Route path="/cancel" element={<PaymentCancel />} />
                     <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
-              </BrowserRouter>
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <AuthProvider>
+            <AnalyticsProvider>
+              <AppContent />
             </AnalyticsProvider>
           </AuthProvider>
         </TooltipProvider>

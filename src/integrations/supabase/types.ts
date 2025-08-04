@@ -1090,88 +1090,172 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address_line1: string | null
+          address_line2: string | null
+          airtm_email: string | null
+          airtm_username: string | null
+          annual_income_range: string | null
           bio: string | null
+          city: string | null
+          country: string | null
           cover_image_url: string | null
           created_at: string
+          date_of_birth: string | null
           email: string
+          employer: string | null
           ethereum_wallet: string | null
           followers_count: number | null
           following_count: number | null
           id: string
+          identification_expiry: string | null
+          identification_number: string | null
+          identification_type: string | null
           is_premium: boolean | null
+          kyc_approved_at: string | null
+          kyc_status: string | null
+          kyc_submitted_at: string | null
           linkedin_url: string | null
           location: string | null
           name: string | null
+          nationality: string | null
+          occupation: string | null
           phone_number: string | null
+          postal_code: string | null
+          profile_completed_at: string | null
+          profile_completion_percentage: number | null
           profile_image_url: string | null
           referral_code: string | null
           referred_by: string | null
+          risk_tolerance: string | null
           role: Database["public"]["Enums"]["user_role"]
+          source_of_funds: string | null
           specialties: string[] | null
+          state_province: string | null
+          stripe_account_id: string | null
+          stripe_customer_id: string | null
           subscription_expires_at: string | null
           subscription_tier:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
+          trading_experience: string | null
           updated_at: string
           username: string | null
           website_url: string | null
           whatsapp_number: string | null
+          wise_account_id: string | null
+          wise_email: string | null
         }
         Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          airtm_email?: string | null
+          airtm_username?: string | null
+          annual_income_range?: string | null
           bio?: string | null
+          city?: string | null
+          country?: string | null
           cover_image_url?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email: string
+          employer?: string | null
           ethereum_wallet?: string | null
           followers_count?: number | null
           following_count?: number | null
           id: string
+          identification_expiry?: string | null
+          identification_number?: string | null
+          identification_type?: string | null
           is_premium?: boolean | null
+          kyc_approved_at?: string | null
+          kyc_status?: string | null
+          kyc_submitted_at?: string | null
           linkedin_url?: string | null
           location?: string | null
           name?: string | null
+          nationality?: string | null
+          occupation?: string | null
           phone_number?: string | null
+          postal_code?: string | null
+          profile_completed_at?: string | null
+          profile_completion_percentage?: number | null
           profile_image_url?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          risk_tolerance?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          source_of_funds?: string | null
           specialties?: string[] | null
+          state_province?: string | null
+          stripe_account_id?: string | null
+          stripe_customer_id?: string | null
           subscription_expires_at?: string | null
           subscription_tier?:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
+          trading_experience?: string | null
           updated_at?: string
           username?: string | null
           website_url?: string | null
           whatsapp_number?: string | null
+          wise_account_id?: string | null
+          wise_email?: string | null
         }
         Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          airtm_email?: string | null
+          airtm_username?: string | null
+          annual_income_range?: string | null
           bio?: string | null
+          city?: string | null
+          country?: string | null
           cover_image_url?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string
+          employer?: string | null
           ethereum_wallet?: string | null
           followers_count?: number | null
           following_count?: number | null
           id?: string
+          identification_expiry?: string | null
+          identification_number?: string | null
+          identification_type?: string | null
           is_premium?: boolean | null
+          kyc_approved_at?: string | null
+          kyc_status?: string | null
+          kyc_submitted_at?: string | null
           linkedin_url?: string | null
           location?: string | null
           name?: string | null
+          nationality?: string | null
+          occupation?: string | null
           phone_number?: string | null
+          postal_code?: string | null
+          profile_completed_at?: string | null
+          profile_completion_percentage?: number | null
           profile_image_url?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          risk_tolerance?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          source_of_funds?: string | null
           specialties?: string[] | null
+          state_province?: string | null
+          stripe_account_id?: string | null
+          stripe_customer_id?: string | null
           subscription_expires_at?: string | null
           subscription_tier?:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
+          trading_experience?: string | null
           updated_at?: string
           username?: string | null
           website_url?: string | null
           whatsapp_number?: string | null
+          wise_account_id?: string | null
+          wise_email?: string | null
         }
         Relationships: [
           {
@@ -1958,6 +2042,12 @@ export type Database = {
     Functions: {
       batch_import_contacts: {
         Args: { p_user_id: string; p_contacts: Json }
+        Returns: number
+      }
+      calculate_profile_completion: {
+        Args: {
+          profile_record: Database["public"]["Tables"]["profiles"]["Row"]
+        }
         Returns: number
       }
       calculate_user_reward_points: {
