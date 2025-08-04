@@ -144,6 +144,51 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone_number: string | null
+          status: string | null
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+          whatsapp_number: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone_number?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+          whatsapp_number?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone_number?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+          whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
       error_logs: {
         Row: {
           created_at: string | null
@@ -995,6 +1040,54 @@ export type Database = {
           },
         ]
       }
+      price_history: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          lowerbb: number | null
+          macd: number | null
+          price: number
+          rsi: number | null
+          signal: number | null
+          sma20: number | null
+          symbol: string
+          timestamp: string
+          upperbb: number | null
+          volume: number | null
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          lowerbb?: number | null
+          macd?: number | null
+          price: number
+          rsi?: number | null
+          signal?: number | null
+          sma20?: number | null
+          symbol: string
+          timestamp?: string
+          upperbb?: number | null
+          volume?: number | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          lowerbb?: number | null
+          macd?: number | null
+          price?: number
+          rsi?: number | null
+          signal?: number | null
+          sma20?: number | null
+          symbol?: string
+          timestamp?: string
+          upperbb?: number | null
+          volume?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           bio: string | null
@@ -1089,6 +1182,48 @@ export type Database = {
             referencedColumns: ["referral_code"]
           },
         ]
+      }
+      reward_distributions: {
+        Row: {
+          admin_id: string
+          amount_per_user: number
+          created_at: string
+          description: string | null
+          id: string
+          processed_at: string | null
+          reward_type: string
+          status: string | null
+          total_amount: number
+          updated_at: string
+          user_ids: string[]
+        }
+        Insert: {
+          admin_id: string
+          amount_per_user: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          processed_at?: string | null
+          reward_type: string
+          status?: string | null
+          total_amount: number
+          updated_at?: string
+          user_ids: string[]
+        }
+        Update: {
+          admin_id?: string
+          amount_per_user?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          processed_at?: string | null
+          reward_type?: string
+          status?: string | null
+          total_amount?: number
+          updated_at?: string
+          user_ids?: string[]
+        }
+        Relationships: []
       }
       scheduled_messages: {
         Row: {
@@ -1677,6 +1812,48 @@ export type Database = {
           },
         ]
       }
+      user_rewards: {
+        Row: {
+          claimed_at: string | null
+          created_at: string
+          description: string | null
+          earned_at: string | null
+          expires_at: string | null
+          id: string
+          reward_amount: number
+          reward_type: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          created_at?: string
+          description?: string | null
+          earned_at?: string | null
+          expires_at?: string | null
+          id?: string
+          reward_amount?: number
+          reward_type: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          created_at?: string
+          description?: string | null
+          earned_at?: string | null
+          expires_at?: string | null
+          id?: string
+          reward_amount?: number
+          reward_type?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_sessions: {
         Row: {
           actions_count: number | null
@@ -1779,9 +1956,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      batch_import_contacts: {
+        Args: { p_user_id: string; p_contacts: Json }
+        Returns: number
+      }
+      calculate_user_reward_points: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      cleanup_expired_rewards: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      distribute_rewards: {
+        Args: {
+          p_admin_id: string
+          p_user_ids: string[]
+          p_reward_type: string
+          p_amount_per_user: number
+          p_description?: string
+        }
+        Returns: string
+      }
       end_user_session: {
         Args: { p_session_id: string }
         Returns: undefined
+      }
+      get_user_contact_stats: {
+        Args: { p_user_id: string }
+        Returns: Json
       }
       get_user_role: {
         Args: Record<PropertyKey, never>
@@ -1790,6 +1993,10 @@ export type Database = {
       is_admin_role: {
         Args: { role_to_check: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
+      }
+      process_pending_rewards: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       update_feature_usage: {
         Args: {
