@@ -1,0 +1,707 @@
+{
+  "reward_system": {
+    "version": "1.0.0",
+    "last_updated": "2025-07-31T00:00:00Z",
+    "conversion_rate": {
+      "kem_to_kemcoin": 1.0,
+      "base_multiplier": 1.0,
+      "premium_multiplier": 1.5
+    },
+    "distribution_schedule": {
+      "frequency": "monthly",
+      "cycle_days": 30,
+      "processing_day": 1,
+      "grace_period_hours": 48
+    }
+  },
+  "action_rewards": {
+    "tier_1_basic": {
+      "category": "basic_engagement",
+      "base_multiplier": 1.0,
+      "actions": {
+        "user_like_a_post": {
+          "credits": 2,
+          "description": "Post engagement",
+          "cooldown_minutes": 0,
+          "daily_limit": null
+        },
+        "user_share_a_post": {
+          "credits": 3,
+          "description": "Content amplification",
+          "cooldown_minutes": 1,
+          "daily_limit": null
+        },
+        "click_a_link": {
+          "credits": 2,
+          "description": "Link interaction",
+          "cooldown_minutes": 0,
+          "daily_limit": 50
+        },
+        "use_follow_profile": {
+          "credits": 3,
+          "description": "Network expansion",
+          "cooldown_minutes": 5,
+          "daily_limit": 20
+        },
+        "user_unfollowed_profile": {
+          "credits": 2,
+          "description": "Network management",
+          "cooldown_minutes": 5,
+          "daily_limit": null
+        },
+        "user_logged_in": {
+          "credits": 2,
+          "description": "Session initiation",
+          "cooldown_minutes": 480,
+          "daily_limit": 1
+        },
+        "user_logged_out": {
+          "credits": 2,
+          "description": "Session completion",
+          "cooldown_minutes": 0,
+          "daily_limit": null
+        },
+        "user_dismissed_alert": {
+          "credits": 2,
+          "description": "Alert management",
+          "cooldown_minutes": 0,
+          "daily_limit": null
+        },
+        "user_refreshed_page": {
+          "credits": 2,
+          "description": "Page refresh",
+          "cooldown_minutes": 2,
+          "daily_limit": 10
+        },
+        "user_used_keyboard_shortcut": {
+          "credits": 2,
+          "description": "Power user behavior",
+          "cooldown_minutes": 1,
+          "daily_limit": 25
+        },
+        "user_enabled_notifications": {
+          "credits": 3,
+          "description": "Engagement opt-in",
+          "cooldown_minutes": 1440,
+          "daily_limit": 1
+        },
+        "user_disabled_notifications": {
+          "credits": 2,
+          "description": "Preference update",
+          "cooldown_minutes": 1440,
+          "daily_limit": 1
+        },
+        "user_switched_device": {
+          "credits": 2,
+          "description": "Multi-platform usage",
+          "cooldown_minutes": 60,
+          "daily_limit": 5
+        },
+        "user_used_dark_mode": {
+          "credits": 2,
+          "description": "Theme customization",
+          "cooldown_minutes": 60,
+          "daily_limit": 2
+        },
+        "user_used_light_mode": {
+          "credits": 2,
+          "description": "Theme customization",
+          "cooldown_minutes": 60,
+          "daily_limit": 2
+        }
+      }
+    },
+    "tier_2_content_social": {
+      "category": "content_social",
+      "base_multiplier": 1.2,
+      "actions": {
+        "create_a_post": {
+          "credits": 8,
+          "description": "Content creation",
+          "cooldown_minutes": 30,
+          "daily_limit": 5
+        },
+        "user_commented_on_post": {
+          "credits": 5,
+          "description": "Community engagement",
+          "cooldown_minutes": 2,
+          "daily_limit": 20
+        },
+        "user_replied_to_comment": {
+          "credits": 5,
+          "description": "Conversation building",
+          "cooldown_minutes": 1,
+          "daily_limit": 30
+        },
+        "user_mentioned_user": {
+          "credits": 5,
+          "description": "Network activation",
+          "cooldown_minutes": 5,
+          "daily_limit": 15
+        },
+        "user_tagged_user": {
+          "credits": 5,
+          "description": "Social connection",
+          "cooldown_minutes": 5,
+          "daily_limit": 15
+        },
+        "user_opened_email": {
+          "credits": 5,
+          "description": "Email engagement",
+          "cooldown_minutes": 30,
+          "daily_limit": 10
+        },
+        "user_searched_platform": {
+          "credits": 5,
+          "description": "Active discovery",
+          "cooldown_minutes": 1,
+          "daily_limit": 25
+        },
+        "user_filtered_results": {
+          "credits": 5,
+          "description": "Refined searching",
+          "cooldown_minutes": 1,
+          "daily_limit": 20
+        },
+        "user_sorted_content": {
+          "credits": 5,
+          "description": "Content organization",
+          "cooldown_minutes": 2,
+          "daily_limit": 15
+        },
+        "user_changed_view_mode": {
+          "credits": 5,
+          "description": "Interface customization",
+          "cooldown_minutes": 5,
+          "daily_limit": 10
+        },
+        "user_switched_time_frame": {
+          "credits": 6,
+          "description": "Analysis depth",
+          "cooldown_minutes": 1,
+          "daily_limit": 30
+        },
+        "user_updated_profile": {
+          "credits": 8,
+          "description": "Profile completion",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_uploaded_profile_picture": {
+          "credits": 8,
+          "description": "Visual engagement",
+          "cooldown_minutes": 1440,
+          "daily_limit": 1
+        },
+        "user_changed_privacy_settings": {
+          "credits": 6,
+          "description": "Account management",
+          "cooldown_minutes": 60,
+          "daily_limit": 5
+        },
+        "user_bookmarked_content": {
+          "credits": 6,
+          "description": "Content curation",
+          "cooldown_minutes": 1,
+          "daily_limit": 20
+        },
+        "user_added_to_watchlist": {
+          "credits": 7,
+          "description": "Investment interest",
+          "cooldown_minutes": 2,
+          "daily_limit": 15
+        },
+        "user_removed_from_watchlist": {
+          "credits": 6,
+          "description": "Portfolio management",
+          "cooldown_minutes": 2,
+          "daily_limit": 15
+        },
+        "user_created_alert": {
+          "credits": 7,
+          "description": "Proactive monitoring",
+          "cooldown_minutes": 5,
+          "daily_limit": 10
+        },
+        "user_set_price_alert": {
+          "credits": 7,
+          "description": "Market engagement",
+          "cooldown_minutes": 5,
+          "daily_limit": 10
+        },
+        "user_viewed_p_and_l": {
+          "credits": 8,
+          "description": "Performance tracking",
+          "cooldown_minutes": 10,
+          "daily_limit": 8
+        }
+      }
+    },
+    "tier_3_trading_analysis": {
+      "category": "trading_analysis",
+      "base_multiplier": 2.0,
+      "actions": {
+        "user_opened_a_position": {
+          "credits": 25,
+          "description": "Trade execution",
+          "cooldown_minutes": 1,
+          "daily_limit": null
+        },
+        "user_closed_a_position": {
+          "credits": 20,
+          "description": "Trade completion",
+          "cooldown_minutes": 1,
+          "daily_limit": null
+        },
+        "user_modified_a_position": {
+          "credits": 15,
+          "description": "Active management",
+          "cooldown_minutes": 1,
+          "daily_limit": null
+        },
+        "user_set_stop_loss": {
+          "credits": 12,
+          "description": "Risk management",
+          "cooldown_minutes": 1,
+          "daily_limit": null
+        },
+        "user_set_take_profit": {
+          "credits": 12,
+          "description": "Profit planning",
+          "cooldown_minutes": 1,
+          "daily_limit": null
+        },
+        "user_rolled_option": {
+          "credits": 20,
+          "description": "Advanced strategy",
+          "cooldown_minutes": 5,
+          "daily_limit": null
+        },
+        "user_exercised_option": {
+          "credits": 18,
+          "description": "Option execution",
+          "cooldown_minutes": 1,
+          "daily_limit": null
+        },
+        "user_assigned_option": {
+          "credits": 15,
+          "description": "Option assignment",
+          "cooldown_minutes": 1,
+          "daily_limit": null
+        },
+        "user_viewed_option_chain": {
+          "credits": 10,
+          "description": "Market research",
+          "cooldown_minutes": 2,
+          "daily_limit": 30
+        },
+        "user_analyzed_greeks": {
+          "credits": 15,
+          "description": "Advanced analysis",
+          "cooldown_minutes": 5,
+          "daily_limit": 20
+        },
+        "user_viewed_volatility_surface": {
+          "credits": 12,
+          "description": "Complex analysis",
+          "cooldown_minutes": 10,
+          "daily_limit": 15
+        },
+        "user_screened_options": {
+          "credits": 12,
+          "description": "Active screening",
+          "cooldown_minutes": 5,
+          "daily_limit": 20
+        },
+        "user_used_options_calculator": {
+          "credits": 10,
+          "description": "Tool utilization",
+          "cooldown_minutes": 2,
+          "daily_limit": 25
+        },
+        "user_viewed_implied_volatility": {
+          "credits": 10,
+          "description": "Market insight",
+          "cooldown_minutes": 5,
+          "daily_limit": 20
+        },
+        "user_viewed_market_news": {
+          "credits": 8,
+          "description": "Information consumption",
+          "cooldown_minutes": 10,
+          "daily_limit": 15
+        },
+        "user_viewed_earnings_calendar": {
+          "credits": 8,
+          "description": "Event tracking",
+          "cooldown_minutes": 60,
+          "daily_limit": 5
+        },
+        "user_checked_ex_dividend_dates": {
+          "credits": 8,
+          "description": "Income planning",
+          "cooldown_minutes": 60,
+          "daily_limit": 5
+        },
+        "user_analyzed_volume_profile": {
+          "credits": 12,
+          "description": "Technical analysis",
+          "cooldown_minutes": 10,
+          "daily_limit": 15
+        },
+        "user_viewed_open_interest": {
+          "credits": 10,
+          "description": "Market depth",
+          "cooldown_minutes": 5,
+          "daily_limit": 20
+        },
+        "user_paper_traded": {
+          "credits": 15,
+          "description": "Practice trading",
+          "cooldown_minutes": 5,
+          "daily_limit": null
+        },
+        "user_switched_to_live_trading": {
+          "credits": 25,
+          "description": "Live trading activation",
+          "cooldown_minutes": 1440,
+          "daily_limit": 1
+        }
+      }
+    },
+    "tier_4_educational_advanced": {
+      "category": "educational_advanced",
+      "base_multiplier": 1.8,
+      "actions": {
+        "upload_a_video": {
+          "credits": 30,
+          "description": "High-value content",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_create_a_strategy": {
+          "credits": 35,
+          "description": "Strategy development",
+          "cooldown_minutes": 30,
+          "daily_limit": 5
+        },
+        "user_completed_course": {
+          "credits": 25,
+          "description": "Educational achievement",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_started_course": {
+          "credits": 15,
+          "description": "Learning initiation",
+          "cooldown_minutes": 30,
+          "daily_limit": 5
+        },
+        "user_took_quiz": {
+          "credits": 18,
+          "description": "Knowledge testing",
+          "cooldown_minutes": 15,
+          "daily_limit": 8
+        },
+        "user_passed_assessment": {
+          "credits": 25,
+          "description": "Skill validation",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_failed_assessment": {
+          "credits": 10,
+          "description": "Learning attempt",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_attended_webinar": {
+          "credits": 20,
+          "description": "Live learning",
+          "cooldown_minutes": 120,
+          "daily_limit": 2
+        },
+        "user_registered_for_webinar": {
+          "credits": 15,
+          "description": "Learning commitment",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_ran_backtest": {
+          "credits": 25,
+          "description": "Strategy testing",
+          "cooldown_minutes": 10,
+          "daily_limit": 10
+        },
+        "user_saved_backtest_results": {
+          "credits": 18,
+          "description": "Result preservation",
+          "cooldown_minutes": 5,
+          "daily_limit": 15
+        },
+        "user_compared_strategies": {
+          "credits": 20,
+          "description": "Advanced analysis",
+          "cooldown_minutes": 15,
+          "daily_limit": 8
+        },
+        "user_created_custom_indicator": {
+          "credits": 35,
+          "description": "Innovation",
+          "cooldown_minutes": 60,
+          "daily_limit": 2
+        },
+        "user_shared_custom_indicator": {
+          "credits": 30,
+          "description": "Knowledge sharing",
+          "cooldown_minutes": 30,
+          "daily_limit": 3
+        },
+        "user_exported_trade_history": {
+          "credits": 15,
+          "description": "Data management",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_customized_dashboard": {
+          "credits": 20,
+          "description": "Platform personalization",
+          "cooldown_minutes": 30,
+          "daily_limit": 5
+        },
+        "user_customized_layout": {
+          "credits": 18,
+          "description": "Interface optimization",
+          "cooldown_minutes": 30,
+          "daily_limit": 5
+        },
+        "user_created_automation_rule": {
+          "credits": 30,
+          "description": "Advanced automation",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_triggered_automation": {
+          "credits": 15,
+          "description": "System utilization",
+          "cooldown_minutes": 1,
+          "daily_limit": null
+        },
+        "user_used_api_integration": {
+          "credits": 25,
+          "description": "Technical integration",
+          "cooldown_minutes": 30,
+          "daily_limit": 5
+        }
+      }
+    },
+    "tier_5_community_platform": {
+      "category": "community_platform",
+      "base_multiplier": 1.3,
+      "actions": {
+        "user_joined_group": {
+          "credits": 12,
+          "description": "Community participation",
+          "cooldown_minutes": 60,
+          "daily_limit": 5
+        },
+        "user_left_group": {
+          "credits": 8,
+          "description": "Group management",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_created_group": {
+          "credits": 20,
+          "description": "Community leadership",
+          "cooldown_minutes": 1440,
+          "daily_limit": 1
+        },
+        "user_posted_in_group": {
+          "credits": 15,
+          "description": "Group contribution",
+          "cooldown_minutes": 15,
+          "daily_limit": 8
+        },
+        "user_shared_strategy_publicly": {
+          "credits": 18,
+          "description": "Knowledge sharing",
+          "cooldown_minutes": 30,
+          "daily_limit": 5
+        },
+        "user_copied_strategy": {
+          "credits": 10,
+          "description": "Strategy adoption",
+          "cooldown_minutes": 10,
+          "daily_limit": 10
+        },
+        "user_favorited_strategy": {
+          "credits": 8,
+          "description": "Content curation",
+          "cooldown_minutes": 2,
+          "daily_limit": 20
+        },
+        "user_rated_strategy": {
+          "credits": 10,
+          "description": "Community feedback",
+          "cooldown_minutes": 5,
+          "daily_limit": 15
+        },
+        "user_reviewed_strategy": {
+          "credits": 15,
+          "description": "Detailed feedback",
+          "cooldown_minutes": 30,
+          "daily_limit": 5
+        },
+        "user_deposited_funds": {
+          "credits": 15,
+          "description": "Platform commitment",
+          "cooldown_minutes": 60,
+          "daily_limit": 5
+        },
+        "user_withdrew_funds": {
+          "credits": 12,
+          "description": "Fund management",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_upgraded_subscription": {
+          "credits": 20,
+          "description": "Platform investment",
+          "cooldown_minutes": 1440,
+          "daily_limit": 1
+        },
+        "user_referred_friend": {
+          "credits": 18,
+          "description": "Network growth",
+          "cooldown_minutes": 1440,
+          "daily_limit": 3
+        },
+        "user_verified_identity": {
+          "credits": 15,
+          "description": "Account security",
+          "cooldown_minutes": 10080,
+          "daily_limit": 1
+        },
+        "user_completed_kyc": {
+          "credits": 15,
+          "description": "Compliance",
+          "cooldown_minutes": 10080,
+          "daily_limit": 1
+        },
+        "user_submitted_feedback": {
+          "credits": 12,
+          "description": "Platform improvement",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_contacted_support": {
+          "credits": 10,
+          "description": "Help seeking",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_accessed_help_center": {
+          "credits": 8,
+          "description": "Self-service",
+          "cooldown_minutes": 30,
+          "daily_limit": 5
+        },
+        "user_participated_in_survey": {
+          "credits": 12,
+          "description": "Platform feedback",
+          "cooldown_minutes": 1440,
+          "daily_limit": 1
+        }
+      }
+    },
+    "tier_6_miscellaneous": {
+      "category": "miscellaneous",
+      "base_multiplier": 1.0,
+      "actions": {
+        "user_watched_a_video": {
+          "credits": 10,
+          "description": "Content consumption",
+          "cooldown_minutes": 5,
+          "daily_limit": 15
+        },
+        "user_downloaded_resource": {
+          "credits": 8,
+          "description": "Resource utilization",
+          "cooldown_minutes": 15,
+          "daily_limit": 10
+        },
+        "user_subscribed_to_newsletter": {
+          "credits": 8,
+          "description": "Engagement commitment",
+          "cooldown_minutes": 1440,
+          "daily_limit": 1
+        },
+        "user_exported_data": {
+          "credits": 12,
+          "description": "Data management",
+          "cooldown_minutes": 60,
+          "daily_limit": 5
+        },
+        "user_imported_data": {
+          "credits": 15,
+          "description": "Data integration",
+          "cooldown_minutes": 60,
+          "daily_limit": 3
+        },
+        "user_updated_portfolio": {
+          "credits": 12,
+          "description": "Portfolio maintenance",
+          "cooldown_minutes": 30,
+          "daily_limit": 8
+        }
+      }
+    }
+  },
+  "bonus_conditions": {
+    "consecutive_days": {
+      "7_days": {
+        "multiplier": 1.1,
+        "description": "Weekly consistency bonus"
+      },
+      "14_days": {
+        "multiplier": 1.2,
+        "description": "Bi-weekly consistency bonus"
+      },
+      "30_days": {
+        "multiplier": 1.5,
+        "description": "Monthly consistency bonus"
+      }
+    },
+    "volume_bonuses": {
+      "high_activity": {
+        "threshold": 500,
+        "multiplier": 1.25,
+        "description": "High activity bonus"
+      },
+      "super_user": {
+        "threshold": 1000,
+        "multiplier": 1.5,
+        "description": "Super user bonus"
+      }
+    },
+    "special_events": {
+      "weekend_bonus": {
+        "multiplier": 1.2,
+        "days": ["saturday", "sunday"],
+        "description": "Weekend engagement bonus"
+      }
+    }
+  },
+  "admin_controls": {
+    "emergency_multiplier": 1.0,
+    "global_pause": false,
+    "maintenance_mode": false,
+    "max_daily_credits_per_user": 2000,
+    "fraud_detection": {
+      "enabled": true,
+      "suspicious_threshold": 5000,
+      "auto_flag": true
+    }
+  }
+}
