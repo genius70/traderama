@@ -5,3 +5,4 @@ export { useAnalytics } from './useAnalytics';
 export { useErrorTracking, ErrorTrackingProvider } from './useErrorTracking';
 export { usePageTracking } from './usePageTracking';
 export { useToast } from './use-toast';
+export { useProfileCompletion } from './useProfileCompletion';
