@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { User, Mail, Save, Trophy, Target, TrendingUp, MapPin, CreditCard, Shield, Calendar, AlertCircle, Share2 } from 'lucide-react';
+import { User, Mail, Save, Trophy, Target, TrendingUp, MapPin, CreditCard, Shield, Calendar, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Profile {
   id: string;
-  username: string; // Added username
   name: string;
   email: string;
   bio?: string | null;
@@ -51,7 +50,6 @@ interface Profile {
   wise_email?: string | null;
   kyc_status?: string | null;
   profile_completion_percentage?: number | null;
-  avatar_url?: string | null; // Added for avatar storage
 }
 
 interface ProfileStats {
@@ -74,14 +72,6 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const generateReferralCode = (username: string, dob?: string | null) => {
-    if (!username || !dob) return '';
-    const year = new Date(dob).getFullYear().toString().slice(-4);
-    return `${username.toLowerCase().replace(/\s/g, '')}${year}`;
-  };
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -94,19 +84,14 @@ const Profile = () => {
         .single();
 
       if (error) throw error;
-      
-      const profileData = data ? {
+      setProfile(data ? {
         ...data,
-        username: data.username || '',
         name: data.name || '',
         email: data.email || '',
         role: data.role || 'user',
-        referral_code: data.referral_code || generateReferralCode(data.username, data.date_of_birth),
-        created_at: data.created_at || new Date().toISOString(),
-        avatar_url: data.avatar_url || ''
-      } : null;
-
-      setProfile(profileData);
+        referral_code: data.referral_code || '',
+        created_at: data.created_at || new Date().toISOString()
+      } : null);
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast({
@@ -122,6 +107,7 @@ const Profile = () => {
     if (!user) return;
 
     try {
+      // Mock stats - in real app, these would come from actual trade data
       setStats({
         totalTrades: 127,
         winRate: 68.5,
@@ -133,98 +119,21 @@ const Profile = () => {
     }
   }, [user]);
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || !user) return;
-
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setUploading(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: urlData.publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      setProfile(prev => prev ? { ...prev, avatar_url: urlData.publicUrl } : null);
-      toast({
-        title: "Avatar updated successfully",
-      });
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      toast({
-        title: "Failed to upload avatar",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+      fetchStats();
     }
-  };
-
-  const handleWhatsAppInvite = async () => {
-    if (!profile?.whatsapp_number || !profile.referral_code) {
-      toast({
-        title: "Missing information",
-        description: "Please provide a WhatsApp number and ensure your profile is complete",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const inviteMessage = `Join our trading platform using my referral code: ${profile.referral_code}! Sign up at [Your Platform URL]`;
-    const encodedMessage = encodeURIComponent(inviteMessage);
-    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
-
-    try {
-      // Log invitation attempt
-      await supabase.from('referral_logs').insert({
-        user_id: user?.id,
-        referral_code: profile.referral_code,
-        invite_method: 'whatsapp',
-        created_at: new Date().toISOString(),
-      });
-
-      window.open(whatsappUrl, '_blank');
-      toast({
-        title: "Invite sent",
-        description: "WhatsApp invite opened successfully",
-      });
-    } catch (error) {
-      console.error('Error logging WhatsApp invite:', error);
-      toast({
-        title: "Failed to send invite",
-        variant: "destructive",
-      });
-    }
-  };
+  }, [user, fetchProfile, fetchStats]);
 
   const handleSave = async () => {
     if (!profile || !user) return;
 
     setSaving(true);
     try {
-      const updatedReferralCode = generateReferralCode(profile.username, profile.date_of_birth);
-
       const { error } = await supabase
         .from('profiles')
         .update({
-          username: profile.username,
           name: profile.name,
           bio: profile.bio,
           phone_number: profile.phone_number,
@@ -253,7 +162,6 @@ const Profile = () => {
           airtm_username: profile.airtm_username,
           wise_account_id: profile.wise_account_id,
           wise_email: profile.wise_email,
-          referral_code: updatedReferralCode,
         })
         .eq('id', user.id);
 
@@ -263,7 +171,7 @@ const Profile = () => {
         title: "Profile updated successfully",
       });
       setIsEditing(false);
-      await fetchProfile();
+      await fetchProfile(); // Refresh to get updated completion percentage
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
@@ -315,6 +223,7 @@ const Profile = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      {/* Profile Completion Header */}
       <Card className={`border-2 ${completionPercentage < 100 ? 'border-destructive' : 'border-primary'}`}>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -363,26 +272,12 @@ const Profile = () => {
               </CardHeader>
               <CardContent className="text-center space-y-4">
                 <Avatar className="h-24 w-24 mx-auto">
-                  <AvatarImage src={profile.avatar_url || ''} />
+                  <AvatarImage src="" />
                   <AvatarFallback className="text-2xl">
-                    {profile.username?.[0]?.toUpperCase() || profile.email[0].toUpperCase()}
+                    {profile.name?.[0]?.toUpperCase() || profile.email[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleAvatarUpload}
-                />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading || !isEditing}
-                >
-                  {uploading ? 'Uploading...' : 'Change Photo'}
-                </Button>
+                <Button variant="outline" size="sm">Change Photo</Button>
               </CardContent>
             </Card>
 
@@ -395,17 +290,6 @@ const Profile = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Username *</Label>
-                    <Input
-                      id="username"
-                      value={profile.username || ''}
-                      onChange={(e) => setProfile({ ...profile, username: e.target.value })}
-                      disabled={!isEditing}
-                      required
-                    />
-                  </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name *</Label>
                     <Input
@@ -422,16 +306,6 @@ const Profile = () => {
                     <Input
                       id="email"
                       value={profile.email}
-                      disabled
-                      className="bg-muted"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="referral_code">Referral Code</Label>
-                    <Input
-                      id="referral_code"
-                      value={profile.referral_code}
                       disabled
                       className="bg-muted"
                     />
@@ -498,22 +372,10 @@ const Profile = () => {
                     required
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Invite Friends via WhatsApp</Label>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleWhatsAppInvite}
-                    disabled={!profile.whatsapp_number || !profile.referral_code}
-                    className="w-full"
-                  >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Invite via WhatsApp
-                  </Button>
-                </div>
               </CardContent>
             </Card>
 
+            {/* Address Section */}
             <Card className="lg:col-span-3">
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -593,7 +455,346 @@ const Profile = () => {
           </div>
         </TabsContent>
 
-        {/* Rest of the TabsContent components remain unchanged */}
+        <TabsContent value="kyc">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Shield className="h-5 w-5 mr-2" />
+                  KYC Compliance Status
+                </CardTitle>
+                <CardDescription>
+                  Complete these fields to comply with Know Your Customer regulations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Badge variant={profile.kyc_status === 'approved' ? 'default' : 'secondary'}>
+                      {profile.kyc_status?.toUpperCase() || 'PENDING'}
+                    </Badge>
+                    <span className="font-medium">KYC Status</span>
+                  </div>
+                  {isKYCCompliant && profile.kyc_status === 'pending' && (
+                    <Button onClick={handleSubmitKYC}>Submit for Review</Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Personal Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nationality">Nationality *</Label>
+                    <Input
+                      id="nationality"
+                      value={profile.nationality || ''}
+                      onChange={(e) => setProfile({ ...profile, nationality: e.target.value })}
+                      disabled={!isEditing}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="occupation">Occupation *</Label>
+                    <Input
+                      id="occupation"
+                      value={profile.occupation || ''}
+                      onChange={(e) => setProfile({ ...profile, occupation: e.target.value })}
+                      disabled={!isEditing}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="employer">Employer *</Label>
+                    <Input
+                      id="employer"
+                      value={profile.employer || ''}
+                      onChange={(e) => setProfile({ ...profile, employer: e.target.value })}
+                      disabled={!isEditing}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="annual_income_range">Annual Income Range *</Label>
+                    <Select 
+                      value={profile.annual_income_range || ''} 
+                      onValueChange={(value) => setProfile({ ...profile, annual_income_range: value })}
+                      disabled={!isEditing}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select income range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="under_25k">Under $25,000</SelectItem>
+                        <SelectItem value="25k_50k">$25,000 - $50,000</SelectItem>
+                        <SelectItem value="50k_100k">$50,000 - $100,000</SelectItem>
+                        <SelectItem value="100k_250k">$100,000 - $250,000</SelectItem>
+                        <SelectItem value="250k_500k">$250,000 - $500,000</SelectItem>
+                        <SelectItem value="over_500k">Over $500,000</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="source_of_funds">Source of Funds *</Label>
+                    <Select 
+                      value={profile.source_of_funds || ''} 
+                      onValueChange={(value) => setProfile({ ...profile, source_of_funds: value })}
+                      disabled={!isEditing}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select source of funds" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="employment">Employment</SelectItem>
+                        <SelectItem value="business">Business</SelectItem>
+                        <SelectItem value="investment">Investment</SelectItem>
+                        <SelectItem value="inheritance">Inheritance</SelectItem>
+                        <SelectItem value="savings">Savings</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="trading_experience">Trading Experience *</Label>
+                    <Select 
+                      value={profile.trading_experience || ''} 
+                      onValueChange={(value) => setProfile({ ...profile, trading_experience: value })}
+                      disabled={!isEditing}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select experience level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="beginner">Beginner (0-1 years)</SelectItem>
+                        <SelectItem value="intermediate">Intermediate (1-3 years)</SelectItem>
+                        <SelectItem value="advanced">Advanced (3-5 years)</SelectItem>
+                        <SelectItem value="expert">Expert (5+ years)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Identification</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="identification_type">ID Type *</Label>
+                    <Select 
+                      value={profile.identification_type || ''} 
+                      onValueChange={(value) => setProfile({ ...profile, identification_type: value })}
+                      disabled={!isEditing}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select ID type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="passport">Passport</SelectItem>
+                        <SelectItem value="drivers_license">Driver's License</SelectItem>
+                        <SelectItem value="national_id">National ID</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="identification_number">ID Number *</Label>
+                    <Input
+                      id="identification_number"
+                      value={profile.identification_number || ''}
+                      onChange={(e) => setProfile({ ...profile, identification_number: e.target.value })}
+                      disabled={!isEditing}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="identification_expiry">ID Expiry Date</Label>
+                    <Input
+                      id="identification_expiry"
+                      type="date"
+                      value={profile.identification_expiry || ''}
+                      onChange={(e) => setProfile({ ...profile, identification_expiry: e.target.value })}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Payment Account Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure your payment accounts for deposits and withdrawals
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Stripe */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Stripe Account</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="stripe_customer_id">Stripe Customer ID *</Label>
+                      <Input
+                        id="stripe_customer_id"
+                        value={profile.stripe_customer_id || ''}
+                        onChange={(e) => setProfile({ ...profile, stripe_customer_id: e.target.value })}
+                        disabled={!isEditing}
+                        placeholder="cus_..."
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="stripe_account_id">Stripe Account ID *</Label>
+                      <Input
+                        id="stripe_account_id"
+                        value={profile.stripe_account_id || ''}
+                        onChange={(e) => setProfile({ ...profile, stripe_account_id: e.target.value })}
+                        disabled={!isEditing}
+                        placeholder="acct_..."
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* AirTM */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">AirTM Account</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="airtm_email">AirTM Email *</Label>
+                      <Input
+                        id="airtm_email"
+                        type="email"
+                        value={profile.airtm_email || ''}
+                        onChange={(e) => setProfile({ ...profile, airtm_email: e.target.value })}
+                        disabled={!isEditing}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="airtm_username">AirTM Username *</Label>
+                      <Input
+                        id="airtm_username"
+                        value={profile.airtm_username || ''}
+                        onChange={(e) => setProfile({ ...profile, airtm_username: e.target.value })}
+                        disabled={!isEditing}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Wise */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Wise Account</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="wise_account_id">Wise Account ID *</Label>
+                      <Input
+                        id="wise_account_id"
+                        value={profile.wise_account_id || ''}
+                        onChange={(e) => setProfile({ ...profile, wise_account_id: e.target.value })}
+                        disabled={!isEditing}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="wise_email">Wise Email *</Label>
+                      <Input
+                        id="wise_email"
+                        type="email"
+                        value={profile.wise_email || ''}
+                        onChange={(e) => setProfile({ ...profile, wise_email: e.target.value })}
+                        disabled={!isEditing}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="stats">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Target className="h-4 w-4 mr-2" />
+                  Total Trades
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalTrades}</div>
+                <p className="text-xs text-muted-foreground">All time</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Win Rate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats.winRate}%</div>
+                <p className="text-xs text-muted-foreground">Success rate</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Total P&L
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  ${stats.totalPnL.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">All time profit</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Active Strategies</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.activeStrategies}</div>
+                <p className="text-xs text-muted-foreground">Currently following</p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
