@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { User, Mail, Save, Trophy, Target, TrendingUp, MapPin, CreditCard, Shield, Calendar, AlertCircle } from 'lucide-react';
+import { User, Mail, Save, Trophy, Target, TrendingUp, MapPin, CreditCard, Shield, Calendar, AlertCircle, Camera, Copy, Check, Share, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,10 +17,12 @@ import { supabase } from '@/integrations/supabase/client';
 interface Profile {
   id: string;
   name: string;
+  username?: string | null;
   email: string;
   bio?: string | null;
   role: string;
   referral_code: string;
+  avatar_url?: string | null;
   created_at: string;
   phone_number?: string | null;
   whatsapp_number?: string | null;
@@ -72,6 +74,17 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [copiedReferral, setCopiedReferral] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Generate referral code from username and date of birth
+  const generateReferralCode = (username: string, dateOfBirth: string): string => {
+    if (!username || !dateOfBirth) return '';
+    const year = new Date(dateOfBirth).getFullYear().toString();
+    const lastFourDigits = year.slice(-4);
+    return `${username.toLowerCase()}${lastFourDigits}`;
+  };
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -87,6 +100,7 @@ const Profile = () => {
       setProfile(data ? {
         ...data,
         name: data.name || '',
+        username: data.username || '',
         email: data.email || '',
         role: data.role || 'user',
         referral_code: data.referral_code || '',
@@ -126,6 +140,83 @@ const Profile = () => {
     }
   }, [user, fetchProfile, fetchStats]);
 
+  // Update referral code when username or date of birth changes
+  useEffect(() => {
+    if (profile && profile.username && profile.date_of_birth) {
+      const newReferralCode = generateReferralCode(profile.username, profile.date_of_birth);
+      if (newReferralCode !== profile.referral_code) {
+        setProfile(prev => prev ? { ...prev, referral_code: newReferralCode } : null);
+      }
+    }
+  }, [profile?.username, profile?.date_of_birth]);
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !profile) return;
+
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a PNG or JPEG image.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      // Create a unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-avatar-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // Upload file to Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: data.publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile(prev => prev ? { ...prev, avatar_url: data.publicUrl } : null);
+      toast({
+        title: "Avatar updated successfully",
+      });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast({
+        title: "Failed to upload avatar",
+        variant: "destructive",
+      });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!profile || !user) return;
 
@@ -135,6 +226,7 @@ const Profile = () => {
         .from('profiles')
         .update({
           name: profile.name,
+          username: profile.username,
           bio: profile.bio,
           phone_number: profile.phone_number,
           whatsapp_number: profile.whatsapp_number,
@@ -162,6 +254,7 @@ const Profile = () => {
           airtm_username: profile.airtm_username,
           wise_account_id: profile.wise_account_id,
           wise_email: profile.wise_email,
+          referral_code: profile.referral_code,
         })
         .eq('id', user.id);
 
@@ -210,6 +303,44 @@ const Profile = () => {
     }
   };
 
+  const copyReferralCode = async () => {
+    if (!profile?.referral_code) return;
+    
+    try {
+      await navigator.clipboard.writeText(profile.referral_code);
+      setCopiedReferral(true);
+      toast({
+        title: "Referral code copied!",
+      });
+      setTimeout(() => setCopiedReferral(false), 2000);
+    } catch (error) {
+      toast({
+        title: "Failed to copy referral code",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const shareViaWhatsApp = () => {
+    if (!profile?.referral_code || !profile?.whatsapp_number) return;
+    
+    const message = encodeURIComponent(
+      `🚀 Join me on our trading platform! Use my referral code: ${profile.referral_code} to get started with exclusive benefits. Sign up now!`
+    );
+    const whatsappUrl = `https://wa.me/${profile.whatsapp_number.replace(/[^0-9]/g, '')}?text=${message}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const inviteViaWhatsApp = () => {
+    if (!profile?.referral_code) return;
+    
+    const message = encodeURIComponent(
+      `🚀 Hey! I'm using this amazing trading platform and thought you'd be interested. Use my referral code: ${profile.referral_code} to join and get exclusive benefits! Click here to sign up: ${window.location.origin}/signup?ref=${profile.referral_code}`
+    );
+    const whatsappUrl = `https://wa.me/?text=${message}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center p-8">Loading...</div>;
   }
@@ -256,6 +387,41 @@ const Profile = () => {
         </CardHeader>
       </Card>
 
+      {/* Referral Code Display */}
+      {profile.referral_code && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg">Your Referral Code</h3>
+                <p className="text-muted-foreground">Share with friends to earn rewards</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <code className="px-3 py-2 bg-background border rounded font-mono text-lg">
+                  {profile.referral_code}
+                </code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyReferralCode}
+                >
+                  {copiedReferral ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={inviteViaWhatsApp}
+                  className="text-green-600 hover:text-green-700"
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Share
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
@@ -271,13 +437,45 @@ const Profile = () => {
                 <CardTitle>Avatar</CardTitle>
               </CardHeader>
               <CardContent className="text-center space-y-4">
-                <Avatar className="h-24 w-24 mx-auto">
-                  <AvatarImage src="" />
-                  <AvatarFallback className="text-2xl">
-                    {profile.name?.[0]?.toUpperCase() || profile.email[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <Button variant="outline" size="sm">Change Photo</Button>
+                <div className="relative">
+                  <Avatar className="h-24 w-24 mx-auto">
+                    <AvatarImage src={profile.avatar_url || ""} />
+                    <AvatarFallback className="text-2xl">
+                      {profile.name?.[0]?.toUpperCase() || profile.email[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isEditing && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={avatarUploading}
+                    >
+                      <Camera className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".png,.jpg,.jpeg"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
+                {isEditing && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={avatarUploading}
+                  >
+                    {avatarUploading ? 'Uploading...' : 'Change Photo'}
+                  </Button>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  PNG or JPEG, max 5MB
+                </p>
               </CardContent>
             </Card>
 
@@ -297,6 +495,18 @@ const Profile = () => {
                       value={profile.name || ''}
                       onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                       disabled={!isEditing}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username *</Label>
+                    <Input
+                      id="username"
+                      value={profile.username || ''}
+                      onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+                      disabled={!isEditing}
+                      placeholder="Enter unique username"
                       required
                     />
                   </div>
@@ -357,6 +567,19 @@ const Profile = () => {
                       disabled={!isEditing}
                       required
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="referral_code">Referral Code</Label>
+                    <Input
+                      id="referral_code"
+                      value={profile.referral_code || ''}
+                      disabled
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Auto-generated from username + birth year
+                    </p>
                   </div>
                 </div>
 
@@ -736,6 +959,58 @@ const Profile = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* WhatsApp Invite Settings */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <MessageCircle className="h-5 w-5 mr-2 text-green-600" />
+                    WhatsApp Invite Settings
+                  </h3>
+                  <div className="p-4 border rounded-lg bg-green-50 dark:bg-green-950/20">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">WhatsApp Integration</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Use your WhatsApp number to invite friends and share your referral code
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-green-600 border-green-600">
+                          {profile.whatsapp_number ? 'Connected' : 'Not Connected'}
+                        </Badge>
+                      </div>
+                      
+                      {profile.whatsapp_number && (
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={shareViaWhatsApp}
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            Test WhatsApp Share
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={inviteViaWhatsApp}
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            <Share className="h-4 w-4 mr-2" />
+                            Invite Friends
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {!profile.whatsapp_number && (
+                        <p className="text-sm text-amber-600">
+                          ⚠️ Please add your WhatsApp number in the Personal Information section to enable invite features
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -794,6 +1069,42 @@ const Profile = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Referral Statistics */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Share className="h-5 w-5 mr-2" />
+                Referral Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">0</div>
+                  <p className="text-sm text-muted-foreground">Total Referrals</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">$0</div>
+                  <p className="text-sm text-muted-foreground">Referral Earnings</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">0</div>
+                  <p className="text-sm text-muted-foreground">Active Referrals</p>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">How to Earn More Referral Rewards:</h4>
+                <ul className="text-sm space-y-1 text-muted-foreground">
+                  <li>• Share your referral code: <code className="bg-background px-1 rounded">{profile.referral_code}</code></li>
+                  <li>• Use the WhatsApp share feature to invite friends directly</li>
+                  <li>• Earn commission on your referrals' trading activities</li>
+                  <li>• Get bonuses when your referrals complete KYC verification</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
