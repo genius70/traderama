@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_rewards: {
+        Row: {
+          action: string
+          cooldown_minutes: number | null
+          credits: number
+          daily_limit: number | null
+          description: string | null
+        }
+        Insert: {
+          action: string
+          cooldown_minutes?: number | null
+          credits: number
+          daily_limit?: number | null
+          description?: string | null
+        }
+        Update: {
+          action?: string
+          cooldown_minutes?: number | null
+          credits?: number
+          daily_limit?: number | null
+          description?: string | null
+        }
+        Relationships: []
+      }
       airdrop_milestones: {
         Row: {
           created_at: string
@@ -106,6 +130,57 @@ export type Database = {
         }
         Relationships: []
       }
+      auto_trading_settings: {
+        Row: {
+          allowed_strategies: string[] | null
+          created_at: string
+          enabled: boolean
+          id: string
+          max_daily_trades: number
+          max_position_size: number
+          risk_percentage: number
+          stop_loss_percentage: number | null
+          take_profit_percentage: number | null
+          timezone: string | null
+          trading_hours_end: string | null
+          trading_hours_start: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allowed_strategies?: string[] | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          max_daily_trades?: number
+          max_position_size?: number
+          risk_percentage?: number
+          stop_loss_percentage?: number | null
+          take_profit_percentage?: number | null
+          timezone?: string | null
+          trading_hours_end?: string | null
+          trading_hours_start?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allowed_strategies?: string[] | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          max_daily_trades?: number
+          max_position_size?: number
+          risk_percentage?: number
+          stop_loss_percentage?: number | null
+          take_profit_percentage?: number | null
+          timezone?: string | null
+          trading_hours_end?: string | null
+          trading_hours_start?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       broker_connections: {
         Row: {
           account_id: string
@@ -140,6 +215,50 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      broker_sync_logs: {
+        Row: {
+          broker_connection_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          records_synced: number | null
+          status: string
+          sync_duration_ms: number | null
+          sync_type: string
+          user_id: string
+        }
+        Insert: {
+          broker_connection_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          records_synced?: number | null
+          status: string
+          sync_duration_ms?: number | null
+          sync_type: string
+          user_id: string
+        }
+        Update: {
+          broker_connection_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          records_synced?: number | null
+          status?: string
+          sync_duration_ms?: number | null
+          sync_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broker_sync_logs_broker_connection_id_fkey"
+            columns: ["broker_connection_id"]
+            isOneToOne: false
+            referencedRelation: "ig_broker_connections"
             referencedColumns: ["id"]
           },
         ]
@@ -588,14 +707,131 @@ export type Database = {
           },
         ]
       }
+      live_market_data: {
+        Row: {
+          ask: number | null
+          bid: number | null
+          change_percent: number | null
+          id: string
+          iv_rank: number | null
+          price: number
+          source: string
+          symbol: string
+          timestamp: string
+          volume: number | null
+        }
+        Insert: {
+          ask?: number | null
+          bid?: number | null
+          change_percent?: number | null
+          id?: string
+          iv_rank?: number | null
+          price: number
+          source?: string
+          symbol: string
+          timestamp?: string
+          volume?: number | null
+        }
+        Update: {
+          ask?: number | null
+          bid?: number | null
+          change_percent?: number | null
+          id?: string
+          iv_rank?: number | null
+          price?: number
+          source?: string
+          symbol?: string
+          timestamp?: string
+          volume?: number | null
+        }
+        Relationships: []
+      }
+      live_positions: {
+        Row: {
+          broker_connection_id: string | null
+          broker_position_id: string | null
+          closed_at: string | null
+          contracts: number
+          created_at: string
+          current_value: number
+          direction: string
+          expiry_date: string | null
+          greeks: Json | null
+          id: string
+          opened_at: string
+          position_type: string
+          premium_paid: number
+          status: Database["public"]["Enums"]["trade_status"]
+          strike_price: number | null
+          symbol: string
+          unrealized_pnl: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker_connection_id?: string | null
+          broker_position_id?: string | null
+          closed_at?: string | null
+          contracts?: number
+          created_at?: string
+          current_value?: number
+          direction: string
+          expiry_date?: string | null
+          greeks?: Json | null
+          id?: string
+          opened_at?: string
+          position_type: string
+          premium_paid?: number
+          status?: Database["public"]["Enums"]["trade_status"]
+          strike_price?: number | null
+          symbol: string
+          unrealized_pnl?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker_connection_id?: string | null
+          broker_position_id?: string | null
+          closed_at?: string | null
+          contracts?: number
+          created_at?: string
+          current_value?: number
+          direction?: string
+          expiry_date?: string | null
+          greeks?: Json | null
+          id?: string
+          opened_at?: string
+          position_type?: string
+          premium_paid?: number
+          status?: Database["public"]["Enums"]["trade_status"]
+          strike_price?: number | null
+          symbol?: string
+          unrealized_pnl?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_positions_broker_connection_id_fkey"
+            columns: ["broker_connection_id"]
+            isOneToOne: false
+            referencedRelation: "ig_broker_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       market_data: {
         Row: {
+          ask: number | null
+          bid: number | null
+          change_percent: number | null
           close_price: number | null
           created_at: string | null
           high_price: number | null
           id: string
           iv_rank: number | null
           low_price: number | null
+          market_cap: number | null
           open_price: number | null
           price: number | null
           symbol: string | null
@@ -604,12 +840,16 @@ export type Database = {
           volume: number | null
         }
         Insert: {
+          ask?: number | null
+          bid?: number | null
+          change_percent?: number | null
           close_price?: number | null
           created_at?: string | null
           high_price?: number | null
           id?: string
           iv_rank?: number | null
           low_price?: number | null
+          market_cap?: number | null
           open_price?: number | null
           price?: number | null
           symbol?: string | null
@@ -618,12 +858,16 @@ export type Database = {
           volume?: number | null
         }
         Update: {
+          ask?: number | null
+          bid?: number | null
+          change_percent?: number | null
           close_price?: number | null
           created_at?: string | null
           high_price?: number | null
           id?: string
           iv_rank?: number | null
           low_price?: number | null
+          market_cap?: number | null
           open_price?: number | null
           price?: number | null
           symbol?: string | null
@@ -1042,45 +1286,66 @@ export type Database = {
       }
       price_history: {
         Row: {
+          ask: number | null
+          bid: number | null
           created_at: string
           date: string
+          high_price: number | null
           id: string
+          iv: number | null
+          low_price: number | null
           lowerbb: number | null
           macd: number | null
+          open_price: number | null
           price: number
           rsi: number | null
           signal: number | null
           sma20: number | null
+          source: string | null
           symbol: string
           timestamp: string
           upperbb: number | null
           volume: number | null
         }
         Insert: {
+          ask?: number | null
+          bid?: number | null
           created_at?: string
           date: string
+          high_price?: number | null
           id?: string
+          iv?: number | null
+          low_price?: number | null
           lowerbb?: number | null
           macd?: number | null
+          open_price?: number | null
           price: number
           rsi?: number | null
           signal?: number | null
           sma20?: number | null
+          source?: string | null
           symbol: string
           timestamp?: string
           upperbb?: number | null
           volume?: number | null
         }
         Update: {
+          ask?: number | null
+          bid?: number | null
           created_at?: string
           date?: string
+          high_price?: number | null
           id?: string
+          iv?: number | null
+          low_price?: number | null
           lowerbb?: number | null
           macd?: number | null
+          open_price?: number | null
           price?: number
           rsi?: number | null
           signal?: number | null
           sma20?: number | null
+          source?: string | null
           symbol?: string
           timestamp?: string
           upperbb?: number | null
@@ -1416,6 +1681,59 @@ export type Database = {
           },
         ]
       }
+      strategy_signals: {
+        Row: {
+          confidence_score: number | null
+          executed_at: string | null
+          expiry_date: string | null
+          generated_at: string
+          id: string
+          market_conditions: Json | null
+          option_type: string | null
+          signal_type: string
+          status: string
+          strategy_id: string
+          strike_price: number | null
+          symbol: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          executed_at?: string | null
+          expiry_date?: string | null
+          generated_at?: string
+          id?: string
+          market_conditions?: Json | null
+          option_type?: string | null
+          signal_type: string
+          status?: string
+          strategy_id: string
+          strike_price?: number | null
+          symbol: string
+        }
+        Update: {
+          confidence_score?: number | null
+          executed_at?: string | null
+          expiry_date?: string | null
+          generated_at?: string
+          id?: string
+          market_conditions?: Json | null
+          option_type?: string | null
+          signal_type?: string
+          status?: string
+          strategy_id?: string
+          strike_price?: number | null
+          symbol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_signals_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "trading_strategies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategy_subscriptions: {
         Row: {
           fees_paid: number | null
@@ -1708,6 +2026,30 @@ export type Database = {
           },
         ]
       }
+      user_actions: {
+        Row: {
+          action: string
+          credits: number
+          id: string
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          credits: number
+          id?: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          credits?: number
+          id?: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_activities: {
         Row: {
           activity_type: string
@@ -1776,6 +2118,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_balances: {
+        Row: {
+          min_balance_kem: number | null
+          min_balance_usd: number | null
+          tier: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          min_balance_kem?: number | null
+          min_balance_usd?: number | null
+          tier?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          min_balance_kem?: number | null
+          min_balance_usd?: number | null
+          tier?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_cycle_history: {
+        Row: {
+          bonus_rewards_kem: number | null
+          claim_timestamp: string | null
+          claimed: boolean | null
+          credit_rewards_kem: number | null
+          cycles_completed: number | null
+          id: string
+          period_end: string | null
+          period_start: string | null
+          total_credits: number | null
+          user_id: string | null
+        }
+        Insert: {
+          bonus_rewards_kem?: number | null
+          claim_timestamp?: string | null
+          claimed?: boolean | null
+          credit_rewards_kem?: number | null
+          cycles_completed?: number | null
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          total_credits?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          bonus_rewards_kem?: number | null
+          claim_timestamp?: string | null
+          claimed?: boolean | null
+          credit_rewards_kem?: number | null
+          cycles_completed?: number | null
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          total_credits?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       user_engagement: {
         Row: {
@@ -2072,6 +2477,10 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: undefined
       }
+      generate_referral_code: {
+        Args: { p_username: string; p_date_of_birth: string }
+        Returns: string
+      }
       get_user_contact_stats: {
         Args: { p_user_id: string }
         Returns: Json
@@ -2105,6 +2514,7 @@ export type Database = {
         | "tradier"
         | "easymarkets"
         | "tradenation"
+      broker_type: "ig" | "alpaca" | "interactive_brokers" | "td_ameritrade"
       strategy_status:
         | "draft"
         | "published"
@@ -2249,6 +2659,7 @@ export const Constants = {
         "easymarkets",
         "tradenation",
       ],
+      broker_type: ["ig", "alpaca", "interactive_brokers", "td_ameritrade"],
       strategy_status: [
         "draft",
         "published",

@@ -32,7 +32,6 @@ interface ChartData {
   lowerBB: number;
 }
 
-const ALPHA_VANTAGE_API_KEY = '8AQPB7J6D8TUCDJA';
 const TIMEFRAMES = {
   hourly: 'TIME_SERIES_INTRADAY&interval=60min',
   daily: 'TIME_SERIES_DAILY',
@@ -122,46 +121,73 @@ const MarketTrends = () => {
       setLoading(true);
       setError(null);
 
-      const symbols = ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'];
-      const marketDataPromises = symbols.map(async (symbol, index) => {
-        // Add delay to avoid rate limits (200ms between requests)
-        await new Promise(resolve => setTimeout(resolve, index * 200));
-        const response = await fetch(
-          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
-        );
-        const data = await response.json();
+      // First try to get cached data from Supabase
+      const { data: cachedData, error: cacheError } = await supabase
+        .from('live_market_data')
+        .select('*')
+        .in('symbol', ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'])
+        .gte('timestamp', new Date(Date.now() - 5 * 60 * 1000).toISOString()); // 5 minutes ago
 
-        // Check for API errors
-        if (data['Error Message'] || data['Note'] || !data['Global Quote']) {
-          throw new Error(`API error for ${symbol}: ${data['Error Message'] || data['Note'] || 'No quote data'}`);
-        }
-
-        const quote = data['Global Quote'];
-        return {
-          symbol,
-          price: parseFloat(quote['05. price'] || '0') || 0,
-          change: parseFloat(quote['09. change'] || '0') || 0,
-          changePercent: parseFloat(quote['10. change percent']?.replace('%', '') || '0') || 0,
-          volume: parseInt(quote['06. volume'] || '0') || 0,
-        };
-      });
-
-      const liveData = await Promise.all(marketDataPromises);
-      setMarketData(liveData);
-
-      // Save to Supabase
-      await supabase.from('market_data')
-        .upsert(liveData.map(item => ({
+      if (!cacheError && cachedData && cachedData.length > 0) {
+        const formattedData = cachedData.map(item => ({
           symbol: item.symbol,
           price: item.price,
-          close_price: item.price,
-          volume: item.volume,
-          timestamp: new Date().toISOString()
-        })));
+          change: 0, // Will be calculated if needed
+          changePercent: item.change_percent || 0,
+          volume: item.volume || 0,
+        }));
+        setMarketData(formattedData);
+        setLoading(false);
+        return;
+      }
+
+      // If no cached data, call the edge function to fetch fresh data
+      const { data: freshData, error: fetchError } = await supabase.functions.invoke('alpha-vantage-market-data', {
+        body: { symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'] }
+      });
+
+      if (fetchError) {
+        throw new Error(`Edge function error: ${fetchError.message}`);
+      }
+
+      if (freshData && freshData.success && freshData.data) {
+        const formattedData = freshData.data.map((item: any) => ({
+          symbol: item.symbol,
+          price: item.price,
+          change: 0,
+          changePercent: item.change_percent || 0,
+          volume: item.volume || 0,
+        }));
+        setMarketData(formattedData);
+      } else {
+        throw new Error('No data returned from market data service');
+      }
+
     } catch (err) {
       console.error('Error fetching market data:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch market data from Alpha Vantage';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch market data';
       setError(errorMessage);
+      
+      // Try to load any available cached data as fallback
+      const { data: fallbackData } = await supabase
+        .from('live_market_data')
+        .select('*')
+        .in('symbol', ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'])
+        .order('timestamp', { ascending: false })
+        .limit(5);
+
+      if (fallbackData && fallbackData.length > 0) {
+        const formattedData = fallbackData.map(item => ({
+          symbol: item.symbol,
+          price: item.price,
+          change: 0,
+          changePercent: item.change_percent || 0,
+          volume: item.volume || 0,
+        }));
+        setMarketData(formattedData);
+        setError(`${errorMessage} (showing cached data)`);
+      }
+      
       toast({
         title: "Data Error",
         variant: "destructive",
@@ -173,101 +199,63 @@ const MarketTrends = () => {
 
   const fetchChartData = useCallback(async (symbol: string, timeframe: keyof typeof TIMEFRAMES) => {
     try {
-      const endpoint = TIMEFRAMES[timeframe];
-      const response = await fetch(
-        `https://www.alphavantage.co/query?function=${endpoint}&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
-      );
-      const data = await response.json();
+      // First try to get cached price history data
+      const { data: cachedPriceData, error: priceError } = await supabase
+        .from('price_history')
+        .select('*')
+        .eq('symbol', symbol)
+        .order('timestamp', { ascending: false })
+        .limit(100);
 
-      // Check for API errors
-      if (data['Error Message'] || data['Note']) {
-        throw new Error(`API error for ${symbol}: ${data['Error Message'] || data['Note'] || 'No time series data'}`);
-      }
-
-      let timeSeriesKey: string;
-      switch (timeframe) {
-        case 'hourly':
-          timeSeriesKey = 'Time Series (60min)';
-          break;
-        case 'daily':
-          timeSeriesKey = 'Time Series (Daily)';
-          break;
-        case 'weekly':
-          timeSeriesKey = 'Weekly Time Series';
-          break;
-        default:
-          timeSeriesKey = 'Monthly Time Series';
-      }
-
-      const timeSeries = data[timeSeriesKey];
-      if (!timeSeries) {
-        throw new Error('No time series data available');
-      }
-
-      const prices = Object.entries(timeSeries).map(([date, values]: [string, any]) => ({
-        date,
-        price: parseFloat(values['4. close'] || '0') || 0,
-        volume: parseInt(values['5. volume'] || '0') || 0
-      }));
-
-      // Calculate indicators
-      const priceValues = prices.map(p => p.price);
-      const { sma20, rsi, macd, signal, upperBB, lowerBB } = calculateIndicators(priceValues);
-
-      const transformedChartData: ChartData[] = prices.map((item, index) => ({
-        date: item.date,
-        price: item.price,
-        volume: item.volume,
-        sma20: sma20[index],
-        rsi: rsi[index],
-        macd: macd[index],
-        signal: signal[index],
-        upperBB: upperBB[index],
-        lowerBB: lowerBB[index]
-      }));
-
-      if (timeframe === 'yearly') {
-        const yearlyData: ChartData[] = [];
-        const years = new Set(transformedChartData.map(d => new Date(d.date).getFullYear()));
+      if (!priceError && cachedPriceData && cachedPriceData.length > 0) {
+        const transformedData: ChartData[] = cachedPriceData.map(item => ({
+          date: item.date,
+          price: item.price,
+          volume: item.volume || 0,
+          sma20: item.sma20 || 0,
+          rsi: item.rsi || 50,
+          macd: item.macd || 0,
+          signal: item.signal || 0,
+          upperBB: item.upperbb || 0,
+          lowerBB: item.lowerbb || 0
+        }));
         
-        years.forEach(year => {
-          const yearData = transformedChartData.filter(d => new Date(d.date).getFullYear() === year);
-          if (yearData.length > 0) {
-            const avgPrice = yearData.reduce((sum, d) => sum + d.price, 0) / yearData.length;
-            const avgVolume = yearData.reduce((sum, d) => sum + d.volume, 0) / yearData.length;
-            yearlyData.push({
-              date: year.toString(),
-              price: avgPrice,
-              volume: avgVolume,
-              sma20: yearData[yearData.length - 1].sma20,
-              rsi: yearData[yearData.length - 1].rsi,
-              macd: yearData[yearData.length - 1].macd,
-              signal: yearData[yearData.length - 1].signal,
-              upperBB: yearData[yearData.length - 1].upperBB,
-              lowerBB: yearData[yearData.length - 1].lowerBB
-            });
-          }
-        });
-        setChartData(yearlyData);
-      } else {
-        setChartData(transformedChartData.slice(0, 30));
+        setChartData(transformedData.slice(0, 30));
+        return;
       }
 
-      // Save to Supabase - comment out until price_history table is created
-      // await supabase.from('price_history').upsert(
-      //   transformedChartData.map(item => ({
-      //     symbol,
-      //     date: item.date,
-      //     price: item.price,
-      //     volume: item.volume,
-      //     sma20: item.sma20,
-      //     rsi: item.rsi,
-      //     macd: item.macd,
-      //     signal: item.signal,
-      //     upperBB: item.upperBB,
-      //     lowerBB: item.lowerBB
-      //   }))
-      // );
+      // Fallback to Alpha Vantage API with edge function
+      const { data: chartResponse, error: chartError } = await supabase.functions.invoke('fetch-polygon-data', {
+        body: {
+          symbol,
+          timeframe: timeframe === 'daily' ? 'day' : timeframe,
+          startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0]
+        }
+      });
+
+      if (chartError) {
+        throw new Error(`Chart data error: ${chartError.message}`);
+      }
+
+      if (chartResponse && chartResponse.results) {
+        const prices = chartResponse.results.map((item: any) => item.c || 0);
+        const { sma20, rsi, macd, signal, upperBB, lowerBB } = calculateIndicators(prices);
+
+        const transformedData: ChartData[] = chartResponse.results.map((item: any, index: number) => ({
+          date: new Date(item.t).toISOString().split('T')[0],
+          price: item.c || 0,
+          volume: item.v || 0,
+          sma20: sma20[index] || 0,
+          rsi: rsi[index] || 50,
+          macd: macd[index] || 0,
+          signal: signal[index] || 0,
+          upperBB: upperBB[index] || 0,
+          lowerBB: lowerBB[index] || 0
+        }));
+
+        setChartData(transformedData.slice(0, 30));
+      }
     } catch (err) {
       console.error('Error fetching chart data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chart data';
@@ -291,7 +279,7 @@ const MarketTrends = () => {
     const interval = setInterval(() => {
       fetchMarketData();
       fetchChartData(selectedSymbol, selectedTimeframe);
-    }, 5 * 60 * 1000);
+    }, 2 * 60 * 1000); // Update every 2 minutes for more frequent live data
 
     return () => clearInterval(interval);
   }, [fetchMarketData, fetchChartData, selectedSymbol, selectedTimeframe]);

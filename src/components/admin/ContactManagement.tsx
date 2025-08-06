@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, Send, Clock, Upload, FileUp, Download } from 'lucide-react';
 import { format, addDays } from 'date-fns';
+import Papa from 'papaparse';
 
 interface User {
   id: string;
@@ -41,6 +43,7 @@ const TEMPLATES = {
 const ContactManagement: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -56,6 +59,9 @@ const ContactManagement: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Restrict to super admin
   useEffect(() => {
@@ -68,43 +74,60 @@ const ContactManagement: React.FC = () => {
       return;
     }
 
-    // Fetch users and messages
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Fetch profiles without is_premium for now
-        const { data: profiles, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, role, name');
-        const { data: usersData, error: userError } = await supabase.auth.admin.listUsers();
+      // Fetch users and messages
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          // Fetch profiles with all required fields
+          const { data: profiles, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, role, name, is_premium, created_at, subscription_tier');
+          
+          const { data: usersData, error: userError } = await supabase.auth.admin.listUsers();
 
-        if (profileError || userError) throw new Error('Error fetching data');
+          if (profileError || userError) throw new Error('Error fetching data');
 
-        const mergedUsers = usersData.users
-          .filter(u => u.email) // Filter out users without email
-          .map((u) => ({
-            id: u.id,
-            email: u.email!,
-            name: profiles?.find((p) => p.id === u.id)?.name || null,
-            role: profiles?.find((p) => p.id === u.id)?.role || 'user',
-            created_at: u.created_at,
-            last_sign_in_at: u.last_sign_in_at || null,
-            is_premium: false, // Default for now until migration completes
-          }));
-        setUsers(mergedUsers);
+          const mergedUsers = usersData.users
+            .filter(u => u.email) // Filter out users without email
+            .map((u) => ({
+              id: u.id,
+              email: u.email!,
+              name: profiles?.find((p) => p.id === u.id)?.name || null,
+              role: profiles?.find((p) => p.id === u.id)?.role || 'user',
+              created_at: u.created_at,
+              last_sign_in_at: u.last_sign_in_at || null,
+              is_premium: profiles?.find((p) => p.id === u.id)?.is_premium || false,
+            }));
+          setUsers(mergedUsers);
 
-        // For now, set empty messages until tables exist
-        setMessages([]);
+          // Fetch message history
+          const { data: messageHistory, error: msgError } = await supabase
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-      } catch (error) {
-        toast({
-          title: 'Error loading data',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+          if (!msgError && messageHistory) {
+            setMessages(messageHistory.map(msg => ({
+              id: msg.id,
+              subject: msg.subject,
+              user_count: Array.isArray(msg.user_ids) ? msg.user_ids.length : 0,
+              delivery_method: msg.delivery_method,
+              status: msg.status,
+              sent_at: msg.sent_at,
+              error: msg.error
+            })));
+          }
+
+        } catch (error) {
+          console.error('Error fetching data:', error);
+          toast({
+            title: 'Error loading data',
+            variant: 'destructive',
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
 
     fetchData();
   }, [authLoading, user, toast]);
@@ -162,26 +185,85 @@ const ContactManagement: React.FC = () => {
     setIsSending(true);
     try {
       const userIds = filteredUsers.map((u) => u.id);
-      const payload = {
-        user_ids: userIds,
-        subject,
-        message,
-        delivery_method: deliveryMethod,
-        scheduled_at: isScheduled ? scheduleDate?.toISOString() : null,
-      };
+      
+      if (isScheduled) {
+        // Save to scheduled_messages table
+        const { error } = await supabase
+          .from('scheduled_messages')
+          .insert({
+            user_ids: userIds,
+            subject,
+            message,
+            delivery_method: deliveryMethod,
+            scheduled_at: scheduleDate?.toISOString() || new Date().toISOString(),
+            status: 'pending'
+          });
 
-      // For now, just show success message without actually sending
-      // This will work once the edge function and tables are properly set up
-      toast({
-        title: isScheduled ? 'Message scheduled' : 'Message sent',
-      });
+        if (error) throw error;
+        
+        toast({
+          title: 'Message scheduled successfully',
+        });
+      } else {
+        // Save to messages table and invoke edge function
+        const { error } = await supabase
+          .from('messages')
+          .insert({
+            user_ids: userIds,
+            subject,
+            message,
+            delivery_method: deliveryMethod,
+            status: 'pending'
+          });
+
+        if (error) throw error;
+
+        // Call edge function to send messages
+        const { error: sendError } = await supabase.functions.invoke('send-notifications', {
+          body: {
+            user_ids: userIds,
+            subject,
+            message,
+            delivery_method: deliveryMethod
+          }
+        });
+
+        if (sendError) throw sendError;
+
+        toast({
+          title: 'Messages sent successfully',
+        });
+      }
       
       setSubject('');
       setMessage('');
       setTemplate('none');
       setScheduleDate(undefined);
       setIsDialogOpen(false);
+      
+      // Refresh data
+      const fetchData = async () => {
+        const { data: messageHistory } = await supabase
+          .from('messages')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (messageHistory) {
+          setMessages(messageHistory.map(msg => ({
+            id: msg.id,
+            subject: msg.subject,
+            user_count: Array.isArray(msg.user_ids) ? msg.user_ids.length : 0,
+            delivery_method: msg.delivery_method,
+            status: msg.status,
+            sent_at: msg.sent_at,
+            error: msg.error
+          })));
+        }
+      };
+      fetchData();
+      
     } catch (error) {
+      console.error('Error sending message:', error);
       toast({
         title: 'Failed to process message',
         variant: 'destructive',
@@ -189,6 +271,106 @@ const ContactManagement: React.FC = () => {
     } finally {
       setIsSending(false);
     }
+  };
+
+  // Handle file import
+  const handleFileImport = async () => {
+    if (!importFile) {
+      toast({
+        title: 'No file selected',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileType = importFile.name.toLowerCase();
+      let contacts: any[] = [];
+
+      if (fileType.endsWith('.csv') || fileType.endsWith('.txt')) {
+        // Parse CSV file
+        Papa.parse(importFile, {
+          header: true,
+          complete: (results) => {
+            contacts = results.data;
+          },
+          error: (error) => {
+            throw new Error(`CSV parsing error: ${error.message}`);
+          }
+        });
+      } else if (fileType.endsWith('.xls') || fileType.endsWith('.xlsx')) {
+        toast({
+          title: 'Excel files not supported yet',
+          variant: 'destructive',
+        });
+        return;
+      } else {
+        throw new Error('Unsupported file format. Please use CSV, TXT, XLS, or XLSX files.');
+      }
+
+      // Wait for parsing to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      if (contacts.length === 0) {
+        throw new Error('No contacts found in file');
+      }
+
+      // Call batch import function
+      const { data, error } = await supabase.rpc('batch_import_contacts', {
+        p_user_id: user?.id || '',
+        p_contacts: contacts
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Contacts imported successfully',
+      });
+
+      setIsImportDialogOpen(false);
+      setImportFile(null);
+      
+    } catch (error) {
+      console.error('Error importing contacts:', error);
+      toast({
+        title: 'Import failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImportFile(file);
+    }
+  };
+
+  // Export user list
+  const exportUserList = () => {
+    const csvData = filteredUsers.map(user => ({
+      email: user.email,
+      name: user.name || '',
+      role: user.role,
+      created_at: user.created_at,
+      last_sign_in_at: user.last_sign_in_at || '',
+      is_premium: user.is_premium
+    }));
+
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `user_list_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading || authLoading) {
@@ -272,17 +454,36 @@ const ContactManagement: React.FC = () => {
             </Select>
           </div>
         </div>
-        <p className="text-sm text-gray-600">
-          {filteredUsers.length} users match the selected filters.
-        </p>
-        <Button
-          onClick={() => setIsDialogOpen(true)}
-          disabled={!filteredUsers.length}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Send className="h-4 w-4 mr-2" />
-          Compose Message
-        </Button>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-600">
+            {filteredUsers.length} users match the selected filters.
+          </p>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              onClick={exportUserList}
+              disabled={!filteredUsers.length}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsImportDialogOpen(true)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Import Contacts
+            </Button>
+            <Button
+              onClick={() => setIsDialogOpen(true)}
+              disabled={!filteredUsers.length}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Compose Message
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Message History Table */}
@@ -411,6 +612,70 @@ const ContactManagement: React.FC = () => {
             <Button onClick={() => handleSendMessage(!!scheduleDate)} disabled={isSending}>
               {isSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {scheduleDate ? 'Schedule' : 'Send'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Contact List</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Supported File Formats</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  <li>CSV files (.csv)</li>
+                  <li>Tab-delimited files (.txt)</li>
+                  <li>Excel files (.xls, .xlsx) - Convert to CSV first</li>
+                </ul>
+              </CardContent>
+            </Card>
+            
+            <div>
+              <Label htmlFor="file-upload">Select File</Label>
+              <input
+                id="file-upload"
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.txt,.xls,.xlsx"
+                onChange={handleFileSelect}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {importFile && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Selected: {importFile.name}
+                </p>
+              )}
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Expected CSV Format</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600 mb-2">Your CSV should have these columns:</p>
+                <code className="text-xs bg-gray-100 p-2 rounded block">
+                  name,email,phone_number,whatsapp_number,company,notes
+                </code>
+              </CardContent>
+            </Card>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleFileImport} 
+              disabled={!importFile || isUploading}
+            >
+              {isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileUp className="h-4 w-4 mr-2" />}
+              Import
             </Button>
           </DialogFooter>
         </DialogContent>
