@@ -2477,6 +2477,10 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: undefined
       }
+      generate_referral_code: {
+        Args: { p_username: string; p_date_of_birth: string }
+        Returns: string
+      }
       get_user_contact_stats: {
         Args: { p_user_id: string }
         Returns: Json
