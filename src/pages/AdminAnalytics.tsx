@@ -116,7 +116,7 @@ const AdminAnalytics = () => {
           </TabsContent>
 
           {/* CONTACTS TAB */}
-          <TabsContent value="Email Users">
+          <TabsContent value="contacts">
             <ContactManagement />
           </TabsContent>
         </Tabs>
