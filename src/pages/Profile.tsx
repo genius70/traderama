@@ -12,7 +12,6 @@ import { User, Mail, Save, Trophy, Target, TrendingUp, MapPin, CreditCard, Shiel
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import Cookies from 'js-cookie'; // Import js-cookie for data persistence
 
 interface Profile {
   id: string;
@@ -61,6 +60,13 @@ interface ProfileStats {
   activeStrategies: number;
 }
 
+interface TabCompletionStatus {
+  profile: boolean;
+  kyc: boolean;
+  payments: boolean;
+  stats: boolean;
+}
+
 const Profile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -71,7 +77,8 @@ const Profile = () => {
     totalPnL: 0,
     activeStrategies: 0,
   });
-  const [currentStep, setCurrentStep] = useState(0); // Step-based navigation
+  const [pendingChanges, setPendingChanges] = useState<Partial<Profile> | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,7 +86,6 @@ const Profile = () => {
   const [copiedReferral, setCopiedReferral] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Define steps for navigation
   const steps = [
     { id: 'profile', title: 'Personal Information' },
     { id: 'kyc', title: 'KYC & Compliance' },
@@ -87,29 +93,50 @@ const Profile = () => {
     { id: 'stats', title: 'Statistics' },
   ];
 
-  // Load persisted form data from cookies
+  // Load cached data from localStorage
   useEffect(() => {
-    const savedProfile = Cookies.get('profileFormData');
-    if (savedProfile && !profile) {
+    const savedProfile = localStorage.getItem('profileData');
+    const savedPendingChanges = localStorage.getItem('pendingChanges');
+
+    if (savedProfile) {
       try {
         const parsedProfile = JSON.parse(savedProfile);
-        setProfile(parsedProfile);
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...parsedProfile,
+                date_of_birth: parsedProfile.date_of_birth || prev.date_of_birth,
+                referral_code: parsedProfile.referral_code || prev.referral_code,
+              }
+            : parsedProfile
+        );
       } catch (error) {
-        console.error('Error parsing cookie data:', error);
+        console.error('Error loading saved profile data:', error);
+      }
+    }
+
+    if (savedPendingChanges) {
+      try {
+        const parsedPendingChanges = JSON.parse(savedPendingChanges);
+        setPendingChanges(parsedPendingChanges);
+      } catch (error) {
+        console.error('Error loading pending changes:', error);
       }
     }
   }, []);
 
-  // Save form data to cookies on profile change
+  // Save profile to localStorage on change
   useEffect(() => {
     if (profile && isEditing) {
-      Cookies.set('profileFormData', JSON.stringify(profile), { expires: 7 }); // Persist for 7 days
+      localStorage.setItem('profileData', JSON.stringify(profile));
+      localStorage.setItem('pendingChanges', JSON.stringify(profile));
     }
   }, [profile, isEditing]);
 
-  // Generate referral code from username and date of birth
+  // Generate referral code from username and date of birth or random
   const generateReferralCode = (username: string, dateOfBirth: string): string => {
-    if (!username || !dateOfBirth) return '';
+    if (!username || !dateOfBirth) return 'REF' + Math.random().toString(36).substr(2, 8).toUpperCase();
     const year = new Date(dateOfBirth).getFullYear().toString();
     return `${username.toLowerCase().replace(/\s/g, '')}${year}`;
   };
@@ -137,7 +164,8 @@ const Profile = () => {
           }
         : null;
       setProfile(profileData);
-      Cookies.set('profileFormData', JSON.stringify(profileData), { expires: 7 });
+      localStorage.setItem('profileData', JSON.stringify(profileData));
+      localStorage.setItem('pendingChanges', JSON.stringify(profileData));
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast({
@@ -180,6 +208,64 @@ const Profile = () => {
       }
     }
   }, [profile?.username, profile?.date_of_birth, isEditing]);
+
+  // Check tab completion for progress calculation
+  const checkTabCompletion = useCallback((): TabCompletionStatus => {
+    const profileComplete = !!(
+      profile?.name &&
+      profile?.username &&
+      profile?.phone_number &&
+      profile?.whatsapp_number &&
+      profile?.ethereum_wallet &&
+      profile?.bio &&
+      profile?.address_line1 &&
+      profile?.city &&
+      profile?.state_province &&
+      profile?.postal_code &&
+      profile?.country &&
+      profile?.date_of_birth &&
+      profile?.referral_code
+    );
+
+    const kycComplete = !!(
+      profile?.nationality &&
+      profile?.occupation &&
+      profile?.employer &&
+      profile?.annual_income_range &&
+      profile?.source_of_funds &&
+      profile?.trading_experience &&
+      profile?.identification_type &&
+      profile?.identification_number
+    );
+
+    const paymentsComplete = !!(
+      profile?.stripe_customer_id &&
+      profile?.stripe_account_id &&
+      profile?.airtm_email &&
+      profile?.airtm_username &&
+      profile?.wise_account_id &&
+      profile?.wise_email
+    );
+
+    return {
+      profile: profileComplete,
+      kyc: kycComplete,
+      payments: paymentsComplete,
+      stats: true,
+    };
+  }, [profile]);
+
+  // Update profile completion percentage
+  useEffect(() => {
+    if (!profile) return;
+    const completion = checkTabCompletion();
+    const totalSteps = 3; // profile, kyc, payments
+    const completedSteps = [completion.profile, completion.kyc, completion.payments].filter(Boolean).length;
+    const percentage = Math.round((completedSteps / totalSteps) * 100);
+    setProfile((prev) =>
+      prev ? { ...prev, profile_completion_percentage: percentage } : null
+    );
+  }, [profile, checkTabCompletion]);
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -226,6 +312,7 @@ const Profile = () => {
       if (updateError) throw updateError;
 
       setProfile((prev) => (prev ? { ...prev, avatar_url: data.publicUrl } : null));
+      localStorage.setItem('profileData', JSON.stringify({ ...profile, avatar_url: data.publicUrl }));
       toast({
         title: 'Avatar updated successfully',
       });
@@ -245,40 +332,48 @@ const Profile = () => {
 
     setSaving(true);
     try {
+      let updatedProfile = { ...profile };
+      if (!profile.referral_code) {
+        const newReferralCode = generateReferralCode(profile.username, profile.date_of_birth || '');
+        updatedProfile = { ...profile, referral_code: newReferralCode };
+        setProfile(updatedProfile);
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({
-          name: profile.name,
-          username: profile.username,
-          bio: profile.bio,
-          phone_number: profile.phone_number,
-          whatsapp_number: profile.whatsapp_number,
-          ethereum_wallet: profile.ethereum_wallet,
-          address_line1: profile.address_line1,
-          address_line2: profile.address_line2,
-          city: profile.city,
-          state_province: profile.state_province,
-          postal_code: profile.postal_code,
-          country: profile.country,
-          date_of_birth: profile.date_of_birth,
-          nationality: profile.nationality,
-          occupation: profile.occupation,
-          employer: profile.employer,
-          annual_income_range: profile.annual_income_range,
-          source_of_funds: profile.source_of_funds,
-          trading_experience: profile.trading_experience,
-          risk_tolerance: profile.risk_tolerance,
-          identification_type: profile.identification_type,
-          identification_number: profile.identification_number,
-          identification_expiry: profile.identification_expiry,
-          stripe_customer_id: profile.stripe_customer_id,
-          stripe_account_id: profile.stripe_account_id,
-          airtm_email: profile.airtm_email,
-          airtm_username: profile.airtm_username,
-          wise_account_id: profile.wise_account_id,
-          wise_email: profile.wise_email,
-          referral_code: profile.referral_code,
-          ...(profile.role === 'admin' ? { kyc_status: profile.kyc_status } : {}),
+          name: updatedProfile.name,
+          username: updatedProfile.username,
+          bio: updatedProfile.bio,
+          phone_number: updatedProfile.phone_number,
+          whatsapp_number: updatedProfile.whatsapp_number,
+          ethereum_wallet: updatedProfile.ethereum_wallet,
+          address_line1: updatedProfile.address_line1,
+          address_line2: updatedProfile.address_line2,
+          city: updatedProfile.city,
+          state_province: updatedProfile.state_province,
+          postal_code: updatedProfile.postal_code,
+          country: updatedProfile.country,
+          date_of_birth: updatedProfile.date_of_birth,
+          nationality: updatedProfile.nationality,
+          occupation: updatedProfile.occupation,
+          employer: updatedProfile.employer,
+          annual_income_range: updatedProfile.annual_income_range,
+          source_of_funds: updatedProfile.source_of_funds,
+          trading_experience: updatedProfile.trading_experience,
+          risk_tolerance: updatedProfile.risk_tolerance,
+          identification_type: updatedProfile.identification_type,
+          identification_number: updatedProfile.identification_number,
+          identification_expiry: updatedProfile.identification_expiry,
+          stripe_customer_id: updatedProfile.stripe_customer_id,
+          stripe_account_id: updatedProfile.stripe_account_id,
+          airtm_email: updatedProfile.airtm_email,
+          airtm_username: updatedProfile.airtm_username,
+          wise_account_id: updatedProfile.wise_account_id,
+          wise_email: updatedProfile.wise_email,
+          referral_code: updatedProfile.referral_code,
+          profile_completion_percentage: updatedProfile.profile_completion_percentage,
+          ...(profile.role === 'admin' ? { kyc_status: updatedProfile.kyc_status } : {}),
         })
         .eq('id', user.id);
 
@@ -286,7 +381,7 @@ const Profile = () => {
         if (error.code === '23505') {
           toast({
             title: 'Username or referral code already exists',
-            description: 'Please choose a different username.',
+            description: 'Please choose a different username or referral code.',
             variant: 'destructive',
           });
           return;
@@ -294,11 +389,12 @@ const Profile = () => {
         throw error;
       }
 
+      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+      localStorage.removeItem('pendingChanges');
       toast({
         title: 'Profile updated successfully',
       });
       setIsEditing(false);
-      Cookies.remove('profileFormData'); // Clear cookies on successful save
       await fetchProfile();
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -386,12 +482,11 @@ const Profile = () => {
     }
   };
 
-  // Navigation handlers
   const handleNextStep = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      handleSave(); // Save on final step
+      handleSave();
     }
   };
 
@@ -416,7 +511,6 @@ const Profile = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Profile Completion Header */}
       <Card className={`border-2 ${completionPercentage < 100 ? 'border-destructive' : 'border-primary'}`}>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -446,7 +540,6 @@ const Profile = () => {
         </CardHeader>
       </Card>
 
-      {/* Step Navigation */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -466,7 +559,6 @@ const Profile = () => {
         </CardHeader>
       </Card>
 
-      {/* Referral Code Display */}
       {profile.referral_code && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
@@ -497,7 +589,6 @@ const Profile = () => {
         </Card>
       )}
 
-      {/* Step Content */}
       {currentStep === 0 && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -560,7 +651,11 @@ const Profile = () => {
                     <Input
                       id="name"
                       value={profile.name || ''}
-                      onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, name: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -571,7 +666,11 @@ const Profile = () => {
                     <Input
                       id="username"
                       value={profile.username || ''}
-                      onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, username: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="Enter unique username"
                       required
@@ -593,7 +692,11 @@ const Profile = () => {
                     <Input
                       id="phone_number"
                       value={profile.phone_number || ''}
-                      onChange={(e) => setProfile({ ...profile, phone_number: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, phone_number: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="+1234567890"
                       required
@@ -605,7 +708,11 @@ const Profile = () => {
                     <Input
                       id="whatsapp_number"
                       value={profile.whatsapp_number || ''}
-                      onChange={(e) => setProfile({ ...profile, whatsapp_number: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, whatsapp_number: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="+1234567890"
                       required
@@ -617,7 +724,11 @@ const Profile = () => {
                     <Input
                       id="ethereum_wallet"
                       value={profile.ethereum_wallet || ''}
-                      onChange={(e) => setProfile({ ...profile, ethereum_wallet: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, ethereum_wallet: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="0x..."
                       required
@@ -630,23 +741,30 @@ const Profile = () => {
                       id="date_of_birth"
                       type="date"
                       value={profile.date_of_birth || ''}
-                      onChange={(e) => setProfile({ ...profile, date_of_birth: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, date_of_birth: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="referral_code">Referral Code</Label>
+                    <Label htmlFor="referral_code">Referral Code *</Label>
                     <Input
                       id="referral_code"
                       value={profile.referral_code || ''}
-                      disabled
-                      className="bg-muted"
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, referral_code: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
+                      disabled={!isEditing}
+                      placeholder="Auto-generated on save"
+                      required
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Auto-generated from username + birth year
-                    </p>
                   </div>
                 </div>
 
@@ -655,7 +773,11 @@ const Profile = () => {
                   <Textarea
                     id="bio"
                     value={profile.bio || ''}
-                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, bio: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                     placeholder="Tell us about yourself..."
                     rows={3}
@@ -679,7 +801,11 @@ const Profile = () => {
                     <Input
                       id="address_line1"
                       value={profile.address_line1 || ''}
-                      onChange={(e) => setProfile({ ...profile, address_line1: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, address_line1: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -690,7 +816,11 @@ const Profile = () => {
                     <Input
                       id="address_line2"
                       value={profile.address_line2 || ''}
-                      onChange={(e) => setProfile({ ...profile, address_line2: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, address_line2: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                     />
                   </div>
@@ -700,7 +830,11 @@ const Profile = () => {
                     <Input
                       id="city"
                       value={profile.city || ''}
-                      onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, city: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -711,7 +845,11 @@ const Profile = () => {
                     <Input
                       id="state_province"
                       value={profile.state_province || ''}
-                      onChange={(e) => setProfile({ ...profile, state_province: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, state_province: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -722,7 +860,11 @@ const Profile = () => {
                     <Input
                       id="postal_code"
                       value={profile.postal_code || ''}
-                      onChange={(e) => setProfile({ ...profile, postal_code: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, postal_code: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -733,7 +875,11 @@ const Profile = () => {
                     <Input
                       id="country"
                       value={profile.country || ''}
-                      onChange={(e) => setProfile({ ...profile, country: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, country: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -783,7 +929,11 @@ const Profile = () => {
                   <Input
                     id="nationality"
                     value={profile.nationality || ''}
-                    onChange={(e) => setProfile({ ...profile, nationality: e.target.value })}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, nationality: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                     required
                   />
@@ -794,7 +944,11 @@ const Profile = () => {
                   <Input
                     id="occupation"
                     value={profile.occupation || ''}
-                    onChange={(e) => setProfile({ ...profile, occupation: e.target.value })}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, occupation: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                     required
                   />
@@ -805,7 +959,11 @@ const Profile = () => {
                   <Input
                     id="employer"
                     value={profile.employer || ''}
-                    onChange={(e) => setProfile({ ...profile, employer: e.target.value })}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, employer: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                     required
                   />
@@ -815,7 +973,11 @@ const Profile = () => {
                   <Label htmlFor="annual_income_range">Annual Income Range *</Label>
                   <Select
                     value={profile.annual_income_range || ''}
-                    onValueChange={(value) => setProfile({ ...profile, annual_income_range: value })}
+                    onValueChange={(value) => {
+                      const updatedProfile = { ...profile, annual_income_range: value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                   >
                     <SelectTrigger>
@@ -836,7 +998,11 @@ const Profile = () => {
                   <Label htmlFor="source_of_funds">Source of Funds *</Label>
                   <Select
                     value={profile.source_of_funds || ''}
-                    onValueChange={(value) => setProfile({ ...profile, source_of_funds: value })}
+                    onValueChange={(value) => {
+                      const updatedProfile = { ...profile, source_of_funds: value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                   >
                     <SelectTrigger>
@@ -857,7 +1023,11 @@ const Profile = () => {
                   <Label htmlFor="trading_experience">Trading Experience *</Label>
                   <Select
                     value={profile.trading_experience || ''}
-                    onValueChange={(value) => setProfile({ ...profile, trading_experience: value })}
+                    onValueChange={(value) => {
+                      const updatedProfile = { ...profile, trading_experience: value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                   >
                     <SelectTrigger>
@@ -885,7 +1055,11 @@ const Profile = () => {
                   <Label htmlFor="identification_type">ID Type *</Label>
                   <Select
                     value={profile.identification_type || ''}
-                    onValueChange={(value) => setProfile({ ...profile, identification_type: value })}
+                    onValueChange={(value) => {
+                      const updatedProfile = { ...profile, identification_type: value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                   >
                     <SelectTrigger>
@@ -904,7 +1078,11 @@ const Profile = () => {
                   <Input
                     id="identification_number"
                     value={profile.identification_number || ''}
-                    onChange={(e) => setProfile({ ...profile, identification_number: e.target.value })}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, identification_number: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                     required
                   />
@@ -916,7 +1094,11 @@ const Profile = () => {
                     id="identification_expiry"
                     type="date"
                     value={profile.identification_expiry || ''}
-                    onChange={(e) => setProfile({ ...profile, identification_expiry: e.target.value })}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, identification_expiry: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                   />
                 </div>
@@ -945,7 +1127,11 @@ const Profile = () => {
                     <Input
                       id="stripe_customer_id"
                       value={profile.stripe_customer_id || ''}
-                      onChange={(e) => setProfile({ ...profile, stripe_customer_id: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, stripe_customer_id: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="cus_..."
                       required
@@ -957,7 +1143,11 @@ const Profile = () => {
                     <Input
                       id="stripe_account_id"
                       value={profile.stripe_account_id || ''}
-                      onChange={(e) => setProfile({ ...profile, stripe_account_id: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, stripe_account_id: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="acct_..."
                       required
@@ -975,7 +1165,11 @@ const Profile = () => {
                       id="airtm_email"
                       type="email"
                       value={profile.airtm_email || ''}
-                      onChange={(e) => setProfile({ ...profile, airtm_email: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, airtm_email: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -986,7 +1180,11 @@ const Profile = () => {
                     <Input
                       id="airtm_username"
                       value={profile.airtm_username || ''}
-                      onChange={(e) => setProfile({ ...profile, airtm_username: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, airtm_username: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -1002,7 +1200,11 @@ const Profile = () => {
                     <Input
                       id="wise_account_id"
                       value={profile.wise_account_id || ''}
-                      onChange={(e) => setProfile({ ...profile, wise_account_id: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, wise_account_id: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -1014,7 +1216,11 @@ const Profile = () => {
                       id="wise_email"
                       type="email"
                       value={profile.wise_email || ''}
-                      onChange={(e) => setProfile({ ...profile, wise_email: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, wise_email: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -1157,7 +1363,6 @@ const Profile = () => {
         </div>
       )}
 
-      {/* Navigation Buttons */}
       <Card>
         <CardContent className="pt-6 flex justify-between">
           <Button
