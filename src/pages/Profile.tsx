@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { User, Mail, Save, Trophy, Target, TrendingUp, MapPin, CreditCard, Shield, Calendar, AlertCircle, Camera, Copy, Check, Share, MessageCircle } from 'lucide-react';
+import { User, Mail, Save, Trophy, Target, TrendingUp, MapPin, CreditCard, Shield, AlertCircle, Camera, Copy, Check, Share, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -107,7 +107,7 @@ const Profile = () => {
                 ...prev,
                 ...parsedProfile,
                 date_of_birth: parsedProfile.date_of_birth || prev.date_of_birth,
-                referral_code: parsedProfile.referral_code || prev.referral_code,
+                referral_code: prev.referral_code || parsedProfile.referral_code, // Preserve existing referral_code
               }
             : parsedProfile
         );
@@ -129,12 +129,13 @@ const Profile = () => {
   // Save profile to localStorage on change
   useEffect(() => {
     if (profile && isEditing) {
-      localStorage.setItem('profileData', JSON.stringify(profile));
-      localStorage.setItem('pendingChanges', JSON.stringify(profile));
+      const profileToSave = { ...profile, referral_code: profile.referral_code }; // Ensure referral_code is not overwritten
+      localStorage.setItem('profileData', JSON.stringify(profileToSave));
+      localStorage.setItem('pendingChanges', JSON.stringify(profileToSave));
     }
   }, [profile, isEditing]);
 
-  // Generate referral code from username and date of birth or random
+  // Generate referral code (only used if not already set)
   const generateReferralCode = (username: string, dateOfBirth: string): string => {
     if (!username || !dateOfBirth) return 'REF' + Math.random().toString(36).substr(2, 8).toUpperCase();
     const year = new Date(dateOfBirth).getFullYear().toString();
@@ -159,7 +160,7 @@ const Profile = () => {
             username: data.username || '',
             email: data.email || '',
             role: data.role || 'user',
-            referral_code: data.referral_code || generateReferralCode(data.username, data.date_of_birth),
+            referral_code: data.referral_code || generateReferralCode(data.username, data.date_of_birth || ''),
             created_at: data.created_at || new Date().toISOString(),
           }
         : null;
@@ -199,15 +200,13 @@ const Profile = () => {
     }
   }, [user, fetchProfile, fetchStats]);
 
-  // Update referral code when username or date of birth changes
+  // Update referral code only if not set
   useEffect(() => {
-    if (profile && profile.username && profile.date_of_birth && isEditing) {
+    if (profile && profile.username && profile.date_of_birth && isEditing && !profile.referral_code) {
       const newReferralCode = generateReferralCode(profile.username, profile.date_of_birth);
-      if (newReferralCode !== profile.referral_code) {
-        setProfile((prev) => (prev ? { ...prev, referral_code: newReferralCode } : null));
-      }
+      setProfile((prev) => (prev ? { ...prev, referral_code: newReferralCode } : null));
     }
-  }, [profile?.username, profile?.date_of_birth, isEditing]);
+  }, [profile?.username, profile?.date_of_birth, isEditing, profile?.referral_code]);
 
   // Check tab completion for progress calculation
   const checkTabCompletion = useCallback((): TabCompletionStatus => {
@@ -311,8 +310,9 @@ const Profile = () => {
 
       if (updateError) throw updateError;
 
-      setProfile((prev) => (prev ? { ...prev, avatar_url: data.publicUrl } : null));
-      localStorage.setItem('profileData', JSON.stringify({ ...profile, avatar_url: data.publicUrl }));
+      const updatedProfile = { ...profile, avatar_url: data.publicUrl };
+      setProfile(updatedProfile);
+      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
       toast({
         title: 'Avatar updated successfully',
       });
@@ -371,17 +371,17 @@ const Profile = () => {
           airtm_username: updatedProfile.airtm_username,
           wise_account_id: updatedProfile.wise_account_id,
           wise_email: updatedProfile.wise_email,
-          referral_code: updatedProfile.referral_code,
           profile_completion_percentage: updatedProfile.profile_completion_percentage,
           ...(profile.role === 'admin' ? { kyc_status: updatedProfile.kyc_status } : {}),
+          // Note: referral_code is NOT updated to prevent changes after initial entry
         })
         .eq('id', user.id);
 
       if (error) {
         if (error.code === '23505') {
           toast({
-            title: 'Username or referral code already exists',
-            description: 'Please choose a different username or referral code.',
+            title: 'Username already exists',
+            description: 'Please choose a different username.',
             variant: 'destructive',
           });
           return;
@@ -736,10 +736,9 @@ const Profile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="date_of_birth">Date of Birth *</Label>
+                    <Label htmlFor="date_of_birth">Date of Birth (YYYY-MM-DD) *</Label>
                     <Input
                       id="date_of_birth"
-                      type="date"
                       value={profile.date_of_birth || ''}
                       onChange={(e) => {
                         const updatedProfile = { ...profile, date_of_birth: e.target.value };
@@ -747,6 +746,7 @@ const Profile = () => {
                         localStorage.setItem('profileData', JSON.stringify(updatedProfile));
                       }}
                       disabled={!isEditing}
+                      placeholder="YYYY-MM-DD"
                       required
                     />
                   </div>
@@ -756,12 +756,8 @@ const Profile = () => {
                     <Input
                       id="referral_code"
                       value={profile.referral_code || ''}
-                      onChange={(e) => {
-                        const updatedProfile = { ...profile, referral_code: e.target.value };
-                        setProfile(updatedProfile);
-                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
-                      }}
-                      disabled={!isEditing}
+                      disabled
+                      className="bg-muted"
                       placeholder="Auto-generated on save"
                       required
                     />
@@ -1092,7 +1088,6 @@ const Profile = () => {
                   <Label htmlFor="identification_expiry">ID Expiry Date</Label>
                   <Input
                     id="identification_expiry"
-                    type="date"
                     value={profile.identification_expiry || ''}
                     onChange={(e) => {
                       const updatedProfile = { ...profile, identification_expiry: e.target.value };
