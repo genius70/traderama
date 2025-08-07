@@ -32,7 +32,6 @@ interface Profile {
   state_province?: string | null;
   postal_code?: string | null;
   country?: string | null;
-  date_of_birth?: string | null;
   nationality?: string | null;
   occupation?: string | null;
   employer?: string | null;
@@ -134,14 +133,28 @@ const Profile = () => {
     }
   }, [profile, isEditing]);
 
-  // Generate a six-character referral code
+  // Generate a six-character referral code with exactly two digits
   const generateReferralCode = (): string => {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const digits = '0123456789';
+    // Select 2 random positions for digits (0 to 5)
+    const digitPositions = [];
+    while (digitPositions.length < 2) {
+      const pos = Math.floor(Math.random() * 6);
+      if (!digitPositions.includes(pos)) {
+        digitPositions.push(pos);
+      }
+    }
+    // Generate code
     let code = '';
     for (let i = 0; i < 6; i++) {
-      code += characters.charAt(Math.floor(Math.random() * characters.length));
+      if (digitPositions.includes(i)) {
+        code += digits.charAt(Math.floor(Math.random() * digits.length));
+      } else {
+        code += letters.charAt(Math.floor(Math.random() * letters.length));
+      }
     }
-    return code; // e.g., "77XYDF"
+    return code; // e.g., "AB2C4D"
   };
 
   const fetchProfile = useCallback(async () => {
@@ -215,12 +228,6 @@ const Profile = () => {
     }
   }, [user, fetchProfile, fetchStats]);
 
-  // Validate DD-MM-YYYY format
-  const isValidDateFormat = (date: string): boolean => {
-    const regex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-    return regex.test(date);
-  };
-
   // Check tab completion for progress calculation
   const checkTabCompletion = useCallback((): TabCompletionStatus => {
     const profileComplete = !!(
@@ -246,9 +253,7 @@ const Profile = () => {
       profile?.source_of_funds &&
       profile?.trading_experience &&
       profile?.identification_type &&
-      profile?.identification_number &&
-      profile?.date_of_birth &&
-      isValidDateFormat(profile.date_of_birth || '')
+      profile?.identification_number
     );
 
     const paymentsComplete = !!(
@@ -344,16 +349,6 @@ const Profile = () => {
   const handleSave = async () => {
     if (!profile || !user) return;
 
-    // Validate date_of_birth format
-    if (profile.date_of_birth && !isValidDateFormat(profile.date_of_birth)) {
-      toast({
-        title: 'Invalid date format',
-        description: 'Date of birth must be in DD-MM-YYYY format (e.g., 07-08-2025).',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setSaving(true);
     try {
       let updatedProfile = { ...profile };
@@ -389,7 +384,6 @@ const Profile = () => {
           state_province: updatedProfile.state_province,
           postal_code: updatedProfile.postal_code,
           country: updatedProfile.country,
-          date_of_birth: updatedProfile.date_of_birth,
           nationality: updatedProfile.nationality,
           occupation: updatedProfile.occupation,
           employer: updatedProfile.employer,
@@ -444,15 +438,6 @@ const Profile = () => {
 
   const handleSubmitKYC = async () => {
     if (!profile || !user) return;
-
-    if (profile.date_of_birth && !isValidDateFormat(profile.date_of_birth)) {
-      toast({
-        title: 'Invalid date format',
-        description: 'Date of birth must be in DD-MM-YYYY format (e.g., 07-08-2025).',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     try {
       const { error } = await supabase
@@ -831,7 +816,7 @@ const Profile = () => {
                         setProfile(updatedProfile);
                         localStorage.setItem('profileData', JSON.stringify(updatedProfile));
                       }}
-                      disabled={!isEditing}
+                      disabled=!isEditing}
                       required
                     />
                   </div>
@@ -1124,22 +1109,6 @@ const Profile = () => {
                       localStorage.setItem('profileData', JSON.stringify(updatedProfile));
                     }}
                     disabled={!isEditing}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="date_of_birth">Date of Birth (DD-MM-YYYY) *</Label>
-                  <Input
-                    id="date_of_birth"
-                    value={profile.date_of_birth || ''}
-                    onChange={(e) => {
-                      const updatedProfile = { ...profile, date_of_birth: e.target.value };
-                      setProfile(updatedProfile);
-                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
-                    }}
-                    disabled={!isEditing}
-                    placeholder="DD-MM-YYYY (e.g., 07-08-2025)"
-                    required
                   />
                 </div>
               </div>
