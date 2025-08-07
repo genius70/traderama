@@ -32,6 +32,7 @@ interface Profile {
   state_province?: string | null;
   postal_code?: string | null;
   country?: string | null;
+  date_of_birth?: string | null;
   nationality?: string | null;
   occupation?: string | null;
   employer?: string | null;
@@ -201,14 +202,6 @@ const Profile = () => {
     }
   }, [user, fetchProfile, fetchStats]);
 
-  // Ensure referral code is set only once
-  useEffect(() => {
-    if (profile && isEditing && !profile.referral_code) {
-      const newReferralCode = generateReferralCode();
-      setProfile((prev) => (prev ? { ...prev, referral_code: newReferralCode } : null));
-    }
-  }, [profile, isEditing]);
-
   // Check tab completion for progress calculation
   const checkTabCompletion = useCallback((): TabCompletionStatus => {
     const profileComplete = !!(
@@ -234,7 +227,8 @@ const Profile = () => {
       profile?.source_of_funds &&
       profile?.trading_experience &&
       profile?.identification_type &&
-      profile?.identification_number
+      profile?.identification_number &&
+      profile?.date_of_birth
     );
 
     const paymentsComplete = !!(
@@ -354,6 +348,7 @@ const Profile = () => {
           state_province: updatedProfile.state_province,
           postal_code: updatedProfile.postal_code,
           country: updatedProfile.country,
+          date_of_birth: updatedProfile.date_of_birth,
           nationality: updatedProfile.nationality,
           occupation: updatedProfile.occupation,
           employer: updatedProfile.employer,
@@ -1079,6 +1074,22 @@ const Profile = () => {
                       localStorage.setItem('profileData', JSON.stringify(updatedProfile));
                     }}
                     disabled={!isEditing}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="date_of_birth">Date of Birth *</Label>
+                  <Input
+                    id="date_of_birth"
+                    type="date"
+                    value={profile.date_of_birth || ''}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, date_of_birth: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                    required
                   />
                 </div>
               </div>
