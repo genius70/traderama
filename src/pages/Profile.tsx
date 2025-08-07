@@ -32,7 +32,6 @@ interface Profile {
   state_province?: string | null;
   postal_code?: string | null;
   country?: string | null;
-  date_of_birth?: string | null;
   nationality?: string | null;
   occupation?: string | null;
   employer?: string | null;
@@ -106,7 +105,6 @@ const Profile = () => {
             ? {
                 ...prev,
                 ...parsedProfile,
-                date_of_birth: parsedProfile.date_of_birth || prev.date_of_birth,
                 referral_code: prev.referral_code || parsedProfile.referral_code, // Preserve existing referral_code
               }
             : parsedProfile
@@ -135,11 +133,14 @@ const Profile = () => {
     }
   }, [profile, isEditing]);
 
-  // Generate referral code (only used if not already set)
-  const generateReferralCode = (username: string, dateOfBirth: string): string => {
-    if (!username || !dateOfBirth) return 'REF' + Math.random().toString(36).substr(2, 8).toUpperCase();
-    const year = new Date(dateOfBirth).getFullYear().toString();
-    return `${username.toLowerCase().replace(/\s/g, '')}${year}`;
+  // Generate a six-character referral code
+  const generateReferralCode = (): string => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return code; // e.g., "77XYDF"
   };
 
   const fetchProfile = useCallback(async () => {
@@ -160,7 +161,7 @@ const Profile = () => {
             username: data.username || '',
             email: data.email || '',
             role: data.role || 'user',
-            referral_code: data.referral_code || generateReferralCode(data.username, data.date_of_birth || ''),
+            referral_code: data.referral_code || generateReferralCode(),
             created_at: data.created_at || new Date().toISOString(),
           }
         : null;
@@ -200,13 +201,13 @@ const Profile = () => {
     }
   }, [user, fetchProfile, fetchStats]);
 
-  // Update referral code only if not set
+  // Ensure referral code is set only once
   useEffect(() => {
-    if (profile && profile.username && profile.date_of_birth && isEditing && !profile.referral_code) {
-      const newReferralCode = generateReferralCode(profile.username, profile.date_of_birth);
+    if (profile && isEditing && !profile.referral_code) {
+      const newReferralCode = generateReferralCode();
       setProfile((prev) => (prev ? { ...prev, referral_code: newReferralCode } : null));
     }
-  }, [profile?.username, profile?.date_of_birth, isEditing, profile?.referral_code]);
+  }, [profile, isEditing]);
 
   // Check tab completion for progress calculation
   const checkTabCompletion = useCallback((): TabCompletionStatus => {
@@ -222,7 +223,6 @@ const Profile = () => {
       profile?.state_province &&
       profile?.postal_code &&
       profile?.country &&
-      profile?.date_of_birth &&
       profile?.referral_code
     );
 
@@ -334,7 +334,7 @@ const Profile = () => {
     try {
       let updatedProfile = { ...profile };
       if (!profile.referral_code) {
-        const newReferralCode = generateReferralCode(profile.username, profile.date_of_birth || '');
+        const newReferralCode = generateReferralCode();
         updatedProfile = { ...profile, referral_code: newReferralCode };
         setProfile(updatedProfile);
       }
@@ -354,7 +354,6 @@ const Profile = () => {
           state_province: updatedProfile.state_province,
           postal_code: updatedProfile.postal_code,
           country: updatedProfile.country,
-          date_of_birth: updatedProfile.date_of_birth,
           nationality: updatedProfile.nationality,
           occupation: updatedProfile.occupation,
           employer: updatedProfile.employer,
@@ -438,15 +437,15 @@ const Profile = () => {
     if (!profile?.referral_code) return;
 
     try {
-      await navigator.clipboard.writeText(profile.referral_code);
+      await navigator.clipboard.writeText(`https://www.traderama.pro/?ref_id=${profile.referral_code}`);
       setCopiedReferral(true);
       toast({
-        title: 'Referral code copied!',
+        title: 'Referral link copied!',
       });
       setTimeout(() => setCopiedReferral(false), 2000);
     } catch (error) {
       toast({
-        title: 'Failed to copy referral code',
+        title: 'Failed to copy referral link',
         variant: 'destructive',
       });
     }
@@ -456,8 +455,9 @@ const Profile = () => {
     if (!profile?.referral_code) return;
 
     try {
+      const referralUrl = `https://www.traderama.pro/?ref_id=${profile.referral_code}`;
       const message = encodeURIComponent(
-        `🚀 Hey! I'm using this amazing trading platform. Use my referral code: ${profile.referral_code} to join and get exclusive benefits! Sign up: ${window.location.origin}/signup?ref=${profile.referral_code}`
+        `🚀 Hey! I'm using Traderama, an awesome trading platform. Join using my referral link: ${referralUrl} to get exclusive benefits!`
       );
       const whatsappUrl = `https://wa.me/?text=${message}`;
 
@@ -731,22 +731,6 @@ const Profile = () => {
                       }}
                       disabled={!isEditing}
                       placeholder="0x..."
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="date_of_birth">Date of Birth (YYYY-MM-DD) *</Label>
-                    <Input
-                      id="date_of_birth"
-                      value={profile.date_of_birth || ''}
-                      onChange={(e) => {
-                        const updatedProfile = { ...profile, date_of_birth: e.target.value };
-                        setProfile(updatedProfile);
-                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
-                      }}
-                      disabled={!isEditing}
-                      placeholder="YYYY-MM-DD"
                       required
                     />
                   </div>
@@ -1346,7 +1330,7 @@ const Profile = () => {
                 <h4 className="font-medium mb-2">How to Earn More Referral Rewards:</h4>
                 <ul className="text-sm space-y-1 text-muted-foreground">
                   <li>
-                    • Share your referral code: <code className="bg-background px-1 rounded">{profile.referral_code}</code>
+                    • Share your referral link: <a href={`https://www.traderama.pro/?ref_id=${profile.referral_code}`} className="text-blue-600 hover:underline">{`https://www.traderama.pro/?ref_id=${profile.referral_code}`}</a>
                   </li>
                   <li>• Use the WhatsApp share feature to invite friends directly</li>
                   <li>• Earn commission on your referrals' trading activities</li>
