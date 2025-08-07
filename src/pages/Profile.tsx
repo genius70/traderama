@@ -155,6 +155,19 @@ const Profile = () => {
         .single();
 
       if (error) throw error;
+
+      // Check localStorage for existing referral_code
+      const savedProfile = localStorage.getItem('profileData');
+      let existingReferralCode = null;
+      if (savedProfile) {
+        try {
+          const parsedProfile = JSON.parse(savedProfile);
+          existingReferralCode = parsedProfile.referral_code;
+        } catch (e) {
+          console.error('Error parsing saved profile:', e);
+        }
+      }
+
       const profileData = data
         ? {
             ...data,
@@ -162,7 +175,7 @@ const Profile = () => {
             username: data.username || '',
             email: data.email || '',
             role: data.role || 'user',
-            referral_code: data.referral_code || generateReferralCode(),
+            referral_code: data.referral_code || existingReferralCode || generateReferralCode(),
             created_at: data.created_at || new Date().toISOString(),
           }
         : null;
@@ -202,6 +215,12 @@ const Profile = () => {
     }
   }, [user, fetchProfile, fetchStats]);
 
+  // Validate DD-MM-YYYY format
+  const isValidDateFormat = (date: string): boolean => {
+    const regex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+    return regex.test(date);
+  };
+
   // Check tab completion for progress calculation
   const checkTabCompletion = useCallback((): TabCompletionStatus => {
     const profileComplete = !!(
@@ -228,7 +247,8 @@ const Profile = () => {
       profile?.trading_experience &&
       profile?.identification_type &&
       profile?.identification_number &&
-      profile?.date_of_birth
+      profile?.date_of_birth &&
+      isValidDateFormat(profile.date_of_birth || '')
     );
 
     const paymentsComplete = !!(
@@ -324,10 +344,31 @@ const Profile = () => {
   const handleSave = async () => {
     if (!profile || !user) return;
 
+    // Validate date_of_birth format
+    if (profile.date_of_birth && !isValidDateFormat(profile.date_of_birth)) {
+      toast({
+        title: 'Invalid date format',
+        description: 'Date of birth must be in DD-MM-YYYY format (e.g., 07-08-2025).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       let updatedProfile = { ...profile };
-      if (!profile.referral_code) {
+      // Only generate referral_code if it doesn't exist in profile or localStorage
+      const savedProfile = localStorage.getItem('profileData');
+      let existingReferralCode = profile.referral_code;
+      if (savedProfile) {
+        try {
+          const parsedProfile = JSON.parse(savedProfile);
+          existingReferralCode = parsedProfile.referral_code || existingReferralCode;
+        } catch (e) {
+          console.error('Error parsing saved profile:', e);
+        }
+      }
+      if (!existingReferralCode) {
         const newReferralCode = generateReferralCode();
         updatedProfile = { ...profile, referral_code: newReferralCode };
         setProfile(updatedProfile);
@@ -403,6 +444,15 @@ const Profile = () => {
 
   const handleSubmitKYC = async () => {
     if (!profile || !user) return;
+
+    if (profile.date_of_birth && !isValidDateFormat(profile.date_of_birth)) {
+      toast({
+        title: 'Invalid date format',
+        description: 'Date of birth must be in DD-MM-YYYY format (e.g., 07-08-2025).',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -1078,10 +1128,9 @@ const Profile = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="date_of_birth">Date of Birth *</Label>
+                  <Label htmlFor="date_of_birth">Date of Birth (DD-MM-YYYY) *</Label>
                   <Input
                     id="date_of_birth"
-                    type="date"
                     value={profile.date_of_birth || ''}
                     onChange={(e) => {
                       const updatedProfile = { ...profile, date_of_birth: e.target.value };
@@ -1089,6 +1138,7 @@ const Profile = () => {
                       localStorage.setItem('profileData', JSON.stringify(updatedProfile));
                     }}
                     disabled={!isEditing}
+                    placeholder="DD-MM-YYYY (e.g., 07-08-2025)"
                     required
                   />
                 </div>
