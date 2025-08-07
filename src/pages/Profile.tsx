@@ -816,7 +816,7 @@ const Profile = () => {
                         setProfile(updatedProfile);
                         localStorage.setItem('profileData', JSON.stringify(updatedProfile));
                       }}
-                      disabled=!isEditing}
+                      disabled={!isEditing}
                       required
                     />
                   </div>
