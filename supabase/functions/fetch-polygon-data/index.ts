@@ -1,86 +1,71 @@
-import { serve } from "std/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
-import { Client } from "@polygon.io/client-js";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-};
+// functions/fetch-polygon-data/index.ts
+import { serve } from 'https://deno.land/std@0.131.0/http/server.ts';
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   try {
-    const { symbol, timeframe, startDate, endDate } = await req.json();
+    const { symbols, symbol, timeframe, startDate, endDate } = await req.json();
+    const apiKey = Deno.env.get('POLYGON_API_KEY');
+    
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'Polygon.io API key is missing' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Validate inputs
-    if (!symbol || typeof symbol !== "string") {
-      return new Response(
-        JSON.stringify({ error: "Invalid or missing symbol" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    let results = [];
+
+    if (symbols) {
+      // Handle multiple symbols (for fetchMarketData)
+      for (const s of symbols) {
+        const response = await fetch(
+          `https://api.polygon.io/v2/aggs/ticker/${s}/range/1/day/${startDate}/${endDate}?adjusted=true&sort=asc&apiKey=${apiKey}`
+        );
+        if (!response.ok) {
+          return new Response(JSON.stringify({ error: `HTTP error ${response.status}` }), {
+            status: response.status,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        const data = await response.json();
+        if (data.status !== 'OK' || !data.results) {
+          throw new Error(data.error || `No data for ${s}`);
+        }
+        results.push(...data.results.map(item => ({ ...item, ticker: s })));
+      }
+    } else if (symbol && timeframe) {
+      // Handle single symbol with timeframe (for fetchChartData)
+      const { multiplier, timespan } = timeframe;
+      const response = await fetch(
+        `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/${multiplier}/${timespan}/${startDate}/${endDate}?adjusted=true&sort=asc&apiKey=${apiKey}`
       );
+      if (!response.ok) {
+        return new Response(JSON.stringify({ error: `HTTP error ${response.status}` }), {
+          status: response.status,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      const data = await response.json();
+      if (data.status !== 'OK' || !data.results) {
+        throw new Error(data.error || `No data for ${symbol}`);
+      }
+      results = data.results;
+    } else {
+      return new Response(JSON.stringify({ error: 'Invalid request parameters' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    const validTimeframes = ["1d", "1w", "1m"];
-    if (!timeframe || !validTimeframes.includes(timeframe)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or missing timeframe. Must be '1d', '1w', or '1m'" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!startDate || !endDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or missing startDate/endDate. Must be in YYYY-MM-DD format" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const POLYGON_API_KEY = Deno.env.get("POLYGON_API_KEY");
-    if (!POLYGON_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "Polygon API key not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Initialize Polygon.io client
-    const polygon = new Client({ apiKey: POLYGON_API_KEY });
-
-    // Map timeframe to Polygon.io timespan
-    const timespanMap: { [key: string]: string } = {
-      "1d": "day",
-      "1w": "week",
-      "1m": "month",
-    };
-    const timespan = timespanMap[timeframe];
-    const multiplier = 1; // Fixed multiplier for simplicity, adjust if needed
-
-    // Fetch aggregate bars using Polygon.io client
-    const data = await polygon.stocks.aggregates(symbol, multiplier, timespan, startDate, endDate);
-
-    if (data.status !== "OK") {
-      throw new Error(data.error || "Failed to fetch data from Polygon.io");
-    }
-
-    // Optionally, use Supabase client for additional operations (e.g., store data)
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
-
-    return new Response(
-      JSON.stringify(data),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-    );
-  } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ status: 'OK', results }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    console.error('Edge Function error:', err);
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 });
