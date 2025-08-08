@@ -10,9 +10,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Header from '@/components/layout/Header';
+import { IGBrokerConnect } from '@/components/brokers';
+import { useIGBroker } from '@/hooks/useIGBroker';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -21,15 +22,11 @@ import {
   AlertTriangle, 
   RefreshCcw, 
   Settings, 
-  Play, 
-  Pause, 
   Wifi, 
-  WifiOff,
-  Eye,
-  EyeOff,
-  Link,
-  CheckCircle,
-  XCircle
+  WifiOff, 
+  Link, 
+  CheckCircle, 
+  XCircle 
 } from 'lucide-react';
 
 interface Position {
@@ -63,189 +60,188 @@ interface BrokerSettings {
   autoSync: boolean;
 }
 
+interface Instrument {
+  symbol: string;
+  market: 'AMERICAN' | 'EUROPEAN';
+  name: string;
+}
+
 const TradePositions = () => {
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [brokerConnected, setBrokerConnected] = useState(false);
-  const [autoTrading, setAutoTrading] = useState(false);
   const [accountBalance, setAccountBalance] = useState(0);
   const [totalPnL, setTotalPnL] = useState(0);
   const [openPositions, setOpenPositions] = useState(0);
   const [brokerModalOpen, setBrokerModalOpen] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [openPositionModal, setOpenPositionModal] = useState(false);
+  const [dailyPnL, setDailyPnL] = useState<{ date: string; pnl: number }[]>([]);
   const [brokerSettings, setBrokerSettings] = useState<BrokerSettings>({
     apiKey: '',
     identifier: '',
     password: '',
-    isDemo: true,
+    isDemo: false, // Set to live trading by default
     connected: false,
     autoSync: true
   });
+  const [newPosition, setNewPosition] = useState({
+    symbol: '',
+    type: '' as 'CALL' | 'PUT' | 'IRON_CONDOR' | 'BULL_SPREAD' | 'BEAR_SPREAD',
+    contracts: 1,
+    strike: 0,
+    expiry: '',
+    direction: 'LONG' as 'LONG' | 'SHORT',
+    market: '' as 'AMERICAN' | 'EUROPEAN'
+  });
+  const [availableInstruments, setAvailableInstruments] = useState<Instrument[]>([]);
 
-  const [dailyPnL] = useState([
-    { date: '2024-01-01', pnl: 450 },
-    { date: '2024-01-02', pnl: -200 },
-    { date: '2024-01-03', pnl: 800 },
-    { date: '2024-01-04', pnl: 320 },
-    { date: '2024-01-05', pnl: -150 },
-    { date: '2024-01-06', pnl: 600 },
-    { date: '2024-01-07', pnl: 920 }
-  ]);
+  const {
+    connectToBroker,
+    disconnectBroker,
+    getPositions,
+    getAccountBalance,
+    getTradeHistory,
+    getAvailableInstruments,
+    openPosition
+  } = useIGBroker();
 
-  const fetchPositions = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!brokerConnected) {
       setLoading(false);
       return;
     }
 
     try {
-      // Mock positions data - in real app, this would come from IG Broker API
-      const mockPositions: Position[] = [
-        {
-          id: '1',
-          symbol: 'SPY',
-          type: 'IRON_CONDOR',
-          contracts: 10,
-          strike: 420,
-          expiry: '2024-01-19',
-          premium: 2000,
-          currentValue: 1800,
-          pnl: 200,
-          pnlPercent: 10,
-          status: 'OPEN',
-          direction: 'SHORT',
-          openedAt: '2024-01-10T10:00:00Z',
-          greeks: { delta: -0.05, gamma: 0.02, theta: -15.5, vega: 8.2 }
-        },
-        {
-          id: '2',
-          symbol: 'QQQ',
-          type: 'CALL',
-          contracts: 5,
-          strike: 370,
-          expiry: '2024-01-26',
-          premium: 1500,
-          currentValue: 1200,
-          pnl: -300,
-          pnlPercent: -20,
-          status: 'OPEN',
-          direction: 'LONG',
-          openedAt: '2024-01-12T14:30:00Z',
-          greeks: { delta: 0.65, gamma: 0.04, theta: -8.3, vega: 12.1 }
-        },
-        {
-          id: '3',
-          symbol: 'TSLA',
-          type: 'PUT',
-          contracts: 3,
-          strike: 180,
-          expiry: '2024-02-02',
-          premium: 900,
-          currentValue: 750,
-          pnl: 150,
-          pnlPercent: 16.7,
-          status: 'PENDING',
-          direction: 'LONG',
-          openedAt: '2024-01-15T09:30:00Z',
-          greeks: { delta: -0.45, gamma: 0.03, theta: -5.2, vega: 9.8 }
-        }
-      ];
+      setLoading(true);
+      const [positionsData, balance, history, instruments] = await Promise.all([
+        getPositions(),
+        getAccountBalance(),
+        getTradeHistory(),
+        getAvailableInstruments()
+      ]);
 
-      setPositions(mockPositions);
-      setOpenPositions(mockPositions.filter(p => p.status === 'OPEN').length);
-      setTotalPnL(mockPositions.reduce((sum, pos) => sum + pos.pnl, 0));
-      setAccountBalance(50000 + mockPositions.reduce((sum, pos) => sum + pos.pnl, 0));
+      setPositions(positionsData);
+      setAccountBalance(balance);
+      setOpenPositions(positionsData.filter((p: Position) => p.status === 'OPEN').length);
+      setTotalPnL(positionsData.reduce((sum: number, pos: Position) => sum + pos.pnl, 0));
+      setDailyPnL(history.dailyPnL || []);
+      setAvailableInstruments(instruments.filter((i: Instrument) => ['AMERICAN', 'EUROPEAN'].includes(i.market)));
     } catch (error) {
-      console.error('Error fetching positions:', error);
+      console.error('Error fetching data:', error);
+      alert('Failed to fetch data from broker');
     } finally {
       setLoading(false);
     }
-  }, [brokerConnected]);
+  }, [brokerConnected, getPositions, getAccountBalance, getTradeHistory, getAvailableInstruments]);
 
   useEffect(() => {
-    fetchPositions();
-    if (brokerConnected) {
-      const interval = setInterval(updatePositionValues, 30000);
+    fetchData();
+    if (brokerConnected && brokerSettings.autoSync) {
+      const interval = setInterval(fetchData, 30000);
       return () => clearInterval(interval);
     }
-  }, [brokerConnected, fetchPositions]);
+  }, [brokerConnected, brokerSettings.autoSync, fetchData]);
 
-  const updatePositionValues = () => {
-    if (!brokerConnected) return;
-    
-    setPositions(prevPositions => 
-      prevPositions.map(pos => {
-        const priceChange = (Math.random() - 0.5) * 50;
-        const newCurrentValue = Math.max(0, pos.currentValue + priceChange);
-        const newPnl = pos.premium - newCurrentValue;
-        const newPnlPercent = (newPnl / pos.premium) * 100;
-        
-        return {
-          ...pos,
-          currentValue: newCurrentValue,
-          pnl: newPnl,
-          pnlPercent: newPnlPercent
-        };
-      })
-    );
-  };
-
-  const handleConnectBroker = async () => {
+  const handleConnectBroker = async (credentials: {
+    apiKey: string;
+    identifier: string;
+    password: string;
+    isDemo: boolean;
+  }) => {
     try {
-      // Mock broker connection - in real app, this would validate credentials with IG Broker
-      if (!brokerSettings.apiKey || !brokerSettings.identifier || !brokerSettings.password) {
-        alert('Please fill in all required fields');
-        return;
-      }
-
-      // Simulate connection delay
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      setBrokerSettings(prev => ({ ...prev, connected: true }));
-      setBrokerConnected(true);
-      setBrokerModalOpen(false);
-      setLoading(false);
-      
-      // Fetch positions after connection
-      await fetchPositions();
+      const result = await connectToBroker(credentials);
+      if (result.success) {
+        setBrokerSettings(prev => ({ ...prev, ...credentials, connected: true }));
+        setBrokerConnected(true);
+        setBrokerModalOpen(false);
+        await fetchData();
+      } else {
+        throw new Error('Broker connection failed');
+      }
     } catch (error) {
       console.error('Error connecting to broker:', error);
+      alert('Failed to connect to broker. Please check your credentials.');
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleDisconnectBroker = () => {
-    setBrokerSettings(prev => ({ ...prev, connected: false }));
-    setBrokerConnected(false);
-    setPositions([]);
-    setOpenPositions(0);
-    setTotalPnL(0);
-    setAccountBalance(0);
-    setAutoTrading(false);
+  const handleDisconnectBroker = async () => {
+    try {
+      await disconnectBroker();
+      setBrokerSettings(prev => ({ ...prev, connected: false }));
+      setBrokerConnected(false);
+      setPositions([]);
+      setOpenPositions(0);
+      setTotalPnL(0);
+      setAccountBalance(0);
+      setAvailableInstruments([]);
+    } catch (error) {
+      console.error('Error disconnecting broker:', error);
+      alert('Failed to disconnect broker');
+    }
+  };
+
+  const handleOpenPosition = async () => {
+    if (!brokerConnected) {
+      alert('Please connect to your broker first');
+      return;
+    }
+    if (!newPosition.symbol || !newPosition.type || !newPosition.expiry || !newPosition.strike) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const position = await openPosition({
+        symbol: newPosition.symbol,
+        type: newPosition.type,
+        contracts: newPosition.contracts,
+        strike: newPosition.strike,
+        expiry: newPosition.expiry,
+        direction: newPosition.direction
+      });
+      setPositions(prev => [...prev, position]);
+      setOpenPositions(prev => prev + 1);
+      setTotalPnL(prev => prev + position.pnl);
+      setOpenPositionModal(false);
+      setNewPosition({
+        symbol: '',
+        type: '' as 'CALL' | 'PUT' | 'IRON_CONDOR' | 'BULL_SPREAD' | 'BEAR_SPREAD',
+        contracts: 1,
+        strike: 0,
+        expiry: '',
+        direction: 'LONG',
+        market: ''
+      });
+    } catch (error) {
+      console.error('Error opening position:', error);
+      alert('Failed to open position');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClosePosition = async (positionId: string) => {
     if (!brokerConnected) return;
 
     try {
-      setPositions(prevPositions =>
-        prevPositions.map(pos =>
-          pos.id === positionId ? { ...pos, status: 'CLOSED' as const } : pos
+      setLoading(true);
+      await closePosition(positionId);
+      setPositions(prev =>
+        prev.map(pos =>
+          pos.id === positionId ? { ...pos, status: 'CLOSED' } : pos
         )
       );
+      setOpenPositions(prev => prev - 1);
     } catch (error) {
       console.error('Error closing position:', error);
+      alert('Failed to close position');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const toggleAutoTrading = () => {
-    if (!brokerConnected) {
-      alert('Please connect to your broker first');
-      return;
-    }
-    setAutoTrading(!autoTrading);
   };
 
   const getPositionStatusIcon = (status: string) => {
@@ -274,7 +270,7 @@ const TradePositions = () => {
 
   return (
     <div className="space-y-6 p-6">
-    <Header />
+      <Header />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Trade Positions</h1>
@@ -291,14 +287,147 @@ const TradePositions = () => {
               {brokerConnected ? 'Connected to IG Broker' : 'Not Connected'}
             </span>
           </div>
-          <Button variant="outline" onClick={fetchPositions} disabled={!brokerConnected}>
+          <Button variant="outline" onClick={fetchData} disabled={!brokerConnected}>
             <RefreshCcw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
+          {brokerConnected && (
+            <Dialog open={openPositionModal} onOpenChange={setOpenPositionModal}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Play className="h-4 w-4 mr-2" />
+                  Open Position
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Open New Position</DialogTitle>
+                  <DialogDescription>Select and configure your stock option position</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Market</Label>
+                    <Select
+                      value={newPosition.market}
+                      onValueChange={(value) => setNewPosition(prev => ({ ...prev, market: value as 'AMERICAN' | 'EUROPEAN', symbol: '' }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select market" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AMERICAN">American</SelectItem>
+                        <SelectItem value="EUROPEAN">European</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Symbol</Label>
+                    <Select
+                      value={newPosition.symbol}
+                      onValueChange={(value) => setNewPosition(prev => ({ ...prev, symbol: value }))}
+                      disabled={!newPosition.market}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select symbol" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableInstruments
+                          .filter((inst: Instrument) => inst.market === newPosition.market)
+                          .map((inst: Instrument) => (
+                            <SelectItem key={inst.symbol} value={inst.symbol}>
+                              {inst.name} ({inst.symbol})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Option Type</Label>
+                    <Select
+                      value={newPosition.type}
+                      onValueChange={(value) => setNewPosition(prev => ({ ...prev, type: value as any }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select option type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CALL">Call</SelectItem>
+                        <SelectItem value="PUT">Put</SelectItem>
+                        <SelectItem value="IRON_CONDOR">Iron Condor</SelectItem>
+                        <SelectItem value="BULL_SPREAD">Bull Spread</SelectItem>
+                        <SelectItem value="BEAR_SPREAD">Bear Spread</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Direction</Label>
+                    <Select
+                      value={newPosition.direction}
+                      onValueChange={(value) => setNewPosition(prev => ({ ...prev, direction: value as 'LONG' | 'SHORT' }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select direction" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LONG">Long</SelectItem>
+                        <SelectItem value="SHORT">Short</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Contracts</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={newPosition.contracts}
+                      onChange={(e) => setNewPosition(prev => ({ ...prev, contracts: Number(e.target.value) }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Strike Price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={newPosition.strike}
+                      onChange={(e) => setNewPosition(prev => ({ ...prev, strike: Number(e.target.value) }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Expiry Date</Label>
+                    <Input
+                      type="date"
+                      value={newPosition.expiry}
+                      onChange={(e) => setNewPosition(prev => ({ ...prev, expiry: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setOpenPositionModal(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={handleOpenPosition} disabled={loading}>
+                      {loading ? (
+                        <>
+                          <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />
+                          Opening...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Open Position
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
-      {/* Connection Alert */}
       {!brokerConnected && (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
@@ -308,8 +437,7 @@ const TradePositions = () => {
         </Alert>
       )}
 
-      {/* Account Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Account Balance</CardTitle>
@@ -318,9 +446,9 @@ const TradePositions = () => {
             <div className="text-2xl font-bold">
               {brokerConnected ? `$${accountBalance.toLocaleString()}` : '$0'}
             </div>
-            <div className="flex items-center text-sm text-green-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              {brokerConnected ? '+2.5% this month' : 'Connect to view'}
+            <div className="flex items-center text-sm text-gray-600">
+              <DollarSign className="h-3 w-3 mr-1" />
+              Available Balance
             </div>
           </CardContent>
         </Card>
@@ -352,32 +480,6 @@ const TradePositions = () => {
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Auto Trading</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={toggleAutoTrading}
-              variant={autoTrading ? "destructive" : "default"}
-              className="w-full"
-              disabled={!brokerConnected}
-            >
-              {autoTrading ? (
-                <>
-                  <Pause className="h-4 w-4 mr-2" />
-                  Stop Auto
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Start Auto
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
       </div>
 
       <Tabs defaultValue="positions" className="space-y-6">
@@ -392,9 +494,7 @@ const TradePositions = () => {
           <Card>
             <CardHeader>
               <CardTitle>Active Positions</CardTitle>
-              <CardDescription>
-                Currently open and pending trading positions
-              </CardDescription>
+              <CardDescription>Currently open and pending trading positions</CardDescription>
             </CardHeader>
             <CardContent>
               {!brokerConnected ? (
@@ -513,9 +613,47 @@ const TradePositions = () => {
                 <div className="text-center py-8 text-gray-500">
                   <p>Connect to your broker to view trade history</p>
                 </div>
-              ) : (
+              ) : positions.filter(pos => pos.status === 'CLOSED').length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p>No closed positions to display</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {positions.filter(pos => pos.status === 'CLOSED').map((position) => (
+                    <div key={position.id} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
+                            {getPositionStatusIcon(position.status)}
+                            <h3 className="font-semibold text-lg">{position.symbol}</h3>
+                          </div>
+                          <Badge variant="outline">{position.type}</Badge>
+                          <Badge variant="secondary">{position.direction}</Badge>
+                          <Badge variant={position.pnl >= 0 ? 'default' : 'destructive'}>
+                            {position.pnl >= 0 ? '+' : ''}${position.pnl.toFixed(2)} ({position.pnlPercent >= 0 ? '+' : ''}{position.pnlPercent.toFixed(1)}%)
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+                        <div>
+                          <p className="text-gray-600">Contracts</p>
+                          <p className="font-medium">{position.contracts}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Strike</p>
+                          <p className="font-medium">${position.strike}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Expiry</p>
+                          <p className="font-medium">{new Date(position.expiry).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Premium</p>
+                          <p className="font-medium">${position.premium}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
@@ -533,6 +671,10 @@ const TradePositions = () => {
                 {!brokerConnected ? (
                   <div className="text-center py-8 text-gray-500">
                     <p>Connect to your broker to view analytics</p>
+                  </div>
+                ) : dailyPnL.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No P&L data available</p>
                   </div>
                 ) : (
                   <div className="h-64">
@@ -564,19 +706,19 @@ const TradePositions = () => {
                   <CardContent className="space-y-4">
                     <div className="flex justify-between">
                       <span>Win Rate</span>
-                      <span className="font-medium">68.5%</span>
+                      <span className="font-medium">{/* Fetch from broker API */}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Average Trade</span>
-                      <span className="font-medium">$245.30</span>
+                      <span className="font-medium">$</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Largest Win</span>
-                      <span className="font-medium text-green-600">$1,240</span>
+                      <span className="font-medium text-green-600">$</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Largest Loss</span>
-                      <span className="font-medium text-red-600">-$680</span>
+                      <span className="font-medium text-red-600">$</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -589,20 +731,20 @@ const TradePositions = () => {
                     <div>
                       <div className="flex justify-between mb-2">
                         <span>Portfolio Utilization</span>
-                        <span className="font-medium">34%</span>
+                        <span className="font-medium">{/* Fetch from broker API */}%</span>
                       </div>
-                      <Progress value={34} className="h-2" />
+                      <Progress value={0} className="h-2" />
                     </div>
                     <div>
                       <div className="flex justify-between mb-2">
                         <span>Max Drawdown</span>
-                        <span className="font-medium">8.2%</span>
+                        <span className="font-medium">{/* Fetch from broker API */}%</span>
                       </div>
-                      <Progress value={8.2} className="h-2" />
+                      <Progress value={0} className="h-2" />
                     </div>
                     <div className="flex justify-between">
                       <span>Sharpe Ratio</span>
-                      <span className="font-medium">1.85</span>
+                      <span className="font-medium">{/* Fetch from broker API */}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -644,113 +786,11 @@ const TradePositions = () => {
                         Disconnect
                       </Button>
                     ) : (
-                      <Dialog open={brokerModalOpen} onOpenChange={setBrokerModalOpen}>
-                        <DialogTrigger asChild>
-                          <Button>Connect</Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Connect to IG Broker</DialogTitle>
-                            <DialogDescription>
-                              Enter your IG Broker credentials to connect your account
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="identifier">Username/Identifier</Label>
-                              <Input
-                                id="identifier"
-                                placeholder="Enter your IG username"
-                                value={brokerSettings.identifier}
-                                onChange={(e) => setBrokerSettings(prev => ({ ...prev, identifier: e.target.value }))}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="password">Password</Label>
-                              <div className="relative">
-                                <Input
-                                  id="password"
-                                  type={showPassword ? "text" : "password"}
-                                  placeholder="Enter your password"
-                                  value={brokerSettings.password}
-                                  onChange={(e) => setBrokerSettings(prev => ({ ...prev, password: e.target.value }))}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                  onClick={() => setShowPassword(!showPassword)}
-                                >
-                                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="apiKey">API Key</Label>
-                              <div className="relative">
-                                <Input
-                                  id="apiKey"
-                                  type={showApiKey ? "text" : "password"}
-                                  placeholder="Enter your API key"
-                                  value={brokerSettings.apiKey}
-                                  onChange={(e) => setBrokerSettings(prev => ({ ...prev, apiKey: e.target.value }))}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                  onClick={() => setShowApiKey(!showApiKey)}
-                                >
-                                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Switch
-                                id="demo-mode"
-                                checked={brokerSettings.isDemo}
-                                onCheckedChange={(checked) => setBrokerSettings(prev => ({ ...prev, isDemo: checked }))}
-                              />
-                              <Label htmlFor="demo-mode">Demo Account</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Switch
-                                id="auto-sync"
-                                checked={brokerSettings.autoSync}
-                                onCheckedChange={(checked) => setBrokerSettings(prev => ({ ...prev, autoSync: checked }))}
-                              />
-                              <Label htmlFor="auto-sync">Auto-sync positions</Label>
-                            </div>
-                            <div className="flex justify-end space-x-2 pt-4">
-                              <Button
-                                variant="outline"
-                                onClick={() => setBrokerModalOpen(false)}
-                              >
-                                Cancel
-                              </Button>
-                              <Button onClick={handleConnectBroker} disabled={loading}>
-                                {loading ? (
-                                  <>
-                                    <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />
-                                    Connecting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Link className="h-4 w-4 mr-2" />
-                                    Connect
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <IGBrokerConnect onConnect={handleConnectBroker} />
                     )}
                   </div>
                 </div>
-               {brokerConnected && (
+                {brokerConnected && (
                   <div className="space-y-4">
                     <Alert>
                       <CheckCircle className="h-4 w-4" />
@@ -842,27 +882,11 @@ const TradePositions = () => {
                           </div>
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="h-4 w-4 text-green-600" />
-                            <span className="text-sm">Auto Trading</span>
+                            <span className="text-sm">Manual Trading</span>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
-                  </div>
-                )}
-
-                {!brokerConnected && (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Link className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">Connect Your Broker</h3>
-                    <p className="text-gray-600 mb-4">
-                      Connect your IG Broker account to start managing your positions and executing trades automatically.
-                    </p>
-                    <Button onClick={() => setBrokerModalOpen(true)}>
-                      <Link className="h-4 w-4 mr-2" />
-                      Connect to IG Broker
-                    </Button>
                   </div>
                 )}
               </div>
