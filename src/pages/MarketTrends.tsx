@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, TrendingDown, Activity, Target, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Target, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import MarketChart from '@/components/market/MarketChart';
 import SpyReturnsDistribution from '@/components/strategies/SpyReturnsDistribution';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,21 +34,33 @@ interface ChartData {
   lowerBB: number;
 }
 
+interface Config {
+  symbol: string;
+  timeframe: string;
+  startDate: string;
+  endDate: string;
+}
+
 const TIMEFRAMES = {
-  hourly: 'TIME_SERIES_INTRADAY&interval=60min',
-  daily: 'TIME_SERIES_DAILY',
-  weekly: 'TIME_SERIES_WEEKLY',
-  monthly: 'TIME_SERIES_MONTHLY',
-  yearly: 'TIME_SERIES_MONTHLY'
+  hourly: { multiplier: 60, timespan: 'minute' },
+  daily: { multiplier: 1, timespan: 'day' },
+  weekly: { multiplier: 1, timespan: 'week' },
+  monthly: { multiplier: 1, timespan: 'month' },
+  yearly: { multiplier: 1, timespan: 'year' },
 };
 
 const MarketTrends = () => {
-  const [selectedSymbol, setSelectedSymbol] = useState('SPY');
+  const [config, setConfig] = useState<Config>({
+    symbol: 'SPY',
+    timeframe: 'daily',
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+  });
   const [marketData, setMarketData] = useState<MarketData[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<keyof typeof TIMEFRAMES>('daily');
+  const [dateError, setDateError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const calculateIndicators = (prices: number[]): { sma20: number[], rsi: number[], macd: number[], signal: number[], upperBB: number[], lowerBB: number[] } => {
@@ -60,26 +74,30 @@ const MarketTrends = () => {
     for (let i = 0; i < prices.length; i++) {
       if (i < 20) {
         sma20.push(0);
+        upperBB.push(0);
+        lowerBB.push(0);
       } else {
-        const sum = prices.slice(i - 20, i).reduce((a, b) => a + b, 0);
-        sma20.push(sum / 20);
+        const slice = prices.slice(i - 20, i + 1);
+        const mean = slice.reduce((a, b) => a + b, 0) / 20;
+        sma20.push(mean);
+        const stdDev = Math.sqrt(slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / 20);
+        upperBB.push(mean + 2 * stdDev);
+        lowerBB.push(mean - 2 * stdDev);
       }
     }
 
-    let gains = 0;
-    let losses = 0;
-    for (let i = 1; i < prices.length; i++) {
-      const diff = prices[i] - prices[i - 1];
-      if (diff > 0) gains += diff;
-      else losses -= diff;
-      
-      if (i >= 14) {
-        const avgGain = gains / 14;
-        const avgLoss = losses / 14;
-        const rs = avgGain / (avgLoss || 1);
-        rsi.push(100 - (100 / (1 + rs)));
-      } else {
+    const changes = prices.slice(1).map((price, i) => price - prices[i]);
+    for (let i = 0; i < changes.length; i++) {
+      if (i < 14) {
         rsi.push(50);
+      } else {
+        const slice = changes.slice(i - 14 + 1, i + 1);
+        const gains = slice.filter(c => c > 0);
+        const losses = slice.filter(c => c < 0).map(Math.abs);
+        const avgGain = gains.length ? gains.reduce((sum, val) => sum + val, 0) / 14 : 0;
+        const avgLoss = losses.length ? losses.reduce((sum, val) => sum + val, 0) / 14 : 0;
+        const rs = avgLoss ? avgGain / avgLoss : avgGain ? 100 : 0;
+        rsi.push(100 - (100 / (1 + rs)));
       }
     }
 
@@ -88,21 +106,7 @@ const MarketTrends = () => {
     for (let i = 0; i < prices.length; i++) {
       macd.push(ema12[i] - ema26[i]);
     }
-    const signalLine = calculateEMA(macd, 9);
-    signal.push(...signalLine);
-
-    for (let i = 0; i < prices.length; i++) {
-      if (i < 20) {
-        upperBB.push(0);
-        lowerBB.push(0);
-      } else {
-        const slice = prices.slice(i - 20, i);
-        const mean = slice.reduce((a, b) => a + b) / 20;
-        const stdDev = Math.sqrt(slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / 20);
-        upperBB.push(mean + 2 * stdDev);
-        lowerBB.push(mean - 2 * stdDev);
-      }
-    }
+    signal.push(...calculateEMA(macd, 9));
 
     return { sma20, rsi, macd, signal, upperBB, lowerBB };
   };
@@ -116,23 +120,44 @@ const MarketTrends = () => {
     return ema;
   };
 
+  const validateDates = (start: string, end: string): boolean => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const maxDate = new Date();
+    const minDate = new Date('2000-01-01');
+
+    if (startDate > endDate) {
+      setDateError('Start date must be before end date');
+      return false;
+    }
+    if (endDate > maxDate) {
+      setDateError('End date cannot be in the future');
+      return false;
+    }
+    if (startDate < minDate) {
+      setDateError('Start date is too early (data available from 2000)');
+      return false;
+    }
+    setDateError(null);
+    return true;
+  };
+
   const fetchMarketData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // First try to get cached data from Supabase
       const { data: cachedData, error: cacheError } = await supabase
         .from('live_market_data')
         .select('*')
         .in('symbol', ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'])
-        .gte('timestamp', new Date(Date.now() - 5 * 60 * 1000).toISOString()); // 5 minutes ago
+        .gte('timestamp', new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
       if (!cacheError && cachedData && cachedData.length > 0) {
         const formattedData = cachedData.map(item => ({
           symbol: item.symbol,
           price: item.price,
-          change: 0, // Will be calculated if needed
+          change: item.change || 0,
           changePercent: item.change_percent || 0,
           volume: item.volume || 0,
         }));
@@ -141,34 +166,48 @@ const MarketTrends = () => {
         return;
       }
 
-      // If no cached data, call the edge function to fetch fresh data
-      const { data: freshData, error: fetchError } = await supabase.functions.invoke('alpha-vantage-market-data', {
-        body: { symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'] }
+      const { data: freshData, error: fetchError } = await supabase.functions.invoke('fetch-polygon-data', {
+        body: {
+          symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'],
+          timeframe: 'day',
+          startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+        },
       });
 
       if (fetchError) {
         throw new Error(`Edge function error: ${fetchError.message}`);
       }
 
-      if (freshData && freshData.success && freshData.data) {
-        const formattedData = freshData.data.map((item: any) => ({
-          symbol: item.symbol,
-          price: item.price,
-          change: 0,
-          changePercent: item.change_percent || 0,
-          volume: item.volume || 0,
+      if (freshData && freshData.results) {
+        const formattedData = freshData.results.map((item: any) => ({
+          symbol: item.ticker,
+          price: item.c,
+          change: item.c - (item.o || item.c),
+          changePercent: ((item.c - (item.o || item.c)) / (item.o || item.c)) * 100,
+          volume: item.v || 0,
         }));
         setMarketData(formattedData);
+
+        // Cache the data
+        await supabase.from('live_market_data').insert(
+          formattedData.map(item => ({
+            symbol: item.symbol,
+            price: item.price,
+            change: item.change,
+            change_percent: item.changePercent,
+            volume: item.volume,
+            timestamp: new Date().toISOString(),
+          }))
+        );
       } else {
         throw new Error('No data returned from market data service');
       }
-
     } catch (err) {
       console.error('Error fetching market data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch market data';
       setError(errorMessage);
-      
-      // Try to load any available cached data as fallback
+
       const { data: fallbackData } = await supabase
         .from('live_market_data')
         .select('*')
@@ -180,30 +219,33 @@ const MarketTrends = () => {
         const formattedData = fallbackData.map(item => ({
           symbol: item.symbol,
           price: item.price,
-          change: 0,
+          change: item.change || 0,
           changePercent: item.change_percent || 0,
           volume: item.volume || 0,
         }));
         setMarketData(formattedData);
         setError(`${errorMessage} (showing cached data)`);
       }
-      
-      toast({
-        title: "Data Error",
-        variant: "destructive",
-      });
+
+      toast({ title: 'Data Error', description: errorMessage, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  const fetchChartData = useCallback(async (symbol: string, timeframe: keyof typeof TIMEFRAMES) => {
+  const fetchChartData = useCallback(async () => {
+    if (!validateDates(config.startDate, config.endDate)) {
+      return;
+    }
+
     try {
-      // First try to get cached price history data
+      setLoading(true);
+      setError(null);
+
       const { data: cachedPriceData, error: priceError } = await supabase
         .from('price_history')
         .select('*')
-        .eq('symbol', symbol)
+        .eq('symbol', config.symbol)
         .order('timestamp', { ascending: false })
         .limit(100);
 
@@ -217,21 +259,21 @@ const MarketTrends = () => {
           macd: item.macd || 0,
           signal: item.signal || 0,
           upperBB: item.upperbb || 0,
-          lowerBB: item.lowerbb || 0
+          lowerBB: item.lowerbb || 0,
         }));
-        
         setChartData(transformedData.slice(0, 30));
+        setLoading(false);
         return;
       }
 
-      // Fallback to Alpha Vantage API with edge function
+      const { multiplier, timespan } = TIMEFRAMES[config.timeframe as keyof typeof TIMEFRAMES];
       const { data: chartResponse, error: chartError } = await supabase.functions.invoke('fetch-polygon-data', {
         body: {
-          symbol,
-          timeframe: timeframe === 'daily' ? 'day' : timeframe,
-          startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          endDate: new Date().toISOString().split('T')[0]
-        }
+          symbol: config.symbol,
+          timeframe: { multiplier, timespan },
+          startDate: config.startDate,
+          endDate: config.endDate,
+        },
       });
 
       if (chartError) {
@@ -251,38 +293,53 @@ const MarketTrends = () => {
           macd: macd[index] || 0,
           signal: signal[index] || 0,
           upperBB: upperBB[index] || 0,
-          lowerBB: lowerBB[index] || 0
+          lowerBB: lowerBB[index] || 0,
         }));
 
         setChartData(transformedData.slice(0, 30));
+
+        // Cache the data
+        await supabase.from('price_history').insert(
+          transformedData.map(item => ({
+            symbol: config.symbol,
+            date: item.date,
+            price: item.price,
+            volume: item.volume,
+            sma20: item.sma20,
+            rsi: item.rsi,
+            macd: item.macd,
+            signal: item.signal,
+            upperbb: item.upperBB,
+            lowerbb: item.lowerBB,
+            timestamp: new Date().toISOString(),
+          }))
+        );
+      } else {
+        throw new Error('No data returned from chart data service');
       }
     } catch (err) {
       console.error('Error fetching chart data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chart data';
       setError(errorMessage);
-      toast({
-        title: "Data Error",
-        variant: "destructive",
-      });
+      toast({ title: 'Data Error', description: errorMessage, variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
-  }, [toast]);
+  }, [toast, config]);
 
   useEffect(() => {
     fetchMarketData();
-  }, [fetchMarketData]);
-
-  useEffect(() => {
-    fetchChartData(selectedSymbol, selectedTimeframe);
-  }, [selectedSymbol, selectedTimeframe, fetchChartData]);
+    fetchChartData();
+  }, [fetchMarketData, fetchChartData, config]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       fetchMarketData();
-      fetchChartData(selectedSymbol, selectedTimeframe);
-    }, 2 * 60 * 1000); // Update every 2 minutes for more frequent live data
+      fetchChartData();
+    }, 2 * 60 * 1000); // Update every 2 minutes
 
     return () => clearInterval(interval);
-  }, [fetchMarketData, fetchChartData, selectedSymbol, selectedTimeframe]);
+  }, [fetchMarketData, fetchChartData]);
 
   const topMovers = marketData
     .filter(item => item.symbol !== 'VIX')
@@ -292,13 +349,16 @@ const MarketTrends = () => {
   const marketSentiment = () => {
     const vixData = marketData.find(item => item.symbol === 'VIX');
     if (!vixData) return 'neutral';
-    
     if (vixData.price < 20) return 'bullish';
     if (vixData.price > 30) return 'bearish';
     return 'neutral';
   };
 
   const sentiment = marketSentiment();
+
+  const handleConfigChange = (field: keyof Config, value: string) => {
+    setConfig(prev => ({ ...prev, [field]: value }));
+  };
 
   if (loading) {
     return (
@@ -320,7 +380,12 @@ const MarketTrends = () => {
           <p className="text-gray-600">Real-time market analysis and trading opportunities</p>
           {error && (
             <p className="text-sm text-amber-600 mt-1">
-              ⚠️ {error}
+              <AlertTriangle className="h-4 w-4 inline mr-1" /> {error}
+            </p>
+          )}
+          {dateError && (
+            <p className="text-sm text-red-600 mt-1">
+              <AlertTriangle className="h-4 w-4 inline mr-1" /> {dateError}
             </p>
           )}
         </div>
@@ -333,13 +398,73 @@ const MarketTrends = () => {
             size="sm"
             onClick={() => {
               fetchMarketData();
-              fetchChartData(selectedSymbol, selectedTimeframe);
+              fetchChartData();
             }}
           >
-            Refresh
+            <RefreshCcw className="h-4 w-4 mr-2" /> Refresh
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuration</CardTitle>
+          <CardDescription>Configure market analysis parameters</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="symbol">Symbol</Label>
+              <div className="flex space-x-2">
+                {['SPY', 'QQQ', 'IWM'].map((symbol) => (
+                  <Button
+                    key={symbol}
+                    variant={config.symbol === symbol ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleConfigChange('symbol', symbol)}
+                  >
+                    {symbol}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="timeframe">Timeframe</Label>
+              <div className="flex flex-wrap gap-2">
+                {['hourly', 'daily', 'weekly', 'monthly', 'yearly'].map((tf) => (
+                  <Button
+                    key={tf}
+                    variant={config.timeframe === tf ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleConfigChange('timeframe', tf)}
+                  >
+                    {tf.charAt(0).toUpperCase() + tf.slice(1)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="date-range">Date Range</Label>
+              <div className="flex space-x-2">
+                <Input
+                  type="date"
+                  value={config.startDate}
+                  onChange={(e) => handleConfigChange('startDate', e.target.value)}
+                  max={config.endDate}
+                  min="2000-01-01"
+                />
+                <Input
+                  type="date"
+                  value={config.endDate}
+                  onChange={(e) => handleConfigChange('endDate', e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
+                  min="2000-01-01"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList>
@@ -416,52 +541,13 @@ const MarketTrends = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Market Chart - {selectedSymbol}</CardTitle>
-                  <CardDescription>{selectedTimeframe.charAt(0).toUpperCase() + selectedTimeframe.slice(1)} price movement</CardDescription>
-                </div>
-                <div className="flex space-x-2">
-                  {['SPY', 'QQQ', 'IWM'].map((symbol) => (
-                    <Button
-                      key={symbol}
-                      variant={selectedSymbol === symbol ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedSymbol(symbol)}
-                    >
-                      {symbol}
-                    </Button>
-                  ))}
-                  {['hourly', 'daily', 'weekly', 'monthly', 'yearly'].map((tf) => (
-                    <Button
-                      key={tf}
-                      variant={selectedTimeframe === tf ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedTimeframe(tf as keyof typeof TIMEFRAMES)}
-                    >
-                      {tf.charAt(0).toUpperCase() + tf.slice(1)}
-                    </Button>
-                  ))}
+                  <CardTitle>Market Chart - {config.symbol}</CardTitle>
+                  <CardDescription>{config.timeframe.charAt(0).toUpperCase() + config.timeframe.slice(1)} price movement</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} />
-                    <Tooltip />
-                    <Line yAxisId="left" type="monotone" dataKey="price" stroke="#8884d8" name="Price" />
-                    <Line yAxisId="left" type="monotone" dataKey="sma20" stroke="#82ca9d" name="SMA20" />
-                    <Line yAxisId="left" type="monotone" dataKey="upperBB" stroke="#ff7300" name="Upper BB" strokeDasharray="3 3" />
-                    <Line yAxisId="left" type="monotone" dataKey="lowerBB" stroke="#ff7300" name="Lower BB" strokeDasharray="3 3" />
-                    <Line yAxisId="right" type="monotone" dataKey="rsi" stroke="#ff0000" name="RSI" />
-                    <Line yAxisId="left" type="monotone" dataKey="macd" stroke="#00ff00" name="MACD" />
-                    <Line yAxisId="left" type="monotone" dataKey="signal" stroke="#0000ff" name="Signal" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <MarketChart data={chartData} error={error} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -525,19 +611,19 @@ const MarketTrends = () => {
                       {chartData[chartData.length - 1].volume > chartData.slice(-10, -1).reduce((a, b) => a + b.volume, 0) / 9 * 1.5 && (
                         <div className="p-3 border-l-4 border-yellow-500 bg-yellow-50">
                           <p className="font-medium">Volume Spike</p>
-                          <p className="text-sm text-gray-600">{selectedSymbol} volume significantly above average</p>
+                          <p className="text-sm text-gray-600">{config.symbol} volume significantly above average</p>
                         </div>
                       )}
                       {chartData[chartData.length - 1].price > chartData[chartData.length - 1].upperBB && (
                         <div className="p-3 border-l-4 border-green-500 bg-green-50">
                           <p className="font-medium">Breakout Alert</p>
-                          <p className="text-sm text-gray-600">{selectedSymbol} broke above upper Bollinger Band</p>
+                          <p className="text-sm text-gray-600">{config.symbol} broke above upper Bollinger Band</p>
                         </div>
                       )}
                       {chartData[chartData.length - 1].price < chartData[chartData.length - 1].lowerBB && (
                         <div className="p-3 border-l-4 border-red-500 bg-red-50">
                           <p className="font-medium">Support Test</p>
-                          <p className="text-sm text-gray-600">{selectedSymbol} testing lower Bollinger Band</p>
+                          <p className="text-sm text-gray-600">{config.symbol} testing lower Bollinger Band</p>
                         </div>
                       )}
                     </>
