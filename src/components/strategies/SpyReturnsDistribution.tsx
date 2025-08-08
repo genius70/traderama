@@ -143,7 +143,7 @@ const SpyReturnsDistribution: React.FC = () => {
     try {
       const response = await fetch(
         'https://api.polygon.io/v3/reference/tickers?type=ETF&market=stocks&active=true&apiKey=' +
-          process.env.REACT_APP_POLYGON_API_KEY
+          process.env.POLYGON_API_KEY
       );
       if (!response.ok) {
         throw new Error(`Failed to fetch symbols: ${response.statusText}`);
@@ -165,7 +165,7 @@ const SpyReturnsDistribution: React.FC = () => {
       return;
     }
 
-    if (!process.env.REACT_APP_POLYGON_API_KEY) {
+    if (!process.env.POLYGON_API_KEY) {
       setError('Polygon.io API key is missing. Please check your environment configuration.');
       return;
     }
@@ -177,7 +177,7 @@ const SpyReturnsDistribution: React.FC = () => {
       const multiplier = config.timeframe === '1d' ? 1 : config.timeframe === '1w' ? 1 : 1;
       const timespan = config.timeframe === '1d' ? 'day' : config.timeframe === '1w' ? 'week' : 'month';
       const response = await fetch(
-        `https://api.polygon.io/v2/aggs/ticker/${config.symbol}/range/${multiplier}/${timespan}/${config.startDate}/${config.endDate}?adjusted=true&sort=asc&apiKey=${process.env.REACT_APP_POLYGON_API_KEY}`
+        `https://api.polygon.io/v2/aggs/ticker/${config.symbol}/range/${multiplier}/${timespan}/${config.startDate}/${config.endDate}?adjusted=true&sort=asc&apiKey=${process.env.POLYGON_API_KEY}`
       );
 
       if (!response.ok) {
