@@ -26,7 +26,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { BarChart3, AlertTriangle } from 'lucide-react';
+import { BarChart3, AlertTriangle, RefreshCcw } from 'lucide-react';
 
 interface ReturnsData {
   range: string;
@@ -94,9 +94,10 @@ const SpyReturnsDistribution: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
+  const [availableSymbols, setAvailableSymbols] = useState<string[]>([]);
 
-  // Top 15 options indices/ETFs
-  const optionsIndices = [
+  // Top options indices/ETFs (to be validated against Polygon.io)
+  const initialOptionsIndices = [
     'SPY', // SPDR S&P 500 ETF
     'QQQ', // Invesco QQQ Trust (Nasdaq-100)
     'IWM', // iShares Russell 2000 ETF
@@ -137,30 +138,55 @@ const SpyReturnsDistribution: React.FC = () => {
     return true;
   };
 
+  // Fetch available tickers from Polygon.io
+  const fetchAvailableSymbols = async () => {
+    try {
+      const response = await fetch(
+        'https://api.polygon.io/v3/reference/tickers?type=ETF&market=stocks&active=true&apiKey=' +
+          process.env.POLYGON_API_KEY
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch symbols: ${response.statusText}`);
+      }
+      const data = await response.json();
+      const symbols = data.results
+        .filter((ticker: any) => initialOptionsIndices.includes(ticker.ticker))
+        .map((ticker: any) => ticker.ticker);
+      setAvailableSymbols(symbols.length ? symbols : initialOptionsIndices);
+    } catch (err) {
+      console.error('Error fetching available symbols:', err);
+      setAvailableSymbols(initialOptionsIndices); // Fallback to default list
+    }
+  };
+
+  // Fetch market data from Polygon.io
   const fetchMarketData = async () => {
     if (!validateDates(config.startDate, config.endDate)) {
       return;
     }
 
+    if (!process.env.POLYGON_API_KEY) {
+      setError('Polygon.io API key is missing. Please check your environment configuration.');
+      return;
+    }
+
     setLoadingData(true);
     setError(null);
+
     try {
+      const multiplier = config.timeframe === '1d' ? 1 : config.timeframe === '1w' ? 1 : 1;
+      const timespan = config.timeframe === '1d' ? 'day' : config.timeframe === '1w' ? 'week' : 'month';
       const response = await fetch(
-        'https://qyadjaahgiqkohvucfmg.supabase.co/functions/v1/fetch-polygon-data',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify(config),
-        }
+        `https://api.polygon.io/v2/aggs/ticker/${config.symbol}/range/${multiplier}/${timespan}/${config.startDate}/${config.endDate}?adjusted=true&sort=asc&apiKey=${process.env.POLYGON_API_KEY}`
       );
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+      }
 
-      if (data.error) {
-        throw new Error(data.error);
+      const data = await response.json();
+      if (data.status !== 'OK' || !data.results) {
+        throw new Error(data.error || 'No data returned from Polygon.io');
       }
 
       const prices = data.results.map((item: any) => ({
@@ -202,13 +228,13 @@ const SpyReturnsDistribution: React.FC = () => {
 
       // Calculate performance metrics
       const meanReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length;
-      const annualReturn = meanReturn * 252; // Assuming 252 trading days
+      const annualReturn = meanReturn * (config.timeframe === '1d' ? 252 : config.timeframe === '1w' ? 52 : 12);
       const variance = returns.reduce(
         (sum: number, r: number) => sum + Math.pow(r - meanReturn, 2),
         0
       ) / returns.length;
-      const volatility = Math.sqrt(variance) * Math.sqrt(252);
-      const sharpeRatio = volatility ? annualReturn / volatility : 0; // Avoid division by zero
+      const volatility = Math.sqrt(variance) * Math.sqrt(config.timeframe === '1d' ? 252 : config.timeframe === '1w' ? 52 : 12);
+      const sharpeRatio = volatility ? annualReturn / volatility : 0;
       const cumulativeReturns = returns.reduce((acc: number[], r: number, i: number) => {
         acc.push((acc[i - 1] || 0) + r);
         return acc;
@@ -228,17 +254,29 @@ const SpyReturnsDistribution: React.FC = () => {
         sharpeRatio: parseFloat(sharpeRatio.toFixed(2)),
         maxDrawdown: parseFloat(maxDrawdown.toFixed(2)),
       });
-    } catch (err) {
-      setError('Failed to fetch market data. Please check your configuration or try again.');
-      console.error(err);
+    } catch (err: any) {
+      setError(
+        err.message.includes('HTTP error')
+          ? `Failed to fetch data: ${err.message}`
+          : err.message.includes('No data')
+          ? `No data available for ${config.symbol} in the selected date range`
+          : 'Failed to fetch market data. Please check your configuration or try again.'
+      );
+      console.error('Fetch error:', err);
+      setReturnsData([]);
+      setPerformance(null);
     } finally {
       setLoadingData(false);
     }
   };
 
   useEffect(() => {
+    fetchAvailableSymbols();
+  }, []);
+
+  useEffect(() => {
     fetchMarketData();
-  }, [config.symbol, config.timeframe]);
+  }, [config.symbol, config.timeframe, config.startDate, config.endDate]);
 
   const handleConfigChange = (field: keyof StrategyConfig, value: string) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
@@ -262,7 +300,8 @@ const SpyReturnsDistribution: React.FC = () => {
       return (
         <div className="bg-white p-3 border rounded shadow">
           <p className="font-semibold">{`Range: ${label}`}</p>
-          <p className="text-blue-600">{`Frequency: ${data.value}`}</p>
+          <p className="text-blue-600">{`Frequency: ${data.value} periods`}</p>
+          <p className="text-blue-600">{`Percentage: ${data.payload.percentage?.toFixed(2)}%`}</p>
         </div>
       );
     }
@@ -334,10 +373,10 @@ const SpyReturnsDistribution: React.FC = () => {
                 onValueChange={(value) => handleConfigChange('symbol', value)}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select symbol" />
                 </SelectTrigger>
                 <SelectContent>
-                  {optionsIndices.map((symbol) => (
+                  {availableSymbols.map((symbol) => (
                     <SelectItem key={symbol} value={symbol}>
                       {symbol}
                     </SelectItem>
@@ -353,7 +392,7 @@ const SpyReturnsDistribution: React.FC = () => {
                 onValueChange={(value) => handleConfigChange('timeframe', value)}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select timeframe" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1d">Daily</SelectItem>
@@ -385,7 +424,14 @@ const SpyReturnsDistribution: React.FC = () => {
           </div>
 
           <Button onClick={handleSimulate} disabled={loadingData || !!dateError} className="w-full">
-            {loadingData ? 'Simulating...' : 'Simulate'}
+            {loadingData ? (
+              <>
+                <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />
+                Fetching Data...
+              </>
+            ) : (
+              'Fetch Data'
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -417,12 +463,7 @@ const SpyReturnsDistribution: React.FC = () => {
                     fontSize={12}
                   />
                   <YAxis />
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      name === 'frequency' ? `${value} periods` : `${value}%`,
-                      name === 'frequency' ? 'Frequency' : 'Percentage',
-                    ]}
-                  />
+                  <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="frequency" fill="#3b82f6" name="frequency" />
                 </BarChart>
               </ResponsiveContainer>

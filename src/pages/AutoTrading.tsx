@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, Settings, TrendingUp, Link, DollarSign, Shield, Activity, Play, Pause, Power, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Settings, TrendingUp, Link, DollarSign, Shield, CheckCircle, Play, Pause, Power } from 'lucide-react';
 import { LiveTradingEngine } from '@/components/trading';
 import { IGBrokerConnect } from '@/components/brokers';
 import Header from '@/components/layout/Header';
@@ -50,12 +49,7 @@ interface Trade {
 }
 
 const AutoTrading = () => {
-  const [strategies, setStrategies] = useState<Strategy[]>([
-    { id: 1, name: 'Iron Condor Weekly', status: 'active', pnl: 450.25, trades: 12, winRate: 75, drawdown: 2.5, isLive: false },
-    { id: 2, name: 'Momentum Scalping', status: 'paused', pnl: -125.50, trades: 8, winRate: 62.5, drawdown: 5.2, isLive: false },
-    { id: 3, name: 'Mean Reversion', status: 'active', pnl: 280.75, trades: 15, winRate: 80, drawdown: 1.8, isLive: false },
-  ]);
-
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [tradingParameters, setTradingParameters] = useState<TradingParameters>({
     maxPositionSize: 5000,
     dailyLossLimit: 500,
@@ -65,17 +59,15 @@ const AutoTrading = () => {
     takeProfit: 10,
     riskPerTrade: 1
   });
-
   const [showParametersDialog, setShowParametersDialog] = useState(false);
   const [showFeeDialog, setShowFeeDialog] = useState(false);
-  const [accountBalance, setAccountBalance] = useState(25000);
+  const [accountBalance, setAccountBalance] = useState(0);
   const [platformFee] = useState(0.10);
-  const [dailyPnL, setDailyPnL] = useState(125.75);
-  const [monthlyFees, setMonthlyFees] = useState(340.50);
+  const [dailyPnL, setDailyPnL] = useState(0);
+  const [monthlyFees, setMonthlyFees] = useState(0);
   const [isTradingActive, setIsTradingActive] = useState(false);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
   const [tradingEngine, setTradingEngine] = useState<NodeJS.Timeout | null>(null);
-  const [tradingStarted, setTradingStarted] = useState(false);
 
   const {
     connectToBroker,
@@ -83,29 +75,52 @@ const AutoTrading = () => {
     connection,
     isConnecting: brokerConnecting,
     isLoading,
+    getAccountBalance,
+    getRecentTrades,
+    getStrategies,
+    executeTrade
   } = useIGBroker();
 
-  // Derived values from connection state
   const isConnected = connection?.is_active || false;
   const connectionStatus = isConnected ? 'connected' : 'disconnected';
 
-  // Enhanced connect broker function
-  const handleConnectBroker = async () => {
+  // Fetch initial data on mount
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        await fetchConnection();
+        if (isConnected) {
+          const balance = await getAccountBalance();
+          const trades = await getRecentTrades();
+          const strategyData = await getStrategies();
+          
+          setAccountBalance(balance);
+          setRecentTrades(trades);
+          setStrategies(strategyData);
+        }
+      } catch (error) {
+        console.error('Failed to initialize data:', error);
+      }
+    };
+    initialize();
+  }, [isConnected, fetchConnection, getAccountBalance, getRecentTrades, getStrategies]);
+
+  const handleConnectBroker = async (credentials: {
+    username: string;
+    password: string;
+    apiKey: string;
+    accountId: string;
+  }) => {
     try {
-      console.log('Attempting to connect to broker...');
-      const result = await connectToBroker({
-        username: 'demo_user',
-        password: 'demo_pass',
-        apiKey: 'demo_key',
-        accountId: 'demo_account'
-      });
-      
+      const result = await connectToBroker(credentials);
       if (result.success) {
+        const balance = await getAccountBalance();
+        setAccountBalance(balance);
+        const strategyData = await getStrategies();
+        setStrategies(strategyData);
         console.log('Broker connection successful');
-        setAccountBalance(25000); // Demo balance
       } else {
-        console.error('Broker connection failed');
-        alert('Failed to connect to broker. Please check your credentials.');
+        throw new Error('Broker connection failed');
       }
     } catch (error) {
       console.error('Broker connection failed:', error);
@@ -114,16 +129,21 @@ const AutoTrading = () => {
   };
 
   const handleDisconnect = async () => {
-    // Implementation depends on useIGBroker hook capabilities
     setIsTradingActive(false);
-    setTradingStarted(false);
     if (tradingEngine) {
       clearInterval(tradingEngine);
       setTradingEngine(null);
     }
+    try {
+      await disconnectBroker();
+      setAccountBalance(0);
+      setStrategies([]);
+      setRecentTrades([]);
+    } catch (error) {
+      console.error('Broker disconnection failed:', error);
+    }
   };
 
-  // Enhanced start trading function
   const handleStartTrading = async () => {
     if (!isConnected) {
       alert('Please connect to your broker account first');
@@ -136,103 +156,78 @@ const AutoTrading = () => {
       return;
     }
 
-    console.log('Starting trading engine...');
-    console.log('Active strategies:', activeStrategies.map(s => s.name));
-    console.log('Trading parameters:', tradingParameters);
+    try {
+      setIsTradingActive(true);
+      setStrategies(prev =>
+        prev.map(strategy => ({
+          ...strategy,
+          isLive: strategy.status === 'active'
+        }))
+      );
 
-    setIsTradingActive(true);
-    setTradingStarted(true);
-    
-    // Update strategies to live mode
-    setStrategies(prev => 
-      prev.map(strategy => ({
-        ...strategy,
-        isLive: strategy.status === 'active',
-      }))
-    );
-    
-    // Start the trading engine
-    const engine = setInterval(() => {
-      simulateTrade();
-    }, 5000); // Execute trades every 5 seconds for demo
-
-    setTradingEngine(engine);
-    
-    console.log('Trading engine started successfully');
-    return { success: true, message: 'Trading engine started', activeStrategies: activeStrategies.length };
-  };
-
-  const handleStopTrading = () => {
-    console.log('Stopping trading engine...');
-    setIsTradingActive(false);
-    setTradingStarted(false);
-    if (tradingEngine) {
-      clearInterval(tradingEngine);
-      setTradingEngine(null);
-    }
-    
-    // Set all strategies to paused
-    setStrategies(prev => 
-      prev.map(strategy => ({
-        ...strategy,
-        isLive: false,
-        status: 'paused'
-      }))
-    );
-    
-    console.log('Trading engine stopped');
-  };
-
-  // Simulate trading activity
-  const simulateTrade = () => {
-    const activeStrategies = strategies.filter(s => s.status === 'active');
-    if (activeStrategies.length === 0) return;
-
-    const randomStrategy = activeStrategies[Math.floor(Math.random() * activeStrategies.length)];
-    const symbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD'];
-    const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
-    
-    const trade: Trade = {
-      id: `trade_${Date.now()}`,
-      strategy: randomStrategy.name,
-      symbol: randomSymbol,
-      side: Math.random() > 0.5 ? 'buy' : 'sell',
-      size: Math.floor(Math.random() * 1000) + 100,
-      price: 1.0500 + Math.random() * 0.1,
-      pnl: (Math.random() - 0.4) * 100, // Slightly positive bias
-      timestamp: new Date().toLocaleTimeString(),
-      status: Math.random() > 0.7 ? 'open' : 'closed'
-    };
-
-    setRecentTrades(prev => [trade, ...prev.slice(0, 9)]); // Keep last 10 trades
-
-    // Update strategy stats
-    setStrategies(prev => 
-      prev.map(strategy => {
-        if (strategy.id === randomStrategy.id) {
-          const newTrades = strategy.trades + 1;
-          const newPnL = strategy.pnl + trade.pnl;
-          const newWinRate = trade.pnl > 0 ? 
-            Math.min(95, strategy.winRate + 1) : 
-            Math.max(50, strategy.winRate - 1);
-          
-          return {
-            ...strategy,
-            trades: newTrades,
-            pnl: newPnL,
-            winRate: newWinRate,
-            lastTrade: trade.timestamp,
-            isLive: true
-          };
+      const engine = setInterval(async () => {
+        try {
+          for (const strategy of activeStrategies) {
+            const trade = await executeTrade(strategy, tradingParameters);
+            if (trade) {
+              setRecentTrades(prev => [trade, ...prev.slice(0, 9)]);
+              setStrategies(prev =>
+                prev.map(s => {
+                  if (s.id === strategy.id) {
+                    return {
+                      ...s,
+                      trades: s.trades + 1,
+                      pnl: s.pnl + trade.pnl,
+                      winRate: trade.pnl > 0
+                        ? Math.min(95, s.winRate + 1)
+                        : Math.max(50, s.winRate - 1),
+                      lastTrade: trade.timestamp,
+                      isLive: true
+                    };
+                  }
+                  return s;
+                })
+              );
+              setDailyPnL(prev => prev + trade.pnl);
+            }
+          }
+        } catch (error) {
+          console.error('Trade execution failed:', error);
         }
-        return strategy;
-      })
-    );
+      }, 5000);
 
-    // Update daily P&L
-    setDailyPnL(prev => prev + trade.pnl);
-    
-    console.log('Trade executed:', trade);
+      setTradingEngine(engine);
+      console.log('Trading engine started successfully');
+      return {
+        success: true,
+        message: 'Trading engine started',
+        activeStrategies: activeStrategies.length
+      };
+    } catch (error) {
+      console.error('Failed to start trading:', error);
+      setIsTradingActive(false);
+      return { success: false, message: 'Failed to start trading' };
+    }
+  };
+
+  const handleStopTrading = async () => {
+    try {
+      setIsTradingActive(false);
+      if (tradingEngine) {
+        clearInterval(tradingEngine);
+        setTradingEngine(null);
+      }
+      setStrategies(prev =>
+        prev.map(strategy => ({
+          ...strategy,
+          isLive: false,
+          status: 'paused'
+        }))
+      );
+      console.log('Trading engine stopped');
+    } catch (error) {
+      console.error('Failed to stop trading:', error);
+    }
   };
 
   const handleParameterChange = (param: keyof TradingParameters, value: number) => {
@@ -243,9 +238,9 @@ const AutoTrading = () => {
   };
 
   const handleStrategyToggle = (strategyId: number, newStatus: 'active' | 'paused') => {
-    setStrategies(prev => 
-      prev.map(strategy => 
-        strategy.id === strategyId 
+    setStrategies(prev =>
+      prev.map(strategy =>
+        strategy.id === strategyId
           ? { ...strategy, status: newStatus, isLive: newStatus === 'active' && isTradingActive }
           : strategy
       )
@@ -398,7 +393,6 @@ const AutoTrading = () => {
         </div>
       </div>
 
-      {/* Main Trading Controls */}
       <Card className="border-2 border-blue-200">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -426,14 +420,7 @@ const AutoTrading = () => {
             </div>
             <div className="flex space-x-2">
               {!isConnected ? (
-                <Button 
-                  onClick={handleConnectBroker} 
-                  disabled={brokerConnecting}
-                  className="bg-red-600 hover:bg-blue-600 text-white transition-colors duration-200"
-                >
-                  <Link className="h-4 w-4 mr-2" />
-                  {brokerConnecting ? 'Connecting...' : 'Connect Broker'}
-                </Button>
+                <IGBrokerConnect onConnect={handleConnectBroker} />
               ) : (
                 <Button onClick={handleDisconnect} variant="outline">
                   <Link className="h-4 w-4 mr-2" />
@@ -473,7 +460,6 @@ const AutoTrading = () => {
         </CardContent>
       </Card>
 
-      {/* Recent Trades */}
       {recentTrades.length > 0 && (
         <Card>
           <CardHeader>
@@ -504,7 +490,6 @@ const AutoTrading = () => {
         </Card>
       )}
 
-      {/* Trading Strategies */}
       <Card>
         <CardHeader>
           <CardTitle>Trading Strategies</CardTitle>
@@ -584,7 +569,6 @@ const AutoTrading = () => {
         </CardContent>
       </Card>
 
-      {/* Risk Management Dashboard */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">

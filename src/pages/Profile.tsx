@@ -6,10 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { User, Mail, Save, Trophy, Target, TrendingUp, MapPin, CreditCard, Shield, Calendar, AlertCircle, Camera, Copy, Check, Share, MessageCircle } from 'lucide-react';
+import { User, Mail, Save, Trophy, Target, TrendingUp, MapPin, CreditCard, Shield, AlertCircle, Camera, Copy, Check, Share, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface Profile {
   id: string;
   name: string;
-  username?: string | null;
+  username: string;
   email: string;
   bio?: string | null;
   role: string;
@@ -33,7 +32,6 @@ interface Profile {
   state_province?: string | null;
   postal_code?: string | null;
   country?: string | null;
-  date_of_birth?: string | null;
   nationality?: string | null;
   occupation?: string | null;
   employer?: string | null;
@@ -61,6 +59,13 @@ interface ProfileStats {
   activeStrategies: number;
 }
 
+interface TabCompletionStatus {
+  profile: boolean;
+  kyc: boolean;
+  payments: boolean;
+  stats: boolean;
+}
+
 const Profile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -69,8 +74,10 @@ const Profile = () => {
     totalTrades: 0,
     winRate: 0,
     totalPnL: 0,
-    activeStrategies: 0
+    activeStrategies: 0,
   });
+  const [pendingChanges, setPendingChanges] = useState<Partial<Profile> | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -78,12 +85,76 @@ const Profile = () => {
   const [copiedReferral, setCopiedReferral] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Generate referral code from username and date of birth
-  const generateReferralCode = (username: string, dateOfBirth: string): string => {
-    if (!username || !dateOfBirth) return '';
-    const year = new Date(dateOfBirth).getFullYear().toString();
-    const lastFourDigits = year.slice(-4);
-    return `${username.toLowerCase()}${lastFourDigits}`;
+  const steps = [
+    { id: 'profile', title: 'Personal Information' },
+    { id: 'kyc', title: 'KYC & Compliance' },
+    { id: 'payments', title: 'Payment Accounts' },
+    { id: 'stats', title: 'Statistics' },
+  ];
+
+  // Load cached data from localStorage
+  useEffect(() => {
+    const savedProfile = localStorage.getItem('profileData');
+    const savedPendingChanges = localStorage.getItem('pendingChanges');
+
+    if (savedProfile) {
+      try {
+        const parsedProfile = JSON.parse(savedProfile);
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...parsedProfile,
+                referral_code: prev.referral_code || parsedProfile.referral_code, // Preserve existing referral_code
+              }
+            : parsedProfile
+        );
+      } catch (error) {
+        console.error('Error loading saved profile data:', error);
+      }
+    }
+
+    if (savedPendingChanges) {
+      try {
+        const parsedPendingChanges = JSON.parse(savedPendingChanges);
+        setPendingChanges(parsedPendingChanges);
+      } catch (error) {
+        console.error('Error loading pending changes:', error);
+      }
+    }
+  }, []);
+
+  // Save profile to localStorage on change
+  useEffect(() => {
+    if (profile && isEditing) {
+      const profileToSave = { ...profile, referral_code: profile.referral_code }; // Ensure referral_code is not overwritten
+      localStorage.setItem('profileData', JSON.stringify(profileToSave));
+      localStorage.setItem('pendingChanges', JSON.stringify(profileToSave));
+    }
+  }, [profile, isEditing]);
+
+  // Generate a six-character referral code with exactly two digits
+  const generateReferralCode = (): string => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const digits = '0123456789';
+    // Select 2 random positions for digits (0 to 5)
+    const digitPositions = [];
+    while (digitPositions.length < 2) {
+      const pos = Math.floor(Math.random() * 6);
+      if (!digitPositions.includes(pos)) {
+        digitPositions.push(pos);
+      }
+    }
+    // Generate code
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      if (digitPositions.includes(i)) {
+        code += digits.charAt(Math.floor(Math.random() * digits.length));
+      } else {
+        code += letters.charAt(Math.floor(Math.random() * letters.length));
+      }
+    }
+    return code; // e.g., "AB2C4D"
   };
 
   const fetchProfile = useCallback(async () => {
@@ -97,20 +168,38 @@ const Profile = () => {
         .single();
 
       if (error) throw error;
-      setProfile(data ? {
-        ...data,
-        name: data.name || '',
-        username: data.username || '',
-        email: data.email || '',
-        role: data.role || 'user',
-        referral_code: data.referral_code || '',
-        created_at: data.created_at || new Date().toISOString()
-      } : null);
+
+      // Check localStorage for existing referral_code
+      const savedProfile = localStorage.getItem('profileData');
+      let existingReferralCode = null;
+      if (savedProfile) {
+        try {
+          const parsedProfile = JSON.parse(savedProfile);
+          existingReferralCode = parsedProfile.referral_code;
+        } catch (e) {
+          console.error('Error parsing saved profile:', e);
+        }
+      }
+
+      const profileData = data
+        ? {
+            ...data,
+            name: data.name || '',
+            username: data.username || '',
+            email: data.email || '',
+            role: data.role || 'user',
+            referral_code: data.referral_code || existingReferralCode || generateReferralCode(),
+            created_at: data.created_at || new Date().toISOString(),
+          }
+        : null;
+      setProfile(profileData);
+      localStorage.setItem('profileData', JSON.stringify(profileData));
+      localStorage.setItem('pendingChanges', JSON.stringify(profileData));
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast({
-        title: "Error loading profile",
-        variant: "destructive",
+        title: 'Error loading profile',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -121,12 +210,11 @@ const Profile = () => {
     if (!user) return;
 
     try {
-      // Mock stats - in real app, these would come from actual trade data
       setStats({
         totalTrades: 127,
         winRate: 68.5,
-        totalPnL: 15420.50,
-        activeStrategies: 3
+        totalPnL: 15420.5,
+        activeStrategies: 3,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -140,61 +228,100 @@ const Profile = () => {
     }
   }, [user, fetchProfile, fetchStats]);
 
-  // Update referral code when username or date of birth changes
+  // Check tab completion for progress calculation
+  const checkTabCompletion = useCallback((): TabCompletionStatus => {
+    const profileComplete = !!(
+      profile?.name &&
+      profile?.username &&
+      profile?.phone_number &&
+      profile?.whatsapp_number &&
+      profile?.ethereum_wallet &&
+      profile?.bio &&
+      profile?.address_line1 &&
+      profile?.city &&
+      profile?.state_province &&
+      profile?.postal_code &&
+      profile?.country &&
+      profile?.referral_code
+    );
+
+    const kycComplete = !!(
+      profile?.nationality &&
+      profile?.occupation &&
+      profile?.employer &&
+      profile?.annual_income_range &&
+      profile?.source_of_funds &&
+      profile?.trading_experience &&
+      profile?.identification_type &&
+      profile?.identification_number
+    );
+
+    const paymentsComplete = !!(
+      profile?.stripe_customer_id &&
+      profile?.stripe_account_id &&
+      profile?.airtm_email &&
+      profile?.airtm_username &&
+      profile?.wise_account_id &&
+      profile?.wise_email
+    );
+
+    return {
+      profile: profileComplete,
+      kyc: kycComplete,
+      payments: paymentsComplete,
+      stats: true,
+    };
+  }, [profile]);
+
+  // Update profile completion percentage
   useEffect(() => {
-    if (profile && profile.username && profile.date_of_birth) {
-      const newReferralCode = generateReferralCode(profile.username, profile.date_of_birth);
-      if (newReferralCode !== profile.referral_code) {
-        setProfile(prev => prev ? { ...prev, referral_code: newReferralCode } : null);
-      }
-    }
-  }, [profile?.username, profile?.date_of_birth]);
+    if (!profile) return;
+    const completion = checkTabCompletion();
+    const totalSteps = 3; // profile, kyc, payments
+    const completedSteps = [completion.profile, completion.kyc, completion.payments].filter(Boolean).length;
+    const percentage = Math.round((completedSteps / totalSteps) * 100);
+    setProfile((prev) =>
+      prev ? { ...prev, profile_completion_percentage: percentage } : null
+    );
+  }, [profile, checkTabCompletion]);
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user || !profile) return;
 
-    // Validate file type
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
     if (!allowedTypes.includes(file.type)) {
       toast({
-        title: "Invalid file type",
-        description: "Please upload a PNG or JPEG image.",
-        variant: "destructive",
+        title: 'Invalid file type',
+        description: 'Please upload a PNG or JPEG image.',
+        variant: 'destructive',
       });
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
-        title: "File too large",
-        description: "Please upload an image smaller than 5MB.",
-        variant: "destructive",
+        title: 'File too large',
+        description: 'Please upload an image smaller than 5MB.',
+        variant: 'destructive',
       });
       return;
     }
 
     setAvatarUploading(true);
     try {
-      // Create a unique filename
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-avatar-${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
-      // Upload file to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
 
-      // Update profile with new avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: data.publicUrl })
@@ -202,15 +329,17 @@ const Profile = () => {
 
       if (updateError) throw updateError;
 
-      setProfile(prev => prev ? { ...prev, avatar_url: data.publicUrl } : null);
+      const updatedProfile = { ...profile, avatar_url: data.publicUrl };
+      setProfile(updatedProfile);
+      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
       toast({
-        title: "Avatar updated successfully",
+        title: 'Avatar updated successfully',
       });
     } catch (error) {
       console.error('Error uploading avatar:', error);
       toast({
-        title: "Failed to upload avatar",
-        variant: "destructive",
+        title: 'Failed to upload avatar',
+        variant: 'destructive',
       });
     } finally {
       setAvatarUploading(false);
@@ -222,54 +351,85 @@ const Profile = () => {
 
     setSaving(true);
     try {
+      let updatedProfile = { ...profile };
+      // Only generate referral_code if it doesn't exist in profile or localStorage
+      const savedProfile = localStorage.getItem('profileData');
+      let existingReferralCode = profile.referral_code;
+      if (savedProfile) {
+        try {
+          const parsedProfile = JSON.parse(savedProfile);
+          existingReferralCode = parsedProfile.referral_code || existingReferralCode;
+        } catch (e) {
+          console.error('Error parsing saved profile:', e);
+        }
+      }
+      if (!existingReferralCode) {
+        const newReferralCode = generateReferralCode();
+        updatedProfile = { ...profile, referral_code: newReferralCode };
+        setProfile(updatedProfile);
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({
-          name: profile.name,
-          username: profile.username,
-          bio: profile.bio,
-          phone_number: profile.phone_number,
-          whatsapp_number: profile.whatsapp_number,
-          ethereum_wallet: profile.ethereum_wallet,
-          address_line1: profile.address_line1,
-          address_line2: profile.address_line2,
-          city: profile.city,
-          state_province: profile.state_province,
-          postal_code: profile.postal_code,
-          country: profile.country,
-          date_of_birth: profile.date_of_birth,
-          nationality: profile.nationality,
-          occupation: profile.occupation,
-          employer: profile.employer,
-          annual_income_range: profile.annual_income_range,
-          source_of_funds: profile.source_of_funds,
-          trading_experience: profile.trading_experience,
-          risk_tolerance: profile.risk_tolerance,
-          identification_type: profile.identification_type,
-          identification_number: profile.identification_number,
-          identification_expiry: profile.identification_expiry,
-          stripe_customer_id: profile.stripe_customer_id,
-          stripe_account_id: profile.stripe_account_id,
-          airtm_email: profile.airtm_email,
-          airtm_username: profile.airtm_username,
-          wise_account_id: profile.wise_account_id,
-          wise_email: profile.wise_email,
-          referral_code: profile.referral_code,
+          name: updatedProfile.name,
+          username: updatedProfile.username,
+          bio: updatedProfile.bio,
+          phone_number: updatedProfile.phone_number,
+          whatsapp_number: updatedProfile.whatsapp_number,
+          ethereum_wallet: updatedProfile.ethereum_wallet,
+          address_line1: updatedProfile.address_line1,
+          address_line2: updatedProfile.address_line2,
+          city: updatedProfile.city,
+          state_province: updatedProfile.state_province,
+          postal_code: updatedProfile.postal_code,
+          country: updatedProfile.country,
+          nationality: updatedProfile.nationality,
+          occupation: updatedProfile.occupation,
+          employer: updatedProfile.employer,
+          annual_income_range: updatedProfile.annual_income_range,
+          source_of_funds: updatedProfile.source_of_funds,
+          trading_experience: updatedProfile.trading_experience,
+          risk_tolerance: updatedProfile.risk_tolerance,
+          identification_type: updatedProfile.identification_type,
+          identification_number: updatedProfile.identification_number,
+          identification_expiry: updatedProfile.identification_expiry,
+          stripe_customer_id: updatedProfile.stripe_customer_id,
+          stripe_account_id: updatedProfile.stripe_account_id,
+          airtm_email: updatedProfile.airtm_email,
+          airtm_username: updatedProfile.airtm_username,
+          wise_account_id: updatedProfile.wise_account_id,
+          wise_email: updatedProfile.wise_email,
+          profile_completion_percentage: updatedProfile.profile_completion_percentage,
+          ...(profile.role === 'admin' ? { kyc_status: updatedProfile.kyc_status } : {}),
+          // Note: referral_code is NOT updated to prevent changes after initial entry
         })
         .eq('id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast({
+            title: 'Username already exists',
+            description: 'Please choose a different username.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        throw error;
+      }
 
+      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+      localStorage.removeItem('pendingChanges');
       toast({
-        title: "Profile updated successfully",
+        title: 'Profile updated successfully',
       });
       setIsEditing(false);
-      await fetchProfile(); // Refresh to get updated completion percentage
+      await fetchProfile();
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
-        title: "Failed to update profile",
-        variant: "destructive",
+        title: 'Failed to update profile',
+        variant: 'destructive',
       });
     } finally {
       setSaving(false);
@@ -291,55 +451,82 @@ const Profile = () => {
       if (error) throw error;
 
       toast({
-        title: "KYC submission successful",
+        title: 'KYC submission successful',
       });
       await fetchProfile();
     } catch (error) {
       console.error('Error submitting KYC:', error);
       toast({
-        title: "Failed to submit KYC",
-        variant: "destructive",
+        title: 'Failed to submit KYC',
+        variant: 'destructive',
       });
     }
   };
 
   const copyReferralCode = async () => {
     if (!profile?.referral_code) return;
-    
+
     try {
-      await navigator.clipboard.writeText(profile.referral_code);
+      await navigator.clipboard.writeText(`https://www.traderama.pro/?ref_id=${profile.referral_code}`);
       setCopiedReferral(true);
       toast({
-        title: "Referral code copied!",
+        title: 'Referral link copied!',
       });
       setTimeout(() => setCopiedReferral(false), 2000);
     } catch (error) {
       toast({
-        title: "Failed to copy referral code",
-        variant: "destructive",
+        title: 'Failed to copy referral link',
+        variant: 'destructive',
       });
     }
   };
 
-  const shareViaWhatsApp = () => {
-    if (!profile?.referral_code || !profile?.whatsapp_number) return;
-    
-    const message = encodeURIComponent(
-      `🚀 Join me on our trading platform! Use my referral code: ${profile.referral_code} to get started with exclusive benefits. Sign up now!`
-    );
-    const whatsappUrl = `https://wa.me/${profile.whatsapp_number.replace(/[^0-9]/g, '')}?text=${message}`;
-    window.open(whatsappUrl, '_blank');
+  const inviteViaWhatsApp = async () => {
+    if (!profile?.referral_code) return;
+
+    try {
+      const referralUrl = `https://www.traderama.pro/?ref_id=${profile.referral_code}`;
+      const message = encodeURIComponent(
+        `🚀 Hey! I'm using Traderama, an awesome trading platform. Join using my referral link: ${referralUrl} to get exclusive benefits!`
+      );
+      const whatsappUrl = `https://wa.me/?text=${message}`;
+
+      await supabase.from('referral_logs').insert({
+        user_id: user?.id,
+        referral_code: profile.referral_code,
+        invite_method: 'whatsapp',
+        created_at: new Date().toISOString(),
+      });
+
+      window.open(whatsappUrl, '_blank');
+      toast({
+        title: 'Invite sent',
+        description: 'WhatsApp invite opened successfully',
+      });
+    } catch (error) {
+      console.error('Error logging WhatsApp invite:', error);
+      toast({
+        title: 'Failed to send invite',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const inviteViaWhatsApp = () => {
-    if (!profile?.referral_code) return;
-    
-    const message = encodeURIComponent(
-      `🚀 Hey! I'm using this amazing trading platform and thought you'd be interested. Use my referral code: ${profile.referral_code} to join and get exclusive benefits! Click here to sign up: ${window.location.origin}/signup?ref=${profile.referral_code}`
-    );
-    const whatsappUrl = `https://wa.me/?text=${message}`;
-    window.open(whatsappUrl, '_blank');
+  const handleNextStep = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      handleSave();
+    }
   };
+
+  const handlePreviousStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const isAdmin = profile?.role === 'admin';
 
   if (loading) {
     return <div className="flex items-center justify-center p-8">Loading...</div>;
@@ -354,31 +541,27 @@ const Profile = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Profile Completion Header */}
       <Card className={`border-2 ${completionPercentage < 100 ? 'border-destructive' : 'border-primary'}`}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className={`p-2 rounded-full ${completionPercentage < 100 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
-                {completionPercentage < 100 ? 
-                  <AlertCircle className="h-6 w-6 text-destructive" /> : 
+                {completionPercentage < 100 ? (
+                  <AlertCircle className="h-6 w-6 text-destructive" />
+                ) : (
                   <Shield className="h-6 w-6 text-primary" />
-                }
+                )}
               </div>
               <div>
                 <CardTitle>Profile Completion: {completionPercentage}%</CardTitle>
                 <CardDescription>
-                  {completionPercentage < 100 
-                    ? "Complete your profile to comply with KYC requirements and access all features"
-                    : "Your profile is complete and KYC compliant"
-                  }
+                  {completionPercentage < 100
+                    ? 'Complete your profile to comply with KYC requirements and access all features'
+                    : 'Your profile is complete and KYC compliant'}
                 </CardDescription>
               </div>
             </div>
-            <Button 
-              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-              disabled={saving}
-            >
+            <Button onClick={() => (isEditing ? handleSave() : setIsEditing(true))} disabled={saving}>
               <Save className="h-4 w-4 mr-2" />
               {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Edit Profile'}
             </Button>
@@ -387,7 +570,25 @@ const Profile = () => {
         </CardHeader>
       </Card>
 
-      {/* Referral Code Display */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-2">
+              {steps.map((step, index) => (
+                <Button
+                  key={step.id}
+                  variant={currentStep === index ? 'default' : 'outline'}
+                  onClick={() => setCurrentStep(index)}
+                  className="flex-1"
+                >
+                  {step.title}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
       {profile.referral_code && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
@@ -400,11 +601,7 @@ const Profile = () => {
                 <code className="px-3 py-2 bg-background border rounded font-mono text-lg">
                   {profile.referral_code}
                 </code>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyReferralCode}
-                >
+                <Button variant="outline" size="sm" onClick={copyReferralCode}>
                   {copiedReferral ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
                 <Button
@@ -422,15 +619,8 @@ const Profile = () => {
         </Card>
       )}
 
-      <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="kyc">KYC & Compliance</TabsTrigger>
-          <TabsTrigger value="payments">Payment Accounts</TabsTrigger>
-          <TabsTrigger value="stats">Statistics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile">
+      {currentStep === 0 && (
+        <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
@@ -439,9 +629,9 @@ const Profile = () => {
               <CardContent className="text-center space-y-4">
                 <div className="relative">
                   <Avatar className="h-24 w-24 mx-auto">
-                    <AvatarImage src={profile.avatar_url || ""} />
+                    <AvatarImage src={profile.avatar_url || ''} />
                     <AvatarFallback className="text-2xl">
-                      {profile.name?.[0]?.toUpperCase() || profile.email[0].toUpperCase()}
+                      {profile.username?.[0]?.toUpperCase() || profile.email[0].toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   {isEditing && (
@@ -464,8 +654,8 @@ const Profile = () => {
                   className="hidden"
                 />
                 {isEditing && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={avatarUploading}
@@ -473,9 +663,7 @@ const Profile = () => {
                     {avatarUploading ? 'Uploading...' : 'Change Photo'}
                   </Button>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  PNG or JPEG, max 5MB
-                </p>
+                <p className="text-xs text-muted-foreground">PNG or JPEG, max 5MB</p>
               </CardContent>
             </Card>
 
@@ -493,7 +681,11 @@ const Profile = () => {
                     <Input
                       id="name"
                       value={profile.name || ''}
-                      onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, name: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -504,7 +696,11 @@ const Profile = () => {
                     <Input
                       id="username"
                       value={profile.username || ''}
-                      onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, username: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="Enter unique username"
                       required
@@ -526,7 +722,11 @@ const Profile = () => {
                     <Input
                       id="phone_number"
                       value={profile.phone_number || ''}
-                      onChange={(e) => setProfile({ ...profile, phone_number: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, phone_number: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="+1234567890"
                       required
@@ -538,7 +738,11 @@ const Profile = () => {
                     <Input
                       id="whatsapp_number"
                       value={profile.whatsapp_number || ''}
-                      onChange={(e) => setProfile({ ...profile, whatsapp_number: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, whatsapp_number: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="+1234567890"
                       required
@@ -550,7 +754,11 @@ const Profile = () => {
                     <Input
                       id="ethereum_wallet"
                       value={profile.ethereum_wallet || ''}
-                      onChange={(e) => setProfile({ ...profile, ethereum_wallet: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, ethereum_wallet: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       placeholder="0x..."
                       required
@@ -558,28 +766,15 @@ const Profile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="date_of_birth">Date of Birth *</Label>
-                    <Input
-                      id="date_of_birth"
-                      type="date"
-                      value={profile.date_of_birth || ''}
-                      onChange={(e) => setProfile({ ...profile, date_of_birth: e.target.value })}
-                      disabled={!isEditing}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="referral_code">Referral Code</Label>
+                    <Label htmlFor="referral_code">Referral Code *</Label>
                     <Input
                       id="referral_code"
                       value={profile.referral_code || ''}
                       disabled
                       className="bg-muted"
+                      placeholder="Auto-generated on save"
+                      required
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Auto-generated from username + birth year
-                    </p>
                   </div>
                 </div>
 
@@ -588,7 +783,11 @@ const Profile = () => {
                   <Textarea
                     id="bio"
                     value={profile.bio || ''}
-                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, bio: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
                     disabled={!isEditing}
                     placeholder="Tell us about yourself..."
                     rows={3}
@@ -598,7 +797,6 @@ const Profile = () => {
               </CardContent>
             </Card>
 
-            {/* Address Section */}
             <Card className="lg:col-span-3">
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -613,7 +811,11 @@ const Profile = () => {
                     <Input
                       id="address_line1"
                       value={profile.address_line1 || ''}
-                      onChange={(e) => setProfile({ ...profile, address_line1: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, address_line1: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -624,7 +826,11 @@ const Profile = () => {
                     <Input
                       id="address_line2"
                       value={profile.address_line2 || ''}
-                      onChange={(e) => setProfile({ ...profile, address_line2: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, address_line2: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                     />
                   </div>
@@ -634,7 +840,11 @@ const Profile = () => {
                     <Input
                       id="city"
                       value={profile.city || ''}
-                      onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, city: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -645,7 +855,11 @@ const Profile = () => {
                     <Input
                       id="state_province"
                       value={profile.state_province || ''}
-                      onChange={(e) => setProfile({ ...profile, state_province: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, state_province: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -656,7 +870,11 @@ const Profile = () => {
                     <Input
                       id="postal_code"
                       value={profile.postal_code || ''}
-                      onChange={(e) => setProfile({ ...profile, postal_code: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, postal_code: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -667,7 +885,11 @@ const Profile = () => {
                     <Input
                       id="country"
                       value={profile.country || ''}
-                      onChange={(e) => setProfile({ ...profile, country: e.target.value })}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, country: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
@@ -676,347 +898,391 @@ const Profile = () => {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="kyc">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Shield className="h-5 w-5 mr-2" />
-                  KYC Compliance Status
-                </CardTitle>
-                <CardDescription>
-                  Complete these fields to comply with Know Your Customer regulations
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Badge variant={profile.kyc_status === 'approved' ? 'default' : 'secondary'}>
-                      {profile.kyc_status?.toUpperCase() || 'PENDING'}
-                    </Badge>
-                    <span className="font-medium">KYC Status</span>
-                  </div>
-                  {isKYCCompliant && profile.kyc_status === 'pending' && (
-                    <Button onClick={handleSubmitKYC}>Submit for Review</Button>
-                  )}
+      {currentStep === 1 && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Shield className="h-5 w-5 mr-2" />
+                KYC Compliance Status
+              </CardTitle>
+              <CardDescription>
+                Complete these fields to comply with Know Your Customer regulations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <Badge variant={profile.kyc_status === 'approved' ? 'default' : 'secondary'}>
+                    {profile.kyc_status?.toUpperCase() || 'PENDING'}
+                  </Badge>
+                  <span className="font-medium">KYC Status</span>
                 </div>
-              </CardContent>
-            </Card>
+                {isKYCCompliant && profile.kyc_status === 'pending' && (
+                  <Button onClick={handleSubmitKYC}>Submit for Review</Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Personal Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Personal Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nationality">Nationality *</Label>
+                  <Input
+                    id="nationality"
+                    value={profile.nationality || ''}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, nationality: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="occupation">Occupation *</Label>
+                  <Input
+                    id="occupation"
+                    value={profile.occupation || ''}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, occupation: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="employer">Employer *</Label>
+                  <Input
+                    id="employer"
+                    value={profile.employer || ''}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, employer: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="annual_income_range">Annual Income Range *</Label>
+                  <Select
+                    value={profile.annual_income_range || ''}
+                    onValueChange={(value) => {
+                      const updatedProfile = { ...profile, annual_income_range: value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select income range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="under_25k">Under $25,000</SelectItem>
+                      <SelectItem value="25k_50k">$25,000 - $50,000</SelectItem>
+                      <SelectItem value="50k_100k">$50,000 - $100,000</SelectItem>
+                      <SelectItem value="100k_250k">$100,000 - $250,000</SelectItem>
+                      <SelectItem value="250k_500k">$250,000 - $500,000</SelectItem>
+                      <SelectItem value="over_500k">Over $500,000</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="source_of_funds">Source of Funds *</Label>
+                  <Select
+                    value={profile.source_of_funds || ''}
+                    onValueChange={(value) => {
+                      const updatedProfile = { ...profile, source_of_funds: value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select source of funds" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="employment">Employment</SelectItem>
+                      <SelectItem value="business">Business</SelectItem>
+                      <SelectItem value="investment">Investment</SelectItem>
+                      <SelectItem value="inheritance">Inheritance</SelectItem>
+                      <SelectItem value="savings">Savings</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="trading_experience">Trading Experience *</Label>
+                  <Select
+                    value={profile.trading_experience || ''}
+                    onValueChange={(value) => {
+                      const updatedProfile = { ...profile, trading_experience: value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select experience level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="beginner">Beginner (0-1 years)</SelectItem>
+                      <SelectItem value="intermediate">Intermediate (1-3 years)</SelectItem>
+                      <SelectItem value="advanced">Advanced (3-5 years)</SelectItem>
+                      <SelectItem value="expert">Expert (5+ years)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Identification</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="identification_type">ID Type *</Label>
+                  <Select
+                    value={profile.identification_type || ''}
+                    onValueChange={(value) => {
+                      const updatedProfile = { ...profile, identification_type: value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select ID type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="passport">Passport</SelectItem>
+                      <SelectItem value="drivers_license">Driver's License</SelectItem>
+                      <SelectItem value="national_id">National ID</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="identification_number">ID Number *</Label>
+                  <Input
+                    id="identification_number"
+                    value={profile.identification_number || ''}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, identification_number: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="identification_expiry">ID Expiry Date</Label>
+                  <Input
+                    id="identification_expiry"
+                    value={profile.identification_expiry || ''}
+                    onChange={(e) => {
+                      const updatedProfile = { ...profile, identification_expiry: e.target.value };
+                      setProfile(updatedProfile);
+                      localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                    }}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {currentStep === 2 && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CreditCard className="h-5 w-5 mr-2" />
+                Payment Account Settings
+              </CardTitle>
+              <CardDescription>Configure your payment accounts for deposits and withdrawals</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Stripe Account</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="nationality">Nationality *</Label>
+                    <Label htmlFor="stripe_customer_id">Stripe Customer ID *</Label>
                     <Input
-                      id="nationality"
-                      value={profile.nationality || ''}
-                      onChange={(e) => setProfile({ ...profile, nationality: e.target.value })}
+                      id="stripe_customer_id"
+                      value={profile.stripe_customer_id || ''}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, stripe_customer_id: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
+                      disabled={!isEditing}
+                      placeholder="cus_..."
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="stripe_account_id">Stripe Account ID *</Label>
+                    <Input
+                      id="stripe_account_id"
+                      value={profile.stripe_account_id || ''}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, stripe_account_id: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
+                      disabled={!isEditing}
+                      placeholder="acct_..."
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">AirTM Account</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="airtm_email">AirTM Email *</Label>
+                    <Input
+                      id="airtm_email"
+                      type="email"
+                      value={profile.airtm_email || ''}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, airtm_email: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="occupation">Occupation *</Label>
+                    <Label htmlFor="airtm_username">AirTM Username *</Label>
                     <Input
-                      id="occupation"
-                      value={profile.occupation || ''}
-                      onChange={(e) => setProfile({ ...profile, occupation: e.target.value })}
+                      id="airtm_username"
+                      value={profile.airtm_username || ''}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, airtm_username: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
+                      disabled={!isEditing}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Wise Account</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="wise_account_id">Wise Account ID *</Label>
+                    <Input
+                      id="wise_account_id"
+                      value={profile.wise_account_id || ''}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, wise_account_id: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="employer">Employer *</Label>
+                    <Label htmlFor="wise_email">Wise Email *</Label>
                     <Input
-                      id="employer"
-                      value={profile.employer || ''}
-                      onChange={(e) => setProfile({ ...profile, employer: e.target.value })}
+                      id="wise_email"
+                      type="email"
+                      value={profile.wise_email || ''}
+                      onChange={(e) => {
+                        const updatedProfile = { ...profile, wise_email: e.target.value };
+                        setProfile(updatedProfile);
+                        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
+                      }}
                       disabled={!isEditing}
                       required
                     />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="annual_income_range">Annual Income Range *</Label>
-                    <Select 
-                      value={profile.annual_income_range || ''} 
-                      onValueChange={(value) => setProfile({ ...profile, annual_income_range: value })}
-                      disabled={!isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select income range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="under_25k">Under $25,000</SelectItem>
-                        <SelectItem value="25k_50k">$25,000 - $50,000</SelectItem>
-                        <SelectItem value="50k_100k">$50,000 - $100,000</SelectItem>
-                        <SelectItem value="100k_250k">$100,000 - $250,000</SelectItem>
-                        <SelectItem value="250k_500k">$250,000 - $500,000</SelectItem>
-                        <SelectItem value="over_500k">Over $500,000</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="source_of_funds">Source of Funds *</Label>
-                    <Select 
-                      value={profile.source_of_funds || ''} 
-                      onValueChange={(value) => setProfile({ ...profile, source_of_funds: value })}
-                      disabled={!isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select source of funds" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="employment">Employment</SelectItem>
-                        <SelectItem value="business">Business</SelectItem>
-                        <SelectItem value="investment">Investment</SelectItem>
-                        <SelectItem value="inheritance">Inheritance</SelectItem>
-                        <SelectItem value="savings">Savings</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="trading_experience">Trading Experience *</Label>
-                    <Select 
-                      value={profile.trading_experience || ''} 
-                      onValueChange={(value) => setProfile({ ...profile, trading_experience: value })}
-                      disabled={!isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select experience level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="beginner">Beginner (0-1 years)</SelectItem>
-                        <SelectItem value="intermediate">Intermediate (1-3 years)</SelectItem>
-                        <SelectItem value="advanced">Advanced (3-5 years)</SelectItem>
-                        <SelectItem value="expert">Expert (5+ years)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Identification</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="identification_type">ID Type *</Label>
-                    <Select 
-                      value={profile.identification_type || ''} 
-                      onValueChange={(value) => setProfile({ ...profile, identification_type: value })}
-                      disabled={!isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select ID type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="passport">Passport</SelectItem>
-                        <SelectItem value="drivers_license">Driver's License</SelectItem>
-                        <SelectItem value="national_id">National ID</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="identification_number">ID Number *</Label>
-                    <Input
-                      id="identification_number"
-                      value={profile.identification_number || ''}
-                      onChange={(e) => setProfile({ ...profile, identification_number: e.target.value })}
-                      disabled={!isEditing}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="identification_expiry">ID Expiry Date</Label>
-                    <Input
-                      id="identification_expiry"
-                      type="date"
-                      value={profile.identification_expiry || ''}
-                      onChange={(e) => setProfile({ ...profile, identification_expiry: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="payments">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CreditCard className="h-5 w-5 mr-2" />
-                  Payment Account Settings
-                </CardTitle>
-                <CardDescription>
-                  Configure your payment accounts for deposits and withdrawals
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Stripe */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Stripe Account</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="stripe_customer_id">Stripe Customer ID *</Label>
-                      <Input
-                        id="stripe_customer_id"
-                        value={profile.stripe_customer_id || ''}
-                        onChange={(e) => setProfile({ ...profile, stripe_customer_id: e.target.value })}
-                        disabled={!isEditing}
-                        placeholder="cus_..."
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="stripe_account_id">Stripe Account ID *</Label>
-                      <Input
-                        id="stripe_account_id"
-                        value={profile.stripe_account_id || ''}
-                        onChange={(e) => setProfile({ ...profile, stripe_account_id: e.target.value })}
-                        disabled={!isEditing}
-                        placeholder="acct_..."
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* AirTM */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">AirTM Account</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="airtm_email">AirTM Email *</Label>
-                      <Input
-                        id="airtm_email"
-                        type="email"
-                        value={profile.airtm_email || ''}
-                        onChange={(e) => setProfile({ ...profile, airtm_email: e.target.value })}
-                        disabled={!isEditing}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="airtm_username">AirTM Username *</Label>
-                      <Input
-                        id="airtm_username"
-                        value={profile.airtm_username || ''}
-                        onChange={(e) => setProfile({ ...profile, airtm_username: e.target.value })}
-                        disabled={!isEditing}
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Wise */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Wise Account</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="wise_account_id">Wise Account ID *</Label>
-                      <Input
-                        id="wise_account_id"
-                        value={profile.wise_account_id || ''}
-                        onChange={(e) => setProfile({ ...profile, wise_account_id: e.target.value })}
-                        disabled={!isEditing}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="wise_email">Wise Email *</Label>
-                      <Input
-                        id="wise_email"
-                        type="email"
-                        value={profile.wise_email || ''}
-                        onChange={(e) => setProfile({ ...profile, wise_email: e.target.value })}
-                        disabled={!isEditing}
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* WhatsApp Invite Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center">
-                    <MessageCircle className="h-5 w-5 mr-2 text-green-600" />
-                    WhatsApp Invite Settings
-                  </h3>
-                  <div className="p-4 border rounded-lg bg-green-50 dark:bg-green-950/20">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">WhatsApp Integration</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Use your WhatsApp number to invite friends and share your referral code
-                          </p>
-                        </div>
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          {profile.whatsapp_number ? 'Connected' : 'Not Connected'}
-                        </Badge>
-                      </div>
-                      
-                      {profile.whatsapp_number && (
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={shareViaWhatsApp}
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            Test WhatsApp Share
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={inviteViaWhatsApp}
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <Share className="h-4 w-4 mr-2" />
-                            Invite Friends
-                          </Button>
-                        </div>
-                      )}
-                      
-                      {!profile.whatsapp_number && (
-                        <p className="text-sm text-amber-600">
-                          ⚠️ Please add your WhatsApp number in the Personal Information section to enable invite features
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <MessageCircle className="h-5 w-5 mr-2 text-green-600" />
+                  WhatsApp Invite Settings
+                </h3>
+                <div className="p-4 border rounded-lg bg-green-50 dark:bg-green-950/20">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium">WhatsApp Integration</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Use your WhatsApp number to invite friends and share your referral code
                         </p>
-                      )}
+                      </div>
+                      <Badge variant="outline" className="text-green-600 border-green-600">
+                        {profile.whatsapp_number ? 'Connected' : 'Not Connected'}
+                      </Badge>
                     </div>
+                    {profile.whatsapp_number && (
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={inviteViaWhatsApp}
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <Share className="h-4 w-4 mr-2" />
+                          Invite Friends
+                        </Button>
+                      </div>
+                    )}
+                    {!profile.whatsapp_number && (
+                      <p className="text-sm text-amber-600">
+                        ⚠️ Please add your WhatsApp number in the Personal Information section to enable invite features
+                      </p>
+                    )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-        <TabsContent value="stats">
+      {currentStep === 3 && (
+        <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="pb-2">
@@ -1052,9 +1318,7 @@ const Profile = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  ${stats.totalPnL.toLocaleString()}
-                </div>
+                <div className="text-2xl font-bold text-green-600">${stats.totalPnL.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">All time profit</p>
               </CardContent>
             </Card>
@@ -1070,7 +1334,6 @@ const Profile = () => {
             </Card>
           </div>
 
-          {/* Referral Statistics */}
           <Card className="mt-6">
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -1093,11 +1356,12 @@ const Profile = () => {
                   <p className="text-sm text-muted-foreground">Active Referrals</p>
                 </div>
               </div>
-              
               <div className="mt-4 p-4 bg-muted rounded-lg">
                 <h4 className="font-medium mb-2">How to Earn More Referral Rewards:</h4>
                 <ul className="text-sm space-y-1 text-muted-foreground">
-                  <li>• Share your referral code: <code className="bg-background px-1 rounded">{profile.referral_code}</code></li>
+                  <li>
+                    • Share your referral link: <a href={`https://www.traderama.pro/?ref_id=${profile.referral_code}`} className="text-blue-600 hover:underline">{`https://www.traderama.pro/?ref_id=${profile.referral_code}`}</a>
+                  </li>
                   <li>• Use the WhatsApp share feature to invite friends directly</li>
                   <li>• Earn commission on your referrals' trading activities</li>
                   <li>• Get bonuses when your referrals complete KYC verification</li>
@@ -1105,8 +1369,26 @@ const Profile = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="pt-6 flex justify-between">
+          <Button
+            variant="outline"
+            onClick={handlePreviousStep}
+            disabled={currentStep === 0 || saving}
+          >
+            Previous
+          </Button>
+          <Button
+            onClick={handleNextStep}
+            disabled={saving || (currentStep < 2 && !isEditing)}
+          >
+            {currentStep === steps.length - 1 ? 'Save Profile' : 'Next'}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };
