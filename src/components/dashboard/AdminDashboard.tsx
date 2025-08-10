@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import UserAnalyticsPanel from '@/components/admin/UserAnalyticsPanel';
@@ -7,23 +7,120 @@ import StrategyApproval from '@/components/admin/StrategyApproval';
 import AssetManagement from '@/components/admin/AssetManagement';
 import ContactManagement from '@/components/admin/ContactManagement';
 import AdminCharts from '@/components/admin/AdminCharts';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { TrendingUp, Users, DollarSign, Activity, Mail, Target } from 'lucide-react';
 
-// Mock metrics for overview
-const mockAnalytics = {
-  totalStrategies: 320,
-  newStrategies: 12,
-  totalTrades: 8750,
-  newTrades: 230,
-  revenue: 15000,
-};
+interface OverviewMetrics {
+  totalStrategies: number;
+  newStrategies: number;
+  totalTrades: number;
+  newTrades: number;
+  revenue: number;
+  activeSubscriptions: number;
+  pendingStrategies: number;
+  totalUsers: number;
+}
 
 const AdminDashboard: React.FC = () => {
+  const { toast } = useToast();
+  const [metrics, setMetrics] = useState<OverviewMetrics>({
+    totalStrategies: 0,
+    newStrategies: 0,
+    totalTrades: 0,
+    newTrades: 0,
+    revenue: 0,
+    activeSubscriptions: 0,
+    pendingStrategies: 0,
+    totalUsers: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        // Fetch total and new strategies
+        const { data: strategies, error: strategiesError } = await supabase
+          .from('trading_strategies')
+          .select('id, created_at, status');
+        if (strategiesError) throw strategiesError;
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const totalStrategies = strategies.length;
+        const newStrategies = strategies.filter(
+          (s) => new Date(s.created_at) >= thirtyDaysAgo
+        ).length;
+        const pendingStrategies = strategies.filter((s) => s.status === 'pending').length;
+
+        // Fetch total and new trades (assumes trades table exists)
+        const { data: trades, error: tradesError } = await supabase
+          .from('trades')
+          .select('id, created_at');
+        if (tradesError) throw tradesError;
+
+        const totalTrades = trades.length;
+        const newTrades = trades.filter(
+          (t) => new Date(t.created_at) >= thirtyDaysAgo
+        ).length;
+
+        // Fetch platform revenue from royalty_payments
+        const { data: royalties, error: royaltiesError } = await supabase
+          .from('royalty_payments')
+          .select('platform_fee_amount');
+        if (royaltiesError) throw royaltiesError;
+
+        const revenue = royalties.reduce(
+          (sum, r) => sum + (r.platform_fee_amount || 0),
+          0
+        );
+
+        // Fetch active subscriptions
+        const { data: subscriptions, error: subscriptionsError } = await supabase
+          .from('subscriptions')
+          .select('id')
+          .eq('status', 'active');
+        if (subscriptionsError) throw subscriptionsError;
+
+        const activeSubscriptions = subscriptions.length;
+
+        // Fetch total users
+        const { data: users, error: usersError } = await supabase
+          .from('profiles')
+          .select('id');
+        if (usersError) throw usersError;
+
+        const totalUsers = users.length;
+
+        setMetrics({
+          totalStrategies,
+          newStrategies,
+          totalTrades,
+          newTrades,
+          revenue,
+          activeSubscriptions,
+          pendingStrategies,
+          totalUsers,
+        });
+      } catch (error) {
+        console.error('Error fetching metrics:', error);
+        toast({ title: 'Error fetching dashboard metrics', variant: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMetrics();
+  }, [toast]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="container mx-auto p-4 sm:p-6">
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Admin Management Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            Admin Management Dashboard
+          </h1>
           <p className="text-gray-600">Manage strategies, users, assets, and platform analytics</p>
         </div>
 
@@ -39,73 +136,79 @@ const AdminDashboard: React.FC = () => {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Strategies</CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{mockAnalytics.totalStrategies}</div>
-                  <p className="text-xs text-muted-foreground">
-                    +{mockAnalytics.newStrategies} new this month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Trades</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{mockAnalytics.totalTrades.toLocaleString()}</div>
-                  <p className="text-xs text-muted-foreground">
-                    +{mockAnalytics.newTrades} new this month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Platform Revenue</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">${mockAnalytics.revenue.toLocaleString()}</div>
-                  <p className="text-xs text-muted-foreground">Monthly recurring revenue</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
-                  <DollarSign className="h-4 w-4 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">32</div>
-                  <p className="text-xs text-muted-foreground">Active premium users</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Strategies</CardTitle>
-                  <Activity className="h-4 w-4 text-purple-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">12</div>
-                  <p className="text-xs text-muted-foreground">Awaiting approval</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-orange-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">245</div>
-                  <p className="text-xs text-muted-foreground">Registered users</p>
-                </CardContent>
-              </Card>
-            </div>
-            <AdminCharts />
+            {loading ? (
+              <div className="text-center p-8">Loading metrics...</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Active Strategies</CardTitle>
+                      <Target className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{metrics.totalStrategies}</div>
+                      <p className="text-xs text-muted-foreground">
+                        +{metrics.newStrategies} new this month
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Trades</CardTitle>
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{metrics.totalTrades.toLocaleString()}</div>
+                      <p className="text-xs text-muted-foreground">
+                        +{metrics.newTrades} new this month
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Platform Revenue</CardTitle>
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">${metrics.revenue.toLocaleString()}</div>
+                      <p className="text-xs text-muted-foreground">Monthly recurring revenue</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
+                      <DollarSign className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{metrics.activeSubscriptions}</div>
+                      <p className="text-xs text-muted-foreground">Active premium users</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Pending Strategies</CardTitle>
+                      <Activity className="h-4 w-4 text-purple-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{metrics.pendingStrategies}</div>
+                      <p className="text-xs text-muted-foreground">Awaiting approval</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                      <Users className="h-4 w-4 text-orange-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{metrics.totalUsers}</div>
+                      <p className="text-xs text-muted-foreground">Registered users</p>
+                    </CardContent>
+                  </Card>
+                </div>
+                <AdminCharts />
+              </>
+            )}
           </TabsContent>
 
           {/* User Analytics Tab */}
