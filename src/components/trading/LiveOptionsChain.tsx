@@ -1,28 +1,59 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchOptionsChain, fetchOptionsChainMetadata } from '@/utils/polygonAPI';
-import { authenticateIG, placeTrade, IGAuthTokens, Contract } from '@/utils/igTradingAPI';
+import { authenticateIG, IGAuthTokens } from '@/utils/igTradingAPI';
+import { format, addWeeks, isFriday, nextFriday } from 'date-fns';
+
+interface Contract {
+  epic: string;
+  underlying: string;
+  expiration: string;
+  strike: number;
+  type: 'Call' | 'Put';
+  bid: number;
+  ask: number;
+  greeks: {
+    delta: number;
+    gamma: number;
+    theta: number;
+    vega: number;
+    impliedVolatility: number;
+  };
+}
 
 interface LiveOptionsChainProps {
-  onSelectContract: (contract: { strike: number; type: 'Call' | 'Put'; ask: number }) => void;
+  expiration: string; // Controlled by CreateStrategy
+  onSelectContract: (contract: {
+    strike: number;
+    type: 'Call' | 'Put';
+    bid: number;
+    ask: number;
+    underlying: string;
+    epic: string;
+    greeks: {
+      delta: number;
+      gamma: number;
+      theta: number;
+      vega: number;
+      impliedVolatility: number;
+    };
+  }) => void;
 }
 
 const POLYGON_WS_URL = 'wss://socket.polygon.io/options';
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
 
-const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract }) => {
+const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ expiration, onSelectContract }) => {
   const { toast } = useToast();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [underlying, setUnderlying] = useState<string>('');
-  const [expiration, setExpiration] = useState<string>('');
-  const [availableUnderlyings, setAvailableUnderlyings] = useState<string[]>([]);
-  const [availableExpirations, setAvailableExpirations] = useState<string[]>([]);
+  const [underlying, setUnderlying] = useState<string>('SPY'); // Default to SPY
+  const [availableUnderlyings, setAvailableUnderlyings] = useState<string[]>(['SPY', 'QQQ', 'IWM', 'GLD', 'SLV']);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [authTokens, setAuthTokens] = useState<IGAuthTokens | null>(null);
 
@@ -35,6 +66,7 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       } catch (err) {
         toast({
           title: 'Authentication Error',
+          description: 'Failed to connect to IG API.',
           variant: 'destructive',
         });
       }
@@ -42,24 +74,25 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
     authenticate();
   }, [toast]);
 
-  // Fetch available underlyings and expirations on mount
+  // Fetch available underlyings on mount
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
-        const { underlyings, expirations } = await fetchOptionsChainMetadata();
-        setAvailableUnderlyings(underlyings);
-        setAvailableExpirations(expirations);
-        if (underlyings.length > 0) setUnderlying(underlyings[0]);
-        if (expirations.length > 0) setExpiration(expirations[0]);
+        const { underlyings } = await fetchOptionsChainMetadata();
+        setAvailableUnderlyings(underlyings.length > 0 ? underlyings : ['SPY', 'QQQ', 'IWM', 'GLD', 'SLV']);
+        if (underlyings.length > 0 && !underlyings.includes(underlying)) {
+          setUnderlying(underlyings[0]);
+        }
       } catch (err) {
         toast({
           title: 'Error fetching metadata',
+          description: 'Using default underlyings.',
           variant: 'destructive',
         });
       }
     };
     fetchMetadata();
-  }, [toast]);
+  }, [toast, underlying]);
 
   // Initialize WebSocket connection for Polygon.io
   const initializeWebSocket = useCallback(() => {
@@ -71,7 +104,7 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       socket.send(
         JSON.stringify({
           action: 'subscribe',
-          params: `Q.O:${underlying}${expiration.replace(/-/g, '').slice(2)}*`, // e.g., Q.O:SPY250117*
+          params: `Q.O:${underlying}${expiration.replace(/-/g, '').slice(2)}*`,
         })
       );
     };
@@ -86,6 +119,14 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
                   ...contract,
                   bid: data.bp || contract.bid,
                   ask: data.ap || contract.ask,
+                  greeks: {
+                    ...contract.greeks,
+                    delta: data.delta || contract.greeks.delta,
+                    gamma: data.gamma || contract.greeks.gamma,
+                    theta: data.theta || contract.greeks.theta,
+                    vega: data.vega || contract.greeks.vega,
+                    impliedVolatility: data.iv || contract.greeks.impliedVolatility,
+                  },
                 }
               : contract
           )
@@ -97,6 +138,7 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       console.error('WebSocket error:', error);
       toast({
         title: 'WebSocket Error',
+        description: 'Failed to connect to real-time data.',
         variant: 'destructive',
       });
     };
@@ -118,19 +160,28 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       setError(null);
       try {
         const data = await fetchOptionsChain({ underlying, expiration });
-        // Map Polygon.io tickers to IG epics (placeholder logic)
-        const mappedContracts = await Promise.all(
-          data.map(async (contract) => {
-            // Placeholder: Call IG API to map Polygon.io ticker to IG epic
-            // Replace with actual IG market lookup if needed
-            return { ...contract, epic: contract.epic }; // Assuming epic mapping is handled
-          })
-        );
+        const mappedContracts: Contract[] = data.map((contract: any) => ({
+          epic: contract.epic || `LIVE_${contract.strike}_${contract.type}`,
+          underlying: contract.underlying || underlying,
+          expiration: contract.expiration || expiration,
+          strike: contract.strike,
+          type: contract.type as 'Call' | 'Put',
+          bid: contract.bid || 0,
+          ask: contract.ask || 0,
+          greeks: {
+            delta: contract.delta || 0,
+            gamma: contract.gamma || 0,
+            theta: contract.theta || 0,
+            vega: contract.vega || 0,
+            impliedVolatility: contract.impliedVolatility || 0,
+          },
+        }));
         setContracts(mappedContracts);
       } catch (err) {
         setError('Failed to load options chain');
         toast({
           title: 'Error fetching options chain',
+          description: 'Please try again or select different criteria.',
           variant: 'destructive',
         });
       } finally {
@@ -140,42 +191,19 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
     fetchData();
     const cleanup = initializeWebSocket();
     return cleanup;
-  }, [underlying, expiration, toast, initializeWebSocket]);
+  }, [underlying, expiration, initializeWebSocket, toast]);
 
-  // Handle contract selection and trade placement
-  const handleSelectContract = async (contract: Contract) => {
-    if (!authTokens) {
-      toast({
-        title: 'Authentication Error',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      // Place trade with IG Brokers
-      const tradeResponse = await placeTrade(authTokens, {
-        epic: contract.epic,
-        size: 1, // Adjust size as needed
-        direction: 'BUY', // Adjust based on strategy
-        orderType: 'MARKET',
-        expiry: contract.expiration,
-        currencyCode: 'USD',
-      });
-      onSelectContract({
-        strike: contract.strike,
-        type: contract.type,
-        ask: contract.ask,
-      });
-      toast({
-        title: 'Trade Placed',
-      });
-    } catch (err) {
-      toast({
-        title: 'Trade Error',
-        variant: 'destructive',
-      });
-    }
+  // Handle contract selection
+  const handleSelectContract = (contract: Contract) => {
+    onSelectContract({
+      strike: contract.strike,
+      type: contract.type,
+      bid: contract.bid,
+      ask: contract.ask,
+      underlying: contract.underlying,
+      epic: contract.epic,
+      greeks: contract.greeks,
+    });
   };
 
   return (
@@ -186,37 +214,19 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* Filters for underlying and expiration */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">Underlying Asset</label>
-              <Select value={underlying} onValueChange={setUnderlying}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select underlying" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableUnderlyings.map((asset) => (
-                    <SelectItem key={asset} value={asset}>{asset}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Expiration Date</label>
-              <Select value={expiration} onValueChange={setExpiration}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select expiration" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableExpirations.map((exp) => (
-                    <SelectItem key={exp} value={exp}>{exp}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <label className="text-sm font-medium">Underlying Asset</label>
+            <Select value={underlying} onValueChange={setUnderlying}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select underlying" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableUnderlyings.map((asset) => (
+                  <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-
-          {/* Options Chain Table */}
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin" />
@@ -225,19 +235,46 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ onSelectContract })
             <div className="text-center py-8 text-red-500">{error}</div>
           ) : contracts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
+              <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
               <p>No contracts available for the selected criteria.</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {contracts.map((contract) => (
-                <div key={`${contract.epic}-${contract.strike}-${contract.type}`} className="flex items-center justify-between p-2 border rounded">
-                  <span>
-                    {contract.underlying} {contract.type} Strike: {contract.strike}, Ask: {contract.ask.toFixed(2)}, Expires: {contract.expiration}
-                  </span>
-                  <Button onClick={() => handleSelectContract(contract)}>Select</Button>
-                </div>
-              ))}
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Strike</TableHead>
+                  <TableHead>Bid</TableHead>
+                  <TableHead>Ask</TableHead>
+                  <TableHead>Delta</TableHead>
+                  <TableHead>Gamma</TableHead>
+                  <TableHead>Theta</TableHead>
+                  <TableHead>Vega</TableHead>
+                  <TableHead>IV</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {contracts.map((contract) => (
+                  <TableRow key={`${contract.epic}-${contract.strike}-${contract.type}`}>
+                    <TableCell>{contract.type}</TableCell>
+                    <TableCell>{contract.strike}</TableCell>
+                    <TableCell>{contract.bid.toFixed(2)}</TableCell>
+                    <TableCell>{contract.ask.toFixed(2)}</TableCell>
+                    <TableCell>{contract.greeks.delta.toFixed(3)}</TableCell>
+                    <TableCell>{contract.greeks.gamma.toFixed(3)}</TableCell>
+                    <TableCell>{contract.greeks.theta.toFixed(3)}</TableCell>
+                    <TableCell>{contract.greeks.vega.toFixed(3)}</TableCell>
+                    <TableCell>{contract.greeks.impliedVolatility.toFixed(2)}%</TableCell>
+                    <TableCell>
+                      <Button size="sm" onClick={() => handleSelectContract(contract)}>
+                        Add
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </div>
       </CardContent>
