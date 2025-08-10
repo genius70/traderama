@@ -38,7 +38,7 @@ interface TradingLeg {
   buySell: 'Buy' | 'Sell';
   size: number;
   price: string;
-  limitPrice?: string; // Added for price settings
+  limitPrice?: string;
   underlying: string;
   epic: string;
   greeks?: {
@@ -63,15 +63,14 @@ const CreateStrategy = () => {
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedExpiration, setSelectedExpiration] = useState<string>('');
-  const [selectedUnderlying, setSelectedUnderlying] = useState<string>('SPY'); // Default underlying
-  const [optionsChainData, setOptionsChainData] = useState<any[]>([]); // Store live options data
+  const [selectedUnderlying, setSelectedUnderlying] = useState<string>('SPY');
+  const [optionsChainData, setOptionsChainData] = useState<any[]>([]);
 
   const indicators = ['RSI', 'MACD', 'Moving Average', 'Bollinger Bands', 'Stochastic', 'Volume', 'Price Action'];
   const operators = ['>', '<', '>=', '<=', '=', 'crosses above', 'crosses below'];
   const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
-  const underlyings = ['SPY', 'QQQ', 'IWM', 'GLD', 'SLV']; // Example underlying assets
+  const underlyings = ['SPY', 'QQQ', 'IWM', 'GLD', 'SLV'];
 
-  // Generate weekly expiry dates up to 24 months
   const getWeeklyExpirations = () => {
     const expirations: string[] = [];
     let currentDate = new Date();
@@ -89,7 +88,6 @@ const CreateStrategy = () => {
 
   const weeklyExpirations = getWeeklyExpirations();
 
-  // Authenticate with IG API and set default expiration
   useEffect(() => {
     const authenticate = async () => {
       try {
@@ -108,12 +106,10 @@ const CreateStrategy = () => {
     authenticate();
   }, [toast]);
 
-  // Fetch options chain data when underlying or expiration changes
   useEffect(() => {
     const fetchOptionsChain = async () => {
       if (!selectedUnderlying || !selectedExpiration) return;
       try {
-        // Assuming LiveOptionsChain provides a method to fetch data
         const data = await LiveOptionsChain.fetchOptionsData({
           underlying: selectedUnderlying,
           expiration: selectedExpiration,
@@ -179,7 +175,7 @@ const CreateStrategy = () => {
       buySell: 'Buy',
       size: 1,
       price: contract.ask.toFixed(2),
-      limitPrice: contract.ask.toFixed(2), // Default to ask price
+      limitPrice: contract.ask.toFixed(2),
       underlying: contract.underlying,
       epic: contract.epic,
       greeks: contract.greeks,
@@ -193,42 +189,41 @@ const CreateStrategy = () => {
 
   const handleSave = async () => {
     if (!user) {
-      toast({
-        title: 'Authentication required',
-        variant: 'destructive',
-      });
+      toast({ title: 'Authentication required', variant: 'destructive' });
       return;
     }
 
     if (!strategyName.trim() || !description.trim() || !category) {
-      toast({
-        title: 'Missing information',
-        variant: 'destructive',
-      });
+      toast({ title: 'Missing information', variant: 'destructive' });
       return;
     }
 
     setIsSaving(true);
     try {
-      const { error } = await supabase.from('trading_strategies').insert([
-        {
-          title: strategyName,
-          description,
-          creator_id: user.id,
-          strategy_config: JSON.stringify({ conditions, legs }),
-          fee_percentage: parseFloat(feePercentage),
-          is_premium_only: isPremium,
-          status: 'draft' as any,
-        },
-      ]);
+      const { data, error } = await supabase
+        .from('trading_strategies')
+        .insert([
+          {
+            title: strategyName,
+            description,
+            creator_id: user.id,
+            strategy_config: JSON.stringify({ conditions, legs }),
+            fee_percentage: parseFloat(feePercentage),
+            is_premium_only: isPremium,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast({
-        title: 'Strategy created!',
+        title: 'Strategy Submitted',
+        description: `${strategyName} has been submitted for admin approval.`,
       });
 
-      // Reset form
       setStrategyName('');
       setDescription('');
       setCategory('');
@@ -237,11 +232,8 @@ const CreateStrategy = () => {
       setSelectedExpiration(weeklyExpirations[0]);
       setSelectedUnderlying('SPY');
     } catch (error) {
-      console.error('Error creating strategy:', error);
-      toast({
-        title: 'Error creating strategy',
-        variant: 'destructive',
-      });
+      console.error('Error submitting strategy:', error);
+      toast({ title: 'Error submitting strategy', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
@@ -322,9 +314,7 @@ const CreateStrategy = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {underlyings.map((asset) => (
-                          <SelectItem key={asset} value={asset}>
-                            {asset}
-                          </SelectItem>
+                          <SelectItem key={asset} value={asset}>{asset}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
