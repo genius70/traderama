@@ -3,12 +3,10 @@ import { useAuth } from '@/hooks/useAuth';
 import UserDashboard from '@/components/dashboard/UserDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import CreatorDashboard from '@/components/dashboard/CreatorDashboard';
-import AdminAnalytics from '@/pages/AdminAnalytics'; // Import AdminAnalytics
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
-
-const Dashboard = () => {
+const Dashboard: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,28 +55,23 @@ const Dashboard = () => {
   }
 
   const renderDashboard = () => {
-    switch (true) {
-      case userRole === "super_admin" && user.email === "royan.shaw@gmail.com":
-        return <AdminAnalytics />;
-      case userRole === "admin":
+    switch (userRole) {
+      case 'admin':
+      case 'super_admin':
         return <AdminDashboard />;
-      case userRole === "strategy_creator" || userRole === "premium_member":
+      case 'strategy_creator':
+      case 'premium_member':
         return <CreatorDashboard />;
-      case userRole === "user":
+      case 'user':
       default:
         return <UserDashboard />;
     }
   };
 
   return (
-    <>
-      <div className="max-w-4xl mx-auto space-y-4">
-      <hr />
-      </div>
-      <div className="space-y-6">
-        {renderDashboard()}
-      </div>
-    </>
+    <div className="space-y-6">
+      {renderDashboard()}
+    </div>
   );
 };
 
