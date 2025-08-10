@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calculator, TrendingUp, AlertTriangle, Save, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,8 +38,16 @@ interface TradingLeg {
   buySell: 'Buy' | 'Sell';
   size: number;
   price: string;
+  limitPrice?: string; // Added for price settings
   underlying: string;
   epic: string;
+  greeks?: {
+    delta: number;
+    gamma: number;
+    theta: number;
+    vega: number;
+    impliedVolatility: number;
+  };
 }
 
 const CreateStrategy = () => {
@@ -54,10 +63,13 @@ const CreateStrategy = () => {
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedExpiration, setSelectedExpiration] = useState<string>('');
+  const [selectedUnderlying, setSelectedUnderlying] = useState<string>('SPY'); // Default underlying
+  const [optionsChainData, setOptionsChainData] = useState<any[]>([]); // Store live options data
 
   const indicators = ['RSI', 'MACD', 'Moving Average', 'Bollinger Bands', 'Stochastic', 'Volume', 'Price Action'];
   const operators = ['>', '<', '>=', '<=', '=', 'crosses above', 'crosses below'];
   const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
+  const underlyings = ['SPY', 'QQQ', 'IWM', 'GLD', 'SLV']; // Example underlying assets
 
   // Generate weekly expiry dates up to 24 months
   const getWeeklyExpirations = () => {
@@ -77,12 +89,11 @@ const CreateStrategy = () => {
 
   const weeklyExpirations = getWeeklyExpirations();
 
-  // Authenticate with IG API on mount
+  // Authenticate with IG API and set default expiration
   useEffect(() => {
     const authenticate = async () => {
       try {
         await authenticateIG();
-        // Set default expiration to the first available Friday
         if (weeklyExpirations.length > 0) {
           setSelectedExpiration(weeklyExpirations[0]);
         }
@@ -96,6 +107,28 @@ const CreateStrategy = () => {
     };
     authenticate();
   }, [toast]);
+
+  // Fetch options chain data when underlying or expiration changes
+  useEffect(() => {
+    const fetchOptionsChain = async () => {
+      if (!selectedUnderlying || !selectedExpiration) return;
+      try {
+        // Assuming LiveOptionsChain provides a method to fetch data
+        const data = await LiveOptionsChain.fetchOptionsData({
+          underlying: selectedUnderlying,
+          expiration: selectedExpiration,
+        });
+        setOptionsChainData(data || []);
+      } catch (error) {
+        toast({
+          title: 'Error fetching options chain',
+          description: 'Unable to load options data. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    };
+    fetchOptionsChain();
+  }, [selectedUnderlying, selectedExpiration, toast]);
 
   const addCondition = () => {
     const newCondition: StrategyCondition = {
@@ -124,12 +157,20 @@ const CreateStrategy = () => {
       ...leg,
       id: Date.now().toString() + Math.random(),
       expiration: selectedExpiration || weeklyExpirations[0],
-      underlying: 'SPY',
+      underlying: selectedUnderlying,
       epic: `LIVE_${leg.strike}_${leg.type}`,
     })));
   };
 
-  const handleSelectContract = (contract: { strike: number; type: 'Call' | 'Put'; ask: number; underlying: string; epic: string }) => {
+  const handleSelectContract = (contract: {
+    strike: number;
+    type: 'Call' | 'Put';
+    bid: number;
+    ask: number;
+    underlying: string;
+    epic: string;
+    greeks: { delta: number; gamma: number; theta: number; vega: number; impliedVolatility: number };
+  }) => {
     const newLeg: TradingLeg = {
       id: Date.now().toString(),
       strike: contract.strike.toString(),
@@ -138,10 +179,16 @@ const CreateStrategy = () => {
       buySell: 'Buy',
       size: 1,
       price: contract.ask.toFixed(2),
+      limitPrice: contract.ask.toFixed(2), // Default to ask price
       underlying: contract.underlying,
       epic: contract.epic,
+      greeks: contract.greeks,
     };
     setLegs([...legs, newLeg]);
+  };
+
+  const handleUpdateLeg = (id: string, field: keyof TradingLeg, value: any) => {
+    setLegs(legs.map((leg) => (leg.id === id ? { ...leg, [field]: value } : leg)));
   };
 
   const handleSave = async () => {
@@ -188,6 +235,7 @@ const CreateStrategy = () => {
       setConditions([]);
       setLegs([]);
       setSelectedExpiration(weeklyExpirations[0]);
+      setSelectedUnderlying('SPY');
     } catch (error) {
       console.error('Error creating strategy:', error);
       toast({
@@ -256,38 +304,183 @@ const CreateStrategy = () => {
           </TabsContent>
 
           <TabsContent value="chain">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="expiration">Select Expiration Date</Label>
-                <Select
-                  value={selectedExpiration}
-                  onValueChange={setSelectedExpiration}
-                >
-                  <SelectTrigger id="expiration">
-                    <SelectValue placeholder="Select expiration date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {weeklyExpirations.map((date) => (
-                      <SelectItem key={date} value={date}>
-                        {format(new Date(date), 'MMM dd, yyyy')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <LiveOptionsChain
-                expiration={selectedExpiration}
-                onSelectContract={handleSelectContract}
-              />
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Options Chain</CardTitle>
+                <CardDescription>Select an options contract to add to your strategy</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="underlying">Underlying Asset</Label>
+                    <Select
+                      value={selectedUnderlying}
+                      onValueChange={setSelectedUnderlying}
+                    >
+                      <SelectTrigger id="underlying">
+                        <SelectValue placeholder="Select underlying" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {underlyings.map((asset) => (
+                          <SelectItem key={asset} value={asset}>
+                            {asset}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="expiration">Expiration Date</Label>
+                    <Select
+                      value={selectedExpiration}
+                      onValueChange={setSelectedExpiration}
+                    >
+                      <SelectTrigger id="expiration">
+                        <SelectValue placeholder="Select expiration date" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {weeklyExpirations.map((date) => (
+                          <SelectItem key={date} value={date}>
+                            {format(new Date(date), 'MMM dd, yyyy')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {optionsChainData.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Strike</TableHead>
+                        <TableHead>Bid</TableHead>
+                        <TableHead>Ask</TableHead>
+                        <TableHead>Delta</TableHead>
+                        <TableHead>Gamma</TableHead>
+                        <TableHead>Theta</TableHead>
+                        <TableHead>Vega</TableHead>
+                        <TableHead>IV</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {optionsChainData.map((contract) => (
+                        <TableRow key={`${contract.type}-${contract.strike}`}>
+                          <TableCell>{contract.type}</TableCell>
+                          <TableCell>{contract.strike}</TableCell>
+                          <TableCell>{contract.bid.toFixed(2)}</TableCell>
+                          <TableCell>{contract.ask.toFixed(2)}</TableCell>
+                          <TableCell>{contract.greeks.delta.toFixed(3)}</TableCell>
+                          <TableCell>{contract.greeks.gamma.toFixed(3)}</TableCell>
+                          <TableCell>{contract.greeks.theta.toFixed(3)}</TableCell>
+                          <TableCell>{contract.greeks.vega.toFixed(3)}</TableCell>
+                          <TableCell>{contract.greeks.impliedVolatility.toFixed(2)}%</TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              onClick={() => handleSelectContract(contract)}
+                            >
+                              Add
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
+                    <p>No options data available</p>
+                    <p className="text-sm">Select an underlying asset and expiration date to view options</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="legs">
-            <EnhancedTradingTemplate
-              strategyName={strategyName || 'Strategy'}
-              legs={legs}
-              onLegsChange={setLegs}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Options Legs</CardTitle>
+                <CardDescription>Configure the legs of your trading strategy</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EnhancedTradingTemplate
+                  strategyName={strategyName || 'Strategy'}
+                  legs={legs}
+                  onLegsChange={setLegs}
+                />
+                {legs.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Underlying</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Strike</TableHead>
+                        <TableHead>Expiration</TableHead>
+                        <TableHead>Buy/Sell</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>Market Price</TableHead>
+                        <TableHead>Limit Price</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {legs.map((leg) => (
+                        <TableRow key={leg.id}>
+                          <TableCell>{leg.underlying}</TableCell>
+                          <TableCell>{leg.type}</TableCell>
+                          <TableCell>{leg.strike}</TableCell>
+                          <TableCell>{format(new Date(leg.expiration), 'MMM dd, yyyy')}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={leg.buySell}
+                              onValueChange={(value) => handleUpdateLeg(leg.id, 'buySell', value)}
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Buy">Buy</SelectItem>
+                                <SelectItem value="Sell">Sell</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={leg.size}
+                              onChange={(e) => handleUpdateLeg(leg.id, 'size', parseInt(e.target.value))}
+                              className="w-20"
+                            />
+                          </TableCell>
+                          <TableCell>{leg.price}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={leg.limitPrice || leg.price}
+                              onChange={(e) => handleUpdateLeg(leg.id, 'limitPrice', e.target.value)}
+                              className="w-24"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setLegs(legs.filter((l) => l.id !== leg.id))}
+                            >
+                              Remove
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="conditions">
