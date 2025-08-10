@@ -1,4 +1,3 @@
-// src/components/admin/StrategyApproval.tsx
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,7 +52,13 @@ const StrategyApproval: React.FC = () => {
         title: `Strategy ${newStatus}`,
         description: `Strategy has been ${newStatus}.`,
       });
-      // Optionally trigger notification to creator via strategy-publish function
+
+      // Trigger notification via strategy-publish function
+      await fetch('/api/strategy-publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ strategy_id: id, status: newStatus }),
+      });
     } catch (error) {
       toast({ title: `Error ${newStatus} strategy`, variant: 'destructive' });
     }
