@@ -3,11 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import UserAnalyticsPanel from '@/components/admin/UserAnalyticsPanel';
 import AdminAirdropPanel from '@/components/gamification/AdminAirdropPanel';
+import StrategyApproval from '@/components/admin/StrategyApproval';
 import { TrendingUp, Users, DollarSign, Activity } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
+      <h1>Admin Dashboard</h1>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
@@ -42,6 +44,7 @@ const AdminDashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UserAnalyticsPanel />
         <AdminAirdropPanel />
+        <StrategyApproval />
       </div>
     </div>
   );
