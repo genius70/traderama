@@ -15,10 +15,10 @@ import Header from '@/components/layout/Header';
 import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
 import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
 import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
-import MockOptionsChain from '@/components/trading/MockOptionsChain';
 import LiveOptionsChain from '@/components/trading/LiveOptionsChain';
 import StrategyPreview from '@/components/trading/StrategyPreview';
 import { authenticateIG } from '@/utils/igTradingAPI';
+import { format, addWeeks, isFriday, nextFriday } from 'date-fns';
 
 interface StrategyCondition {
   id: string;
@@ -29,7 +29,17 @@ interface StrategyCondition {
   timeframe: string;
 }
 
-import { TradingLeg } from '@/components/trading/types';
+interface TradingLeg {
+  id: string;
+  strike: string;
+  type: 'Call' | 'Put';
+  expiration: string;
+  buySell: 'Buy' | 'Sell';
+  size: number;
+  price: string;
+  underlying: string;
+  epic: string;
+}
 
 const CreateStrategy = () => {
   const { user } = useAuth();
@@ -43,23 +53,45 @@ const CreateStrategy = () => {
   const [legs, setLegs] = useState<TradingLeg[]>([]);
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [useMockData, setUseMockData] = useState(false);
+  const [selectedExpiration, setSelectedExpiration] = useState<string>('');
 
   const indicators = ['RSI', 'MACD', 'Moving Average', 'Bollinger Bands', 'Stochastic', 'Volume', 'Price Action'];
   const operators = ['>', '<', '>=', '<=', '=', 'crosses above', 'crosses below'];
   const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
+
+  // Generate weekly expiry dates up to 24 months
+  const getWeeklyExpirations = () => {
+    const expirations: string[] = [];
+    let currentDate = new Date();
+    const maxDate = new Date();
+    maxDate.setMonth(maxDate.getMonth() + 24);
+
+    while (currentDate <= maxDate) {
+      if (isFriday(currentDate)) {
+        expirations.push(format(currentDate, 'yyyy-MM-dd'));
+      }
+      currentDate = nextFriday(addWeeks(currentDate, 1));
+    }
+    return expirations;
+  };
+
+  const weeklyExpirations = getWeeklyExpirations();
 
   // Authenticate with IG API on mount
   useEffect(() => {
     const authenticate = async () => {
       try {
         await authenticateIG();
+        // Set default expiration to the first available Friday
+        if (weeklyExpirations.length > 0) {
+          setSelectedExpiration(weeklyExpirations[0]);
+        }
       } catch (err) {
         toast({
-          title: 'Authentication Error - Using mock data as fallback',
+          title: 'Authentication Error',
+          description: 'Failed to connect to live data. Please try again.',
           variant: 'destructive',
         });
-        setUseMockData(true); // Fallback to mock data if IG authentication fails
       }
     };
     authenticate();
@@ -88,7 +120,13 @@ const CreateStrategy = () => {
   const handleTemplateSelect = (option: { id: string; name: string; template: { legs: TradingLeg[] } }) => {
     setStrategyName(option.name);
     setCategory('Options Trading');
-    setLegs(option.template.legs.map((leg) => ({ ...leg, id: Date.now().toString() + Math.random() })));
+    setLegs(option.template.legs.map((leg) => ({
+      ...leg,
+      id: Date.now().toString() + Math.random(),
+      expiration: selectedExpiration || weeklyExpirations[0],
+      underlying: 'SPY',
+      epic: `LIVE_${leg.strike}_${leg.type}`,
+    })));
   };
 
   const handleSelectContract = (contract: { strike: number; type: 'Call' | 'Put'; ask: number; underlying: string; epic: string }) => {
@@ -96,12 +134,12 @@ const CreateStrategy = () => {
       id: Date.now().toString(),
       strike: contract.strike.toString(),
       type: contract.type,
-      expiration: '30', // Placeholder: Update based on contract.expiration
+      expiration: selectedExpiration || weeklyExpirations[0],
       buySell: 'Buy',
       size: 1,
       price: contract.ask.toFixed(2),
       underlying: contract.underlying,
-      epic: contract.epic, // Use Polygon.io ticker or mapped IG epic
+      epic: contract.epic,
     };
     setLegs([...legs, newLeg]);
   };
@@ -149,6 +187,7 @@ const CreateStrategy = () => {
       setCategory('');
       setConditions([]);
       setLegs([]);
+      setSelectedExpiration(weeklyExpirations[0]);
     } catch (error) {
       console.error('Error creating strategy:', error);
       toast({
@@ -196,20 +235,13 @@ const CreateStrategy = () => {
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
             <TabsTrigger value="chain">Options Chain</TabsTrigger>
-           <TabsTrigger value="legs">Options Legs</TabsTrigger>
+            <TabsTrigger value="legs">Options Legs</TabsTrigger>
             <TabsTrigger value="conditions">Conditions</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="templates">
-            <TradingOptionsSelector onSelectOption={(option) => {
-              const legsWithDetails = option.template.legs.map(leg => ({
-                ...leg,
-                underlying: 'SPY',
-                epic: `TEMPLATE_${leg.strike}_${leg.type}`
-              }));
-              setLegs(legsWithDetails);
-            }} />
+            <TradingOptionsSelector onSelectOption={handleTemplateSelect} />
           </TabsContent>
 
           <TabsContent value="basic">
@@ -224,42 +256,33 @@ const CreateStrategy = () => {
           </TabsContent>
 
           <TabsContent value="chain">
-            {useMockData ? (
-              <MockOptionsChain
-                onSelectContract={(contract) => {
-                  const newLeg: TradingLeg = {
-                    id: Date.now().toString(),
-                    strike: contract.strike.toString(),
-                    type: contract.type,
-                    expiration: '30', // Mock expiration
-                    buySell: 'Buy',
-                    size: 1,
-                    price: contract.ask.toFixed(2),
-                    underlying: 'SPY', // Mock default
-                    epic: `MOCK_${contract.strike}_${contract.type}`, // Mock epic
-                  };
-                  setLegs([...legs, newLeg]);
-                }}
-              />
-            ) : (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="expiration">Select Expiration Date</Label>
+                <Select
+                  value={selectedExpiration}
+                  onValueChange={setSelectedExpiration}
+                >
+                  <SelectTrigger id="expiration">
+                    <SelectValue placeholder="Select expiration date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {weeklyExpirations.map((date) => (
+                      <SelectItem key={date} value={date}>
+                        {format(new Date(date), 'MMM dd, yyyy')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <LiveOptionsChain
-                onSelectContract={(contract) => {
-                  const newLeg: TradingLeg = {
-                    strike: contract.strike.toString(),
-                    type: contract.type,
-                    expiration: '2025-08-15',
-                    buySell: 'Buy',
-                    size: 1,
-                    price: contract.ask.toFixed(2),
-                    underlying: 'SPY',
-                    epic: `LIVE_${contract.strike}_${contract.type}`,
-                  };
-                  setLegs([...legs, newLeg]);
-                }}
+                expiration={selectedExpiration}
+                onSelectContract={handleSelectContract}
               />
-            )}
+            </div>
           </TabsContent>
-           <TabsContent value="legs">
+
+          <TabsContent value="legs">
             <EnhancedTradingTemplate
               strategyName={strategyName || 'Strategy'}
               legs={legs}
