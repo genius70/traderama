@@ -50,40 +50,34 @@ const AdminDashboard: React.FC = () => {
 
         const totalStrategies = strategies.length;
         const newStrategies = strategies.filter(
-          (s) => new Date(s.created_at) >= thirtyDaysAgo
+          (s) => s.created_at && new Date(s.created_at) >= thirtyDaysAgo
         ).length;
-        const pendingStrategies = strategies.filter((s) => s.status === 'pending').length;
+        const pendingStrategies = strategies.filter((s) => s.status === 'pending_review').length;
 
-        // Fetch total and new trades (assumes trades table exists)
+        // Fetch total and new trades from iron condor trades
         const { data: trades, error: tradesError } = await supabase
-          .from('trades')
-          .select('id, created_at');
+          .from('iron_condor_trades')
+          .select('id, opened_at');
         if (tradesError) throw tradesError;
 
         const totalTrades = trades.length;
         const newTrades = trades.filter(
-          (t) => new Date(t.created_at) >= thirtyDaysAgo
+          (t) => t.opened_at && new Date(t.opened_at) >= thirtyDaysAgo
         ).length;
 
-        // Fetch platform revenue from royalty_payments
-        const { data: royalties, error: royaltiesError } = await supabase
-          .from('royalty_payments')
-          .select('platform_fee_amount');
-        if (royaltiesError) throw royaltiesError;
+        // Calculate revenue from strategy subscriptions
+        const { data: subscriptionFees, error: subscriptionFeesError } = await supabase
+          .from('strategy_subscriptions')
+          .select('fees_paid');
+        if (subscriptionFeesError) throw subscriptionFeesError;
 
-        const revenue = royalties.reduce(
-          (sum, r) => sum + (r.platform_fee_amount || 0),
+        const revenue = subscriptionFees.reduce(
+          (sum, s) => sum + (s.fees_paid || 0),
           0
         );
 
-        // Fetch active subscriptions
-        const { data: subscriptions, error: subscriptionsError } = await supabase
-          .from('subscriptions')
-          .select('id')
-          .eq('status', 'active');
-        if (subscriptionsError) throw subscriptionsError;
-
-        const activeSubscriptions = subscriptions.length;
+        // Count strategy subscriptions as active subscriptions
+        const activeSubscriptions = subscriptionFees.length;
 
         // Fetch total users
         const { data: users, error: usersError } = await supabase

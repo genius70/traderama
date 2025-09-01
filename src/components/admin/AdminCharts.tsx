@@ -46,9 +46,9 @@ const AdminCharts: React.FC = () => {
         if (profilesError) throw profilesError;
 
         const { data: tradesData, error: tradesError } = await supabase
-          .from('trades')
-          .select('id, created_at')
-          .gte('created_at', sixMonthsAgo.toISOString());
+          .from('iron_condor_trades')
+          .select('id, opened_at')
+          .gte('opened_at', sixMonthsAgo.toISOString());
         if (tradesError) throw tradesError;
 
         // Aggregate user growth and trades by month
@@ -61,34 +61,31 @@ const AdminCharts: React.FC = () => {
         }
 
         profilesData.forEach((profile) => {
-          const month = new Date(profile.created_at).toISOString().slice(0, 7);
-          if (userGrowthByMonth[month]) {
-            userGrowthByMonth[month].users += 1;
+          if (profile.created_at) {
+            const month = new Date(profile.created_at).toISOString().slice(0, 7);
+            if (userGrowthByMonth[month]) {
+              userGrowthByMonth[month].users += 1;
+            }
           }
         });
 
         tradesData.forEach((trade) => {
-          const month = new Date(trade.created_at).toISOString().slice(0, 7);
-          if (userGrowthByMonth[month]) {
-            userGrowthByMonth[month].trades += 1;
+          if (trade.opened_at) {
+            const month = new Date(trade.opened_at).toISOString().slice(0, 7);
+            if (userGrowthByMonth[month]) {
+              userGrowthByMonth[month].trades += 1;
+            }
           }
         });
 
         const userGrowthData = Object.values(userGrowthByMonth);
         setUserGrowthData(userGrowthData);
 
-        // Fetch trade performance data
-        const { data: royaltiesData, error: royaltiesError } = await supabase
-          .from('royalty_payments')
-          .select('platform_fee_amount, created_at')
-          .gte('created_at', sixMonthsAgo.toISOString());
-        if (royaltiesError) throw royaltiesError;
-
-        // Assume trades table includes profit_amount for returns calculation
+        // Fetch trade performance data from iron condor trades
         const { data: tradesWithProfit, error: tradesProfitError } = await supabase
-          .from('trades')
-          .select('id, created_at, profit_amount')
-          .gte('created_at', sixMonthsAgo.toISOString());
+          .from('iron_condor_trades')
+          .select('id, opened_at, current_pnl')
+          .gte('opened_at', sixMonthsAgo.toISOString());
         if (tradesProfitError) throw tradesProfitError;
 
         const tradePerformanceByMonth: { [key: string]: TradePerformanceData } = {};
@@ -100,10 +97,12 @@ const AdminCharts: React.FC = () => {
         }
 
         tradesWithProfit.forEach((trade) => {
-          const month = new Date(trade.created_at).toISOString().slice(0, 7);
-          if (tradePerformanceByMonth[month]) {
-            tradePerformanceByMonth[month].volume += 1; // Count trades as volume
-            tradePerformanceByMonth[month].returns += trade.profit_amount || 0;
+          if (trade.opened_at) {
+            const month = new Date(trade.opened_at).toISOString().slice(0, 7);
+            if (tradePerformanceByMonth[month]) {
+              tradePerformanceByMonth[month].volume += 1; // Count trades as volume
+              tradePerformanceByMonth[month].returns += trade.current_pnl || 0;
+            }
           }
         });
 
@@ -118,7 +117,7 @@ const AdminCharts: React.FC = () => {
         setTradePerformanceData(tradePerformanceData);
       } catch (error) {
         console.error('Error fetching chart data:', error);
-        toast({ title: 'Error fetching chart data', description: 'Failed to load charts.', variant: 'destructive' });
+        toast({ title: 'Error fetching chart data', variant: 'destructive' });
       } finally {
         setLoading(false);
       }

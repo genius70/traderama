@@ -8,11 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 interface Strategy {
   id: string;
   title: string;
-  description: string;
+  description: string | null;
   creator_id: string;
-  strategy_config: string;
-  status: string;
-  created_at: string;
+  strategy_config: any;
+  status: string | null;
+  created_at: string | null;
 }
 
 const StrategyApproval: React.FC = () => {
@@ -27,10 +27,13 @@ const StrategyApproval: React.FC = () => {
         const { data, error } = await supabase
           .from('trading_strategies')
           .select('*')
-          .eq('status', 'pending')
+          .eq('status', 'pending_review')
           .order('created_at', { ascending: false });
         if (error) throw error;
-        setStrategies(data || []);
+        setStrategies((data || []).map(item => ({
+          ...item,
+          status: item.status || 'draft'
+        })));
       } catch (error) {
         toast({ title: 'Error fetching strategies', variant: 'destructive' });
       } finally {
@@ -40,7 +43,7 @@ const StrategyApproval: React.FC = () => {
     fetchPendingStrategies();
   }, [toast]);
 
-  const handleApproval = async (id: string, newStatus: 'approved' | 'rejected') => {
+  const handleApproval = async (id: string, newStatus: 'published' | 'rejected') => {
     try {
       const { error } = await supabase
         .from('trading_strategies')
@@ -50,7 +53,6 @@ const StrategyApproval: React.FC = () => {
       setStrategies(strategies.filter((strategy) => strategy.id !== id));
       toast({
         title: `Strategy ${newStatus}`,
-        description: `Strategy has been ${newStatus}.`,
       });
 
       // Trigger notification via strategy-publish function
@@ -89,13 +91,13 @@ const StrategyApproval: React.FC = () => {
               {strategies.map((strategy) => (
                 <TableRow key={strategy.id}>
                   <TableCell>{strategy.title}</TableCell>
-                  <TableCell>{strategy.description}</TableCell>
+                  <TableCell>{strategy.description || 'No description'}</TableCell>
                   <TableCell>{strategy.creator_id}</TableCell>
-                  <TableCell>{new Date(strategy.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>{strategy.created_at ? new Date(strategy.created_at).toLocaleDateString() : 'Unknown'}</TableCell>
                   <TableCell>
                     <Button
                       className="mr-2"
-                      onClick={() => handleApproval(strategy.id, 'approved')}
+                      onClick={() => handleApproval(strategy.id, 'published')}
                     >
                       Approve
                     </Button>

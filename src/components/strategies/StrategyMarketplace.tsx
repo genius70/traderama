@@ -26,7 +26,7 @@ interface Strategy {
   performance_metrics: PerformanceMetrics | null;
   creator_id: string;
   is_premium_only: boolean;
-  strategy_config: string;
+  strategy_config: any;
 }
 
 const StrategyMarketplace: React.FC = () => {
@@ -41,7 +41,7 @@ const StrategyMarketplace: React.FC = () => {
       const { data, error } = await supabase
         .from('trading_strategies')
         .select('id, title, description, fee_percentage, performance_metrics, creator_id, is_premium_only, strategy_config')
-        .eq('status', 'approved')
+        .eq('status', 'published')
         .order('created_at', { ascending: false });
       if (error) throw error;
 
@@ -53,7 +53,7 @@ const StrategyMarketplace: React.FC = () => {
         performance_metrics: item.performance_metrics as PerformanceMetrics | null,
         creator_id: item.creator_id,
         is_premium_only: item.is_premium_only || false,
-        strategy_config: item.strategy_config || '{}',
+        strategy_config: JSON.stringify(item.strategy_config) || '{}',
       }));
 
       setStrategies(transformedData);
@@ -104,7 +104,7 @@ const StrategyMarketplace: React.FC = () => {
         strategy_config: JSON.stringify({ conditions, legs }),
         fee_percentage: royaltyPercentage,
         is_premium_only: strategy.is_premium_only,
-        status: 'pending',
+        status: 'pending_review' as const,
         created_at: new Date().toISOString(),
       };
 
@@ -116,20 +116,17 @@ const StrategyMarketplace: React.FC = () => {
         .single();
       if (error) throw error;
 
-      // Link the strategy to the user in user_strategies for copy trading
-      const { error: userStrategyError } = await supabase.from('user_strategies').insert({
+      // Create strategy subscription for tracking
+      const { error: subscriptionError } = await supabase.from('strategy_subscriptions').insert({
         user_id: user.id,
         strategy_id: data.id,
-        status: 'active',
-        copied_from: strategy.id,
-        royalty_percentage: creatorRoyalty, // Creator's share after platform's 2.5%
-        platform_fee_percentage: 2.5, // Fixed platform fee
+        fees_paid: 0, // No upfront fee, only profit sharing
+        purchased_at: new Date().toISOString(),
       });
-      if (userStrategyError) throw userStrategyError;
+      if (subscriptionError) throw subscriptionError;
 
       toast({
         title: 'Strategy Copied',
-        description: `${newStrategy.title} has been submitted for admin approval. Royalties: ${creatorRoyalty}% to creator, 2.5% to platform on profits.`,
       });
     } catch (error) {
       console.error('Error copying strategy:', error);

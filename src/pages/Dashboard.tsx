@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import UserDashboard from '@/components/dashboard/UserDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import CreatorDashboard from '@/components/dashboard/CreatorDashboard';
@@ -8,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
+  const { isPremium, loading: premiumLoading } = usePremiumStatus();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +23,7 @@ const Dashboard: React.FC = () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, subscription_tier')
           .eq('id', user.id)
           .single();
 
@@ -38,7 +40,7 @@ const Dashboard: React.FC = () => {
     fetchUserRole();
   }, [user]);
 
-  if (authLoading || loading) {
+  if (authLoading || loading || premiumLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -64,6 +66,10 @@ const Dashboard: React.FC = () => {
         return <CreatorDashboard />;
       case 'user':
       default:
+        // Check if user is premium and redirect to creator dashboard
+        if (isPremium) {
+          return <CreatorDashboard />;
+        }
         return <UserDashboard />;
     }
   };
