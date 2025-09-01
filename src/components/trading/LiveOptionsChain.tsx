@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -66,7 +67,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ expiration, onSelec
       } catch (err) {
         toast({
           title: 'Authentication Error',
-          description: 'Failed to connect to IG API.',
           variant: 'destructive',
         });
       }
@@ -86,7 +86,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ expiration, onSelec
       } catch (err) {
         toast({
           title: 'Error fetching metadata',
-          description: 'Using default underlyings.',
           variant: 'destructive',
         });
       }
@@ -138,7 +137,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ expiration, onSelec
       console.error('WebSocket error:', error);
       toast({
         title: 'WebSocket Error',
-        description: 'Failed to connect to real-time data.',
         variant: 'destructive',
       });
     };
@@ -181,7 +179,6 @@ const LiveOptionsChain: React.FC<LiveOptionsChainProps> = ({ expiration, onSelec
         setError('Failed to load options chain');
         toast({
           title: 'Error fetching options chain',
-          description: 'Please try again or select different criteria.',
           variant: 'destructive',
         });
       } finally {

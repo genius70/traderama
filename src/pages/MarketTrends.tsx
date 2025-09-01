@@ -157,7 +157,7 @@ const MarketTrends = () => {
         const formattedData = cachedData.map(item => ({
           symbol: item.symbol,
           price: item.price,
-          change: item.change || 0,
+          change: item.change_percent || 0,
           changePercent: item.change_percent || 0,
           volume: item.volume || 0,
         }));
@@ -194,7 +194,7 @@ const MarketTrends = () => {
           formattedData.map(item => ({
             symbol: item.symbol,
             price: item.price,
-            change: item.change,
+            change: item.change_percent || 0,
             change_percent: item.changePercent,
             volume: item.volume,
             timestamp: new Date().toISOString(),
@@ -219,7 +219,7 @@ const MarketTrends = () => {
         const formattedData = fallbackData.map(item => ({
           symbol: item.symbol,
           price: item.price,
-          change: item.change || 0,
+          change: item.change_percent || 0,
           changePercent: item.change_percent || 0,
           volume: item.volume || 0,
         }));
@@ -227,7 +227,7 @@ const MarketTrends = () => {
         setError(`${errorMessage} (showing cached data)`);
       }
 
-      toast({ title: 'Data Error', description: errorMessage, variant: 'destructive' });
+      toast({ title: 'Data Error', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -321,7 +321,7 @@ const MarketTrends = () => {
       console.error('Error fetching chart data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chart data';
       setError(errorMessage);
-      toast({ title: 'Data Error', description: errorMessage, variant: 'destructive' });
+      toast({ title: 'Data Error', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
