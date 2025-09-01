@@ -170,7 +170,7 @@ const Community = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Community Feed</h2>
 
           {/* Post Composer - Using a placeholder groupId for now */}
-          <PremiumGroupPostComposer groupId="community-general" />
+          <PremiumGroupPostComposer />
 
           {/* Community Posts */}
           <div className="space-y-4">

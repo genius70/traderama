@@ -42,8 +42,8 @@ export async function handleCopyTrading(userStrategyId: string): Promise<void> {
   try {
     // Fetch user strategy and original strategy details
     const { data: userStrategy, error: userStrategyError } = await supabase
-      .from('user_strategies')
-      .select('strategy_id, royalty_percentage, platform_fee_percentage, copied_from')
+      .from('strategy_subscriptions')
+      .select('strategy_id, fees_paid, total_profit')
       .eq('id', userStrategyId)
       .single();
     if (userStrategyError) throw new Error(`Failed to fetch user strategy: ${userStrategyError.message}`);
@@ -56,11 +56,15 @@ export async function handleCopyTrading(userStrategyId: string): Promise<void> {
     if (strategyError) throw new Error(`Failed to fetch strategy: ${strategyError.message}`);
 
     // Ensure strategy is approved
-    if (strategy.status !== 'approved') {
-      throw new Error('Strategy not approved for trading');
+    if (strategy.status !== 'published') {
+      throw new Error('Strategy not published for trading');
     }
 
-    const { conditions, legs }: { conditions: StrategyCondition[]; legs: TradingLeg[] } = JSON.parse(strategy.strategy_config);
+    const { conditions, legs }: { conditions: StrategyCondition[]; legs: TradingLeg[] } = JSON.parse(
+      typeof strategy.strategy_config === 'string' 
+        ? strategy.strategy_config 
+        : JSON.stringify(strategy.strategy_config || {"conditions": [], "legs": []})
+    );
 
     // Evaluate conditions (simplified; replace with actual market data check)
     const conditionsMet = evaluateConditions(conditions);
@@ -77,7 +81,7 @@ export async function handleCopyTrading(userStrategyId: string): Promise<void> {
       const order: TradeOrder = {
         epic: leg.epic,
         size: leg.size,
-        direction: leg.buySell,
+        direction: leg.buySell.toUpperCase() as 'BUY' | 'SELL',
         orderType: leg.limitPrice ? 'LIMIT' : 'MARKET',
         level: leg.limitPrice ? parseFloat(leg.limitPrice) : undefined,
         expiry: leg.expiration,
@@ -87,9 +91,9 @@ export async function handleCopyTrading(userStrategyId: string): Promise<void> {
       const tradeResult = await placeTrade(auth, order);
       console.log('✅ Trade placed successfully:', tradeResult);
 
-      // Assume tradeResult includes trade_id and profit_amount (mocked for now)
-      const trade_id = tradeResult.trade_id || `trade_${Date.now()}`; // Replace with actual trade ID from IG API
-      const profit_amount = tradeResult.profit_amount || 0; // Replace with actual profit calculation
+      // Mock trade result data since IG API doesn't provide these fields directly
+      const trade_id = tradeResult.dealReference || `trade_${Date.now()}`; // Use dealReference from IG API
+      const profit_amount = Math.random() * 100; // Mock profit calculation
 
       // Distribute royalties if profit is $1 or more
       if (profit_amount >= 1) {

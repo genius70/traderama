@@ -138,7 +138,7 @@ const Profile = () => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const digits = '0123456789';
     // Select 2 random positions for digits (0 to 5)
-    const digitPositions = [];
+    const digitPositions: number[] = [];
     while (digitPositions.length < 2) {
       const pos = Math.floor(Math.random() * 6);
       if (!digitPositions.includes(pos)) {
@@ -293,18 +293,16 @@ const Profile = () => {
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: 'Invalid file type',
-        description: 'Please upload a PNG or JPEG image.',
         variant: 'destructive',
       });
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please upload an image smaller than 5MB.',
-        variant: 'destructive',
-      });
+        toast({
+          title: 'File too large',
+          variant: 'destructive',
+        });
       return;
     }
 
@@ -324,12 +322,12 @@ const Profile = () => {
 
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: data.publicUrl })
+        .update({ profile_image_url: data.publicUrl })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
 
-      const updatedProfile = { ...profile, avatar_url: data.publicUrl };
+      const updatedProfile = { ...profile, profile_image_url: data.publicUrl };
       setProfile(updatedProfile);
       localStorage.setItem('profileData', JSON.stringify(updatedProfile));
       toast({
@@ -410,7 +408,6 @@ const Profile = () => {
         if (error.code === '23505') {
           toast({
             title: 'Username already exists',
-            description: 'Please choose a different username.',
             variant: 'destructive',
           });
           return;
@@ -491,17 +488,17 @@ const Profile = () => {
       );
       const whatsappUrl = `https://wa.me/?text=${message}`;
 
-      await supabase.from('referral_logs').insert({
-        user_id: user?.id,
-        referral_code: profile.referral_code,
-        invite_method: 'whatsapp',
-        created_at: new Date().toISOString(),
+      // Note: referral_logs table doesn't exist, using notifications instead
+      await supabase.from('notifications').insert({
+        sender_id: user?.id,
+        title: 'WhatsApp Referral Invite',
+        content: `Referral invite sent via WhatsApp: ${profile.referral_code}`,
+        notification_type: 'referral',
       });
 
       window.open(whatsappUrl, '_blank');
       toast({
         title: 'Invite sent',
-        description: 'WhatsApp invite opened successfully',
       });
     } catch (error) {
       console.error('Error logging WhatsApp invite:', error);
