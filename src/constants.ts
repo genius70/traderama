@@ -105,6 +105,69 @@ export const ANALYTICS_EVENTS = {
 
 export type AnalyticsEvent = typeof ANALYTICS_EVENTS[keyof typeof ANALYTICS_EVENTS];
 
+// Subscription tiers
+export const SUBSCRIPTION_TIERS = {
+  FREE: 'free',
+  PREMIUM: 'premium',
+  PROFESSIONAL: 'professional',
+} as const;
+
+export type SubscriptionTier = typeof SUBSCRIPTION_TIERS[keyof typeof SUBSCRIPTION_TIERS];
+
+// Strategy statuses
+export const STRATEGY_STATUSES = {
+  DRAFT: 'draft',
+  PUBLISHED: 'published',
+  PENDING_REVIEW: 'pending_review',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  ARCHIVED: 'archived',
+  CHANGES_REQUESTED: 'changes_requested',
+} as const;
+
+export type StrategyStatus = typeof STRATEGY_STATUSES[keyof typeof STRATEGY_STATUSES];
+
+// Trade statuses
+export const TRADE_STATUSES = {
+  PENDING: 'pending',
+  OPEN: 'open',
+  CLOSED: 'closed',
+  CANCELLED: 'cancelled',
+  EXPIRED: 'expired',
+} as const;
+
+export type TradeStatus = typeof TRADE_STATUSES[keyof typeof TRADE_STATUSES];
+
+// User roles
+export const USER_ROLES = {
+  USER: 'user',
+  PREMIUM_MEMBER: 'premium_member',
+  STRATEGY_CREATOR: 'strategy_creator',
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin',
+} as const;
+
+export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
+
+// Dashboard metrics constants
+export const DASHBOARD_METRICS = {
+  REFRESH_INTERVAL: 30000, // 30 seconds
+  CHART_COLORS: {
+    PRIMARY: 'hsl(var(--primary))',
+    SECONDARY: 'hsl(var(--secondary))',
+    SUCCESS: 'hsl(142, 76%, 36%)',
+    WARNING: 'hsl(38, 92%, 50%)',
+    ERROR: 'hsl(0, 84%, 60%)',
+    INFO: 'hsl(217, 91%, 60%)',
+  },
+  PERFORMANCE_THRESHOLDS: {
+    EXCELLENT: 20,
+    GOOD: 10,
+    AVERAGE: 5,
+    POOR: 0,
+  },
+} as const;
+
 // Global window interface extensions
 declare global {
   interface Window {

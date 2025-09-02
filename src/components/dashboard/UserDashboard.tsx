@@ -11,6 +11,7 @@ import UpgradeToPremium from '@/components/subscription/UpgradeToPremium';
 import InviteFriend from '@/components/community/InviteFriend';
 import { FeatureTracker } from '@/components/analytics/FeatureTracker';
 import { useAnalyticsContext } from '@/components/analytics/AnalyticsProvider';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,8 +45,7 @@ const UserDashboard = () => {
   const [kemCredits, setKemCredits] = useState<KemCredits | null>(null);
   const [progressValue, setProgressValue] = useState(0);
 
-  // Mock subscription tier - in real app this would come from profiles table
-  const isPremiumUser = false; // This would be fetched from user profile
+  const { isPremium: isPremiumUser } = usePremiumStatus();
 
   // KEM Credits calculation
   useEffect(() => {
