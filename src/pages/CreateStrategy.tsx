@@ -8,12 +8,13 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calculator, TrendingUp, AlertTriangle, Save, Eye } from 'lucide-react';
+import { Calculator, TrendingUp, AlertTriangle, Save, Eye, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/layout/Header';
 import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
+import SavedStrategies from '@/components/trading/SavedStrategies';
 import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
 import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
 import LiveOptionsChain from '@/components/trading/LiveOptionsChain';
@@ -62,6 +63,7 @@ const CreateStrategy = () => {
   const [legs, setLegs] = useState<TradingLeg[]>([]);
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedExpiration, setSelectedExpiration] = useState<string>('');
   const [selectedUnderlying, setSelectedUnderlying] = useState<string>('SPY');
   const [optionsChainData, setOptionsChainData] = useState<any[]>([]);
@@ -238,6 +240,81 @@ const CreateStrategy = () => {
     }
   };
 
+  const submitForApproval = async () => {
+    if (!user) {
+      toast({ title: 'Please sign in to submit strategies for approval', variant: 'destructive' });
+      return;
+    }
+
+    if (!strategyName.trim()) {
+      toast({ title: 'Please enter a strategy name', variant: 'destructive' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const strategyConfig = {
+        legs: legs,
+        conditions,
+        underlying: selectedUnderlying,
+        expiration: selectedExpiration
+      };
+
+      const { error } = await supabase.from('trading_strategies').insert({
+        title: strategyName,
+        description: description,
+        creator_id: user.id,
+        strategy_config: JSON.stringify(strategyConfig),
+        fee_percentage: parseFloat(feePercentage),
+        is_premium_only: isPremium,
+        status: 'pending_review',
+        created_at: new Date().toISOString()
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Strategy submitted for approval successfully!' });
+      
+      // Reset form
+      setStrategyName('');
+      setDescription('');
+      setCategory('');
+      setLegs([]);
+      setConditions([]);
+      setFeePercentage('2');
+      setIsPremium(false);
+    } catch (error) {
+      console.error('Error submitting strategy:', error);
+      toast({ title: 'Error submitting strategy for approval', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const loadStrategy = (strategy: any) => {
+    setStrategyName(strategy.title);
+    setDescription(strategy.description || '');
+    setFeePercentage((strategy.fee_percentage || 0).toString());
+    setIsPremium(strategy.is_premium_only || false);
+
+    try {
+      const config = typeof strategy.strategy_config === 'string' 
+        ? JSON.parse(strategy.strategy_config) 
+        : strategy.strategy_config;
+      
+      if (config.legs) {
+        setLegs(config.legs);
+      }
+      if (config.conditions) {
+        setConditions(config.conditions);
+      }
+    } catch (error) {
+      console.error('Error parsing strategy config:', error);
+    }
+
+    toast({ title: `Strategy "${strategy.title}" loaded successfully` });
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Header />
@@ -251,9 +328,14 @@ const CreateStrategy = () => {
             <Eye className="h-4 w-4 mr-2" />
             {isPreview ? 'Edit' : 'Preview'}
           </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button variant="outline" onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save Strategy'}
+            Save Draft
+          </Button>
+          <Button onClick={submitForApproval} disabled={isSubmitting || !strategyName.trim()}>
+            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Submit for Approval
           </Button>
         </div>
       </div>
@@ -279,8 +361,11 @@ const CreateStrategy = () => {
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="templates">
-            <TradingOptionsSelector onSelectOption={handleTemplateSelect} />
+          <TabsContent value="templates" className="space-y-4">
+            <div className="space-y-6">
+              <SavedStrategies onLoadStrategy={loadStrategy} />
+              <TradingOptionsSelector onSelectOption={handleTemplateSelect} />
+            </div>
           </TabsContent>
 
           <TabsContent value="basic">
