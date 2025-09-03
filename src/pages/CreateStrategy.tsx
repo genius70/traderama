@@ -363,8 +363,8 @@ const CreateStrategy = () => {
 
           <TabsContent value="templates" className="space-y-4">
             <div className="space-y-6">
-              <SavedStrategies onLoadStrategy={loadStrategy} />
               <TradingOptionsSelector onSelectOption={handleTemplateSelect} />
+              <SavedStrategies onLoadStrategy={loadStrategy} />
             </div>
           </TabsContent>
 
