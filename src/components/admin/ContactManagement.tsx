@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Send, Clock, Upload, FileUp, Download } from 'lucide-react';
+import { Loader2, Send, Clock, Upload, FileUp, Download, Mail, Users, Target } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import Papa from 'papaparse';
 
@@ -62,75 +62,112 @@ const ContactManagement: React.FC = () => {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
-  // Restrict to super admin
+  // Check user authorization
   useEffect(() => {
-    if (authLoading) return;
-    if (!user || user.email !== 'royan.shaw@gmail.com' || user.role !== 'super_admin') {
-      toast({
-        title: 'Access Denied',
-        variant: 'destructive',
-      });
-      return;
-    }
+    const checkAuthorization = async () => {
+      if (authLoading) return;
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-      // Fetch users and messages
-      const fetchData = async () => {
-        setLoading(true);
-        try {
-          // Fetch profiles with all required fields
-          const { data: profiles, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, role, name, is_premium, created_at, subscription_tier');
-          
-          const { data: usersData, error: userError } = await supabase.auth.admin.listUsers();
+      try {
+        // Fetch user profile to get role
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role, email')
+          .eq('id', user.id)
+          .single();
 
-          if (profileError || userError) throw new Error('Error fetching data');
+        if (error) throw error;
 
-          const mergedUsers = usersData.users
-            .filter(u => u.email) // Filter out users without email
-            .map((u) => ({
-              id: u.id,
-              email: u.email!,
-              name: profiles?.find((p) => p.id === u.id)?.name || null,
-              role: profiles?.find((p) => p.id === u.id)?.role || 'user',
-              created_at: u.created_at,
-              last_sign_in_at: u.last_sign_in_at || null,
-              is_premium: profiles?.find((p) => p.id === u.id)?.is_premium || false,
-            }));
-          setUsers(mergedUsers);
+        setUserProfile(profile);
+        
+        // Check if user is super admin with correct email
+        const authorized = profile?.role === 'super_admin' && user.email === 'royan.shaw@gmail.com';
+        setIsAuthorized(authorized);
 
-          // Fetch message history
-          const { data: messageHistory, error: msgError } = await supabase
-            .from('messages')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-          if (!msgError && messageHistory) {
-            setMessages(messageHistory.map(msg => ({
-              id: msg.id,
-              subject: msg.subject,
-              user_count: Array.isArray(msg.user_ids) ? msg.user_ids.length : 0,
-              delivery_method: msg.delivery_method,
-              status: msg.status,
-              sent_at: msg.sent_at,
-              error: msg.error
-            })));
-          }
-
-        } catch (error) {
-          console.error('Error fetching data:', error);
+        if (!authorized) {
           toast({
-            title: 'Error loading data',
+            title: 'Access Denied',
             variant: 'destructive',
           });
-        } finally {
           setLoading(false);
+          return;
         }
-      };
 
-    fetchData();
+        // If authorized, fetch data
+        await fetchData();
+      } catch (error) {
+        console.error('Error checking authorization:', error);
+        toast({
+          title: 'Error',
+          variant: 'destructive',
+        });
+        setLoading(false);
+      }
+    };
+
+    checkAuthorization();
   }, [authLoading, user, toast]);
+
+  // Fetch users and messages
+  const fetchData = async () => {
+    try {
+      // Fetch profiles with all required fields
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, role, name, is_premium, created_at, subscription_tier');
+      
+      const { data: usersData, error: userError } = await supabase.auth.admin.listUsers();
+
+      if (profileError || userError) throw new Error('Error fetching data');
+
+      const mergedUsers = usersData.users
+        .filter(u => u.email) // Filter out users without email
+        .map((u) => ({
+          id: u.id,
+          email: u.email!,
+          name: profiles?.find((p) => p.id === u.id)?.name || null,
+          role: profiles?.find((p) => p.id === u.id)?.role || 'user',
+          created_at: u.created_at,
+          last_sign_in_at: u.last_sign_in_at || null,
+          is_premium: profiles?.find((p) => p.id === u.id)?.is_premium || false,
+        }));
+      setUsers(mergedUsers);
+
+      // Fetch message history
+      const { data: messageHistory, error: msgError } = await supabase
+        .from('messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!msgError && messageHistory) {
+        setMessages(messageHistory.map(msg => ({
+          id: msg.id,
+          subject: msg.subject,
+          user_count: Array.isArray(msg.user_ids) ? msg.user_ids.length : 0,
+          delivery_method: msg.delivery_method,
+          status: msg.status,
+          sent_at: msg.sent_at,
+          error: msg.error
+        })));
+      }
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: 'Error loading data',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Apply filters
   useEffect(() => {
@@ -376,26 +413,52 @@ const ContactManagement: React.FC = () => {
   if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground">Loading contact management...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user || user.email !== 'royan.shaw@gmail.com' || user.role !== 'super_admin') {
+  if (!isAuthorized) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p>Access restricted to super admin.</p>
+        <div className="text-center space-y-4">
+          <div className="h-16 w-16 mx-auto bg-destructive/10 rounded-full flex items-center justify-center">
+            <Mail className="h-8 w-8 text-destructive" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Access Restricted</h3>
+            <p className="text-muted-foreground">This section is restricted to super administrators.</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900">Contact Management</h2>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Contact Management</h2>
+          <p className="text-muted-foreground">Manage user communications and contact lists</p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Users className="h-4 w-4" />
+          <span>{users.length} total users</span>
+        </div>
+      </div>
 
       {/* Filter Section */}
-      <div className="bg-white rounded-lg shadow p-6 space-y-6">
-        <h3 className="text-xl font-semibold text-gray-800">Filter Users</h3>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            Filter Users
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label htmlFor="filter-type">Filter Type</Label>
@@ -454,13 +517,19 @@ const ContactManagement: React.FC = () => {
             </Select>
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            {filteredUsers.length} users match the selected filters.
-          </p>
-          <div className="flex space-x-2">
+        <div className="flex items-center justify-between pt-4 border-t border-border">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              {filteredUsers.length} users match the selected filters
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Ready to send messages to filtered audience
+            </p>
+          </div>
+          <div className="flex gap-2">
             <Button
               variant="outline"
+              size="sm"
               onClick={exportUserList}
               disabled={!filteredUsers.length}
             >
@@ -469,6 +538,7 @@ const ContactManagement: React.FC = () => {
             </Button>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setIsImportDialogOpen(true)}
             >
               <Upload className="h-4 w-4 mr-2" />
@@ -477,18 +547,25 @@ const ContactManagement: React.FC = () => {
             <Button
               onClick={() => setIsDialogOpen(true)}
               disabled={!filteredUsers.length}
-              className="bg-blue-600 hover:bg-blue-700"
+              size="sm"
             >
               <Send className="h-4 w-4 mr-2" />
               Compose Message
             </Button>
           </div>
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Message History Table */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">Message History</h3>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            Message History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
@@ -521,7 +598,8 @@ const ContactManagement: React.FC = () => {
             )}
           </TableBody>
         </Table>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Compose Message Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
