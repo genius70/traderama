@@ -1,10 +1,11 @@
 .
+├── .gitignore
+├── .hintrc
 ├── Project_Tree.md
 ├── README.md
 ├── audit_fixes.md
 ├── bun.lockb
 ├── components.json
-├── deno.json
 ├── dist
 │   ├── _redirects
 │   ├── a81626f555c83f5c94f9d8fd874be06b.html
@@ -86,6 +87,7 @@
 ├── eslint_report.txt
 ├── index.html
 ├── netlify.toml
+├── package-lock.json
 ├── package.json
 ├── postcss.config.js
 ├── public
@@ -119,7 +121,8 @@
 │   │   │   └── index.ts
 │   │   ├── brokers
 │   │   │   ├── BrokerConnections.tsx
-│   │   │   └── IGBrokerConnect.tsx
+│   │   │   ├── IGBrokerConnect.tsx
+│   │   │   └── index.ts
 │   │   ├── community
 │   │   │   ├── CommunityCommentModal.tsx
 │   │   │   ├── CommunityPostCard.tsx
@@ -136,14 +139,15 @@
 │   │   ├── gamification
 │   │   │   ├── AdminAirdropPanel.tsx
 │   │   │   ├── Airdrop.tsx
-│   │   │   └── airdrop
-│   │   │       ├── AirdropClaimForm.tsx
-│   │   │       ├── AirdropDistributionTemplate.tsx
-│   │   │       ├── CreditsOverview.tsx
-│   │   │       ├── HowToEarnSection.tsx
-│   │   │       ├── MilestoneProgress.tsx
-│   │   │       ├── MilestonesList.tsx
-│   │   │       └── UserMilestoneBadges.tsx
+│   │   │   ├── airdrop
+│   │   │   │   ├── AirdropClaimForm.tsx
+│   │   │   │   ├── AirdropDistributionTemplate.tsx
+│   │   │   │   ├── CreditsOverview.tsx
+│   │   │   │   ├── HowToEarnSection.tsx
+│   │   │   │   ├── MilestoneProgress.tsx
+│   │   │   │   ├── MilestonesList.tsx
+│   │   │   │   └── UserMilestoneBadges.tsx
+│   │   │   └── user-reward.json
 │   │   ├── home
 │   │   │   ├── CTASection.tsx
 │   │   │   ├── FeaturesSection.tsx
@@ -251,7 +255,8 @@
 │   │   ├── useIGBroker.tsx
 │   │   ├── useKemCredits.tsx
 │   │   ├── usePageTracking.tsx
-│   │   └── usePremiumStatus.ts
+│   │   ├── usePremiumStatus.ts
+│   │   └── useProfileCompletion.tsx
 │   ├── index.css
 │   ├── integrations
 │   │   └── supabase
@@ -289,9 +294,24 @@
 │   │   └── polygonAPI.ts
 │   └── vite-env.d.ts
 ├── supabase
+│   ├── .temp
+│   │   ├── cli-latest
+│   │   ├── gotrue-version
+│   │   ├── pooler-url
+│   │   ├── postgres-version
+│   │   ├── project-ref
+│   │   ├── rest-version
+│   │   └── storage-version
 │   ├── config.toml
+│   ├── deno.json
 │   ├── functions
 │   │   ├── airdrop-distribute
+│   │   │   └── index.ts
+│   │   ├── alpaca-data
+│   │   │   └── index.ts
+│   │   ├── alpha-vantage-data
+│   │   │   └── index.ts
+│   │   ├── alpha-vantage-market-data
 │   │   │   └── index.ts
 │   │   ├── create-checkout
 │   │   │   └── index.ts
@@ -301,9 +321,13 @@
 │   │   │   └── index.ts
 │   │   ├── ig-broker-connect
 │   │   │   └── index.ts
+│   │   ├── ig-data
+│   │   │   └── index.ts
 │   │   ├── market-data-sync
 │   │   │   └── index.ts
 │   │   ├── process-scheduled-messages
+│   │   │   └── index.ts
+│   │   ├── proton-integration
 │   │   │   └── index.ts
 │   │   ├── send-notifications
 │   │   │   └── index.ts
@@ -321,11 +345,20 @@
 │       ├── 20250615203859-b0d4d443-4b44-4a39-96fa-402eb7299198.sql
 │       ├── 20250701010401-71b137b1-ffe9-4ff2-98e0-a1bc4adce1b0.sql
 │       ├── 20250716071501_create_contact_management_tables.sql
-│       └── 20250801025540_d196d692-b942-4f8d-b2cd-ad5520b1bb2d.sql
+│       ├── 20250801025540_d196d692-b942-4f8d-b2cd-ad5520b1bb2d.sql
+│       ├── 20250803015914_f36d5a8a-d84e-4392-a6ab-aebdb215a5d2.sql
+│       ├── 20250803020019_117e0bbb-7f43-4fb9-96ba-7a166aa90d29.sql
+│       ├── 20250803020153_0e8bcf44-d085-46a6-a71a-a91b528abffa.sql
+│       ├── 20250804014054_11e35b17-8791-4f15-ad77-05a82fd069bf.sql
+│       ├── 20250804015858_4a468972-a4e2-4b57-9d21-0fea60f1b80b.sql
+│       ├── 20250805033804_b0e9b3c5-1134-4c5f-bb7f-3f6d0b7684ee.sql
+│       ├── 20250805040105_18df59b3-6666-4e3e-8ce4-22ddde2ab9fe.sql
+│       ├── 20250806003814_9fe64859-c7a4-4829-8a6d-4257dacc3b0a.sql
+│       └── 20250806004904_fd550cf5-8f69-4a71-8f95-a67f58486b77.sql
 ├── tailwind.config.ts
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
 
-43 directories, 286 files
+49 directories, 313 files
