@@ -64,6 +64,8 @@ const ContactManagement: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [singleUserAction, setSingleUserAction] = useState<string>('');
 
   // Check user authorization
   useEffect(() => {
@@ -211,9 +213,17 @@ const ContactManagement: React.FC = () => {
 
   // Send or schedule message
   const handleSendMessage = async (isScheduled: boolean = false) => {
-    if (!subject || !message || (!isScheduled && !deliveryMethod)) {
+    if (!subject.trim() && deliveryMethod !== 'whatsapp') {
       toast({
-        title: 'Required fields missing',
+        title: 'Subject is required for email delivery',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!message.trim()) {
+      toast({
+        title: 'Message is required',
         variant: 'destructive',
       });
       return;
@@ -221,88 +231,73 @@ const ContactManagement: React.FC = () => {
 
     setIsSending(true);
     try {
-      const userIds = filteredUsers.map((u) => u.id);
+      const targetUsers = selectedUser ? [selectedUser] : filteredUsers;
+      const userIds = targetUsers.map(user => user.id);
       
-      if (isScheduled) {
-        // Save to scheduled_messages table
-        const { error } = await supabase
-          .from('scheduled_messages')
-          .insert({
-            user_ids: userIds,
-            subject,
-            message,
-            delivery_method: deliveryMethod,
-            scheduled_at: scheduleDate?.toISOString() || new Date().toISOString(),
-            status: 'pending'
-          });
+      // Insert message record
+      const messageData = {
+        super_admin_id: user?.id,
+        user_ids: userIds,
+        subject,
+        message,
+        delivery_method: deliveryMethod,
+        status: isScheduled ? 'scheduled' : 'processing',
+        ...(isScheduled && { scheduled_at: scheduleDate?.toISOString() })
+      };
 
-        if (error) throw error;
-        
-        toast({
-          title: 'Message scheduled successfully',
-        });
-      } else {
-        // Save to messages table and invoke edge function
-        const { error } = await supabase
-          .from('messages')
-          .insert({
-            user_ids: userIds,
-            subject,
-            message,
-            delivery_method: deliveryMethod,
-            status: 'pending'
-          });
+      const tableName = isScheduled ? 'scheduled_messages' : 'messages';
+      const { error: insertError } = await supabase
+        .from(tableName)
+        .insert([messageData]);
 
-        if (error) throw error;
+      if (insertError) throw insertError;
 
-        // Call edge function to send messages
+      if (!isScheduled) {
+        // Send notifications via edge function
         const { error: sendError } = await supabase.functions.invoke('send-notifications', {
           body: {
             user_ids: userIds,
             subject,
             message,
-            delivery_method: deliveryMethod
+            delivery_method: deliveryMethod,
           }
         });
 
         if (sendError) throw sendError;
 
-        toast({
-          title: 'Messages sent successfully',
-        });
+        // If this is a notification action, also create notification record
+        if (singleUserAction === 'notification') {
+          const { error: notificationError } = await supabase
+            .from('notifications')
+            .insert({
+              sender_id: user?.id,
+              title: subject,
+              content: message,
+              notification_type: 'admin_message',
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+              target_audience: { user_ids: userIds }
+            });
+
+          if (notificationError) console.error('Error creating notification record:', notificationError);
+        }
       }
-      
+
+      toast({
+        title: isScheduled ? 'Message scheduled successfully!' : 'Message sent successfully!',
+      });
+
+      setIsDialogOpen(false);
       setSubject('');
       setMessage('');
-      setTemplate('none');
       setScheduleDate(undefined);
-      setIsDialogOpen(false);
-      
-      // Refresh data
-      const fetchData = async () => {
-        const { data: messageHistory } = await supabase
-          .from('messages')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (messageHistory) {
-          setMessages(messageHistory.map(msg => ({
-            id: msg.id,
-            subject: msg.subject,
-            user_count: Array.isArray(msg.user_ids) ? msg.user_ids.length : 0,
-            delivery_method: msg.delivery_method,
-            status: msg.status,
-            sent_at: msg.sent_at,
-            error: msg.error
-          })));
-        }
-      };
-      fetchData();
-      
+      setSelectedUser(null);
+      setSingleUserAction('');
+      await fetchData();
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
-        title: 'Failed to process message',
+        title: 'Failed to send message',
         variant: 'destructive',
       });
     } finally {
@@ -408,6 +403,27 @@ const ContactManagement: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleSingleUserAction = (user: User, action: string) => {
+    setSelectedUser(user);
+    setSingleUserAction(action);
+    
+    // Pre-populate form based on action
+    if (action === 'email') {
+      setDeliveryMethod('email');
+      setSubject(`Message for ${user.name || user.email}`);
+      setMessage(`Hello ${user.name || 'there'},\n\nThis is a personal message from the Traderama team.\n\nBest regards,\nTraderama Team`);
+    } else if (action === 'whatsapp') {
+      setDeliveryMethod('whatsapp');
+      setMessage(`Hello ${user.name || 'there'}, this is a message from Traderama!`);
+    } else if (action === 'notification') {
+      setDeliveryMethod('email');
+      setSubject(`System Notification - ${user.name || user.email}`);
+      setMessage(`Hello ${user.name || 'there'},\n\nYou have a new notification from Traderama.\n\nPlease check your dashboard for more details.\n\nBest regards,\nTraderama Team`);
+    }
+    
+    setIsDialogOpen(true);
   };
 
   if (loading || authLoading) {
@@ -557,6 +573,94 @@ const ContactManagement: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* User Management Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            User Management
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Last Login</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.length ? (
+                filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-foreground">{user.name || 'Unknown User'}</span>
+                        <span className="text-sm text-muted-foreground">{user.email}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="capitalize text-sm">{user.role}</span>
+                    </TableCell>
+                    <TableCell>
+                      {user.is_premium ? (
+                        <span className="bg-primary/10 text-primary px-2 py-1 rounded-md text-xs font-medium">Premium</span>
+                      ) : (
+                        <span className="bg-muted text-muted-foreground px-2 py-1 rounded-md text-xs font-medium">Free</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'MMM d, yyyy') : 'Never'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSingleUserAction(user, 'email')}
+                          className="h-8 px-2"
+                        >
+                          <Mail className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSingleUserAction(user, 'whatsapp')}
+                          className="h-8 px-2 text-green-600 hover:text-green-700"
+                        >
+                          📱
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSingleUserAction(user, 'notification')}
+                          className="h-8 px-2"
+                        >
+                          🔔
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      No users match the selected filters.
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       {/* Message History Table */}
       <Card>
         <CardHeader>
@@ -605,7 +709,9 @@ const ContactManagement: React.FC = () => {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Send Message to {filteredUsers.length} Users</DialogTitle>
+            <DialogTitle>
+              {selectedUser ? `Send Message to ${selectedUser.name || selectedUser.email}` : `Send Message to ${filteredUsers.length} Users`}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div>
@@ -684,7 +790,11 @@ const ContactManagement: React.FC = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsDialogOpen(false);
+              setSelectedUser(null);
+              setSingleUserAction('');
+            }}>
               Cancel
             </Button>
             <Button onClick={() => handleSendMessage(!!scheduleDate)} disabled={isSending}>

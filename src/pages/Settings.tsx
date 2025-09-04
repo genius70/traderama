@@ -26,6 +26,7 @@ import Header from "@/components/layout/Header";
 import WalletSettings from "@/components/wallet/WalletSettings";
 import BrokerConnections from "@/components/brokers/BrokerConnections";
 import PlatformWallet from "@/components/wallet/PlatformWallet";
+import UserNotifications from "@/components/notifications/UserNotifications";
 
 const Settings = () => {
   const { user, loading, signOut } = useAuth();
@@ -170,6 +171,19 @@ const Settings = () => {
         </div>
 
         <div className="space-y-6">
+          {/* Notifications */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Messages & Notifications</CardTitle>
+              <CardDescription>
+                View and manage notifications from administrators
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UserNotifications />
+            </CardContent>
+          </Card>
+
           {/* Profile Settings */}
           <Card>
             <CardHeader>
