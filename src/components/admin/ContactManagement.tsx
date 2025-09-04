@@ -173,24 +173,33 @@ const ContactManagement: React.FC = () => {
 
   // Apply filters
   useEffect(() => {
-    if (!users.length) return;
+    if (!users.length) {
+      setFilteredUsers([]);
+      return;
+    }
 
     const now = new Date();
-    const filtered = users.filter((u) => {
+    let filtered = users.filter((u) => {
+      // Role filter
+      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+      
+      // Subscription filter
+      if (subscriptionFilter === 'premium' && !u.is_premium) return false;
+      if (subscriptionFilter === 'non-premium' && u.is_premium) return false;
+      
+      // Time-based filters
       const createdAt = new Date(u.created_at);
       const lastSignIn = u.last_sign_in_at ? new Date(u.last_sign_in_at) : null;
-      const daysDiff = (now.getTime() - (lastSignIn?.getTime() || now.getTime())) / (1000 * 3600 * 24);
-
-      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
-      if (subscriptionFilter !== 'all' && u.is_premium !== (subscriptionFilter === 'premium')) return false;
+      const daysSinceCreated = (now.getTime() - createdAt.getTime()) / (1000 * 3600 * 24);
+      const daysSinceLastSignIn = lastSignIn ? (now.getTime() - lastSignIn.getTime()) / (1000 * 3600 * 24) : Infinity;
 
       switch (filterType) {
         case 'not-opened-30':
-          return !lastSignIn || daysDiff >= 30;
+          return !lastSignIn || daysSinceLastSignIn >= 30;
         case 'joined-x-days':
-          return (now.getTime() - createdAt.getTime()) / (1000 * 3600 * 24) <= days;
+          return daysSinceCreated <= days;
         case 'logged-in-x-days':
-          return lastSignIn && daysDiff <= days;
+          return lastSignIn && daysSinceLastSignIn <= days;
         default:
           return true;
       }
@@ -460,9 +469,15 @@ const ContactManagement: React.FC = () => {
           <h2 className="text-2xl font-bold text-foreground">Contact Management</h2>
           <p className="text-muted-foreground">Manage user communications and contact lists</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Users className="h-4 w-4" />
-          <span>{users.length} total users</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm bg-primary/10 text-primary px-3 py-2 rounded-lg">
+            <Users className="h-4 w-4" />
+            <span className="font-medium">{users.length} Total Users</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm bg-accent/10 text-accent-foreground px-3 py-2 rounded-lg">
+            <Target className="h-4 w-4" />
+            <span className="font-medium">{filteredUsers.length} Filtered</span>
+          </div>
         </div>
       </div>
 
@@ -539,7 +554,7 @@ const ContactManagement: React.FC = () => {
               {filteredUsers.length} users match the selected filters
             </p>
             <p className="text-xs text-muted-foreground">
-              Ready to send messages to filtered audience
+              {filteredUsers.length > 0 ? 'Ready to send messages to filtered audience' : 'Adjust filters to see users'}
             </p>
           </div>
           <div className="flex gap-2">
@@ -547,7 +562,7 @@ const ContactManagement: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={exportUserList}
-              disabled={!filteredUsers.length}
+              disabled={filteredUsers.length === 0}
             >
               <Download className="h-4 w-4 mr-2" />
               Export CSV
@@ -561,9 +576,14 @@ const ContactManagement: React.FC = () => {
               Import Contacts
             </Button>
             <Button
-              onClick={() => setIsDialogOpen(true)}
-              disabled={!filteredUsers.length}
+              onClick={() => {
+                setSelectedUser(null);
+                setSingleUserAction('');
+                setIsDialogOpen(true);
+              }}
+              disabled={filteredUsers.length === 0}
               size="sm"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Send className="h-4 w-4 mr-2" />
               Compose Message
