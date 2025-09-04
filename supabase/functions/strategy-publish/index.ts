@@ -1,42 +1,38 @@
-import { createClient } from "@supabase/supabase-js";
-import { serve } from "std/http/server.ts";
+// supabase/functions/strategy-publish/index.ts
+import { serve } from 'std/http/server.ts';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
 
 serve(async (req) => {
-  const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_ANON_KEY'));
-  const payload = await req.json();
-  const { record } = payload;
+  try {
+    const { strategy_id, status } = await req.json();
+    const { data: strategy, error: strategyError } = await supabase
+      .from('trading_strategies')
+      .select('creator_id, title')
+      .eq('id', strategy_id)
+      .single();
 
-  if (record.status !== 'pending') return new Response('Invalid status', { status: 400 });
+    if (strategyError) throw strategyError;
 
-  const { data: user, error: userError } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', record.creator_id)
-    .single();
+    if (strategy) {
+      await supabase.from('notifications').insert({
+        user_id: strategy.creator_id,
+        message: `Your strategy "${strategy.title}" has been ${status}.`,
+        type: 'strategy_status',
+        created_at: new Date().toISOString(),
+      });
+    }
 
-  if (userError || !['strategy_creator', 'premium_member'].includes(user.role)) {
-    return new Response('Unauthorized', { status: 403 });
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Error in strategy-publish:', error);
+    return new Response(JSON.stringify({ error: 'Failed to process notification' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
-
-  // Validate strategy (e.g., check fee_percentage, config)
-  const isValid = record.fee_percentage >= 0 && record.strategy_config !== null;
-
-  const { error } = await supabase
-    .from('trading_strategies')
-    .update({ status: isValid ? 'published' : 'rejected' })
-    .eq('id', record.id);
-
-  if (error) return new Response('Error updating strategy', { status: 500 });
-
-  // Trigger notification
-  await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-notifications`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}` },
-    body: JSON.stringify({
-      user_id: record.creator_id,
-      message: `Strategy ${record.title} ${isValid ? 'published' : 'rejected'}.`,
-    }),
-  });
-
-  return new Response('Strategy processed', { status: 200 });
 });

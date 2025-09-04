@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import UserDashboard from '@/components/dashboard/UserDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import CreatorDashboard from '@/components/dashboard/CreatorDashboard';
-import AdminAnalytics from '@/pages/AdminAnalytics'; // Import AdminAnalytics
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
-
-const Dashboard = () => {
+const Dashboard: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
+  const { isPremium, loading: premiumLoading } = usePremiumStatus();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +23,7 @@ const Dashboard = () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, subscription_tier')
           .eq('id', user.id)
           .single();
 
@@ -40,7 +40,7 @@ const Dashboard = () => {
     fetchUserRole();
   }, [user]);
 
-  if (authLoading || loading) {
+  if (authLoading || loading || premiumLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -57,28 +57,27 @@ const Dashboard = () => {
   }
 
   const renderDashboard = () => {
-    switch (true) {
-      case userRole === "super_admin" && user.email === "royan.shaw@gmail.com":
-        return <AdminAnalytics />;
-      case userRole === "admin":
+    switch (userRole) {
+      case 'admin':
+      case 'super_admin':
         return <AdminDashboard />;
-      case userRole === "strategy_creator" || userRole === "premium_member":
+      case 'strategy_creator':
+      case 'premium_member':
         return <CreatorDashboard />;
-      case userRole === "user":
+      case 'user':
       default:
+        // Check if user is premium and redirect to creator dashboard
+        if (isPremium) {
+          return <CreatorDashboard />;
+        }
         return <UserDashboard />;
     }
   };
 
   return (
-    <>
-      <div className="max-w-4xl mx-auto space-y-4">
-      <hr />
-      </div>
-      <div className="space-y-6">
-        {renderDashboard()}
-      </div>
-    </>
+    <div className="space-y-6">
+      {renderDashboard()}
+    </div>
   );
 };
 

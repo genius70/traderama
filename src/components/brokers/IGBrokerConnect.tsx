@@ -20,11 +20,16 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface IGBrokerConnectProps {
-  onClose: () => void;
-  onConnect?: () => void;
+  onClose?: () => void;
+  onConnect?: (credentials: {
+    username: string;
+    password: string;
+    apiKey: string;
+    accountId: string;
+  }) => Promise<void> | void;
 }
 
-const IGBrokerConnect = ({ onClose, onConnect }: IGBrokerConnectProps) => {
+const IGBrokerConnect = ({ onClose = () => {}, onConnect }: IGBrokerConnectProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const { connectToBroker, isConnecting } = useIGBroker();
@@ -51,7 +56,7 @@ const IGBrokerConnect = ({ onClose, onConnect }: IGBrokerConnectProps) => {
     const result = await connectToBroker(credentials);
     
     if (result.success) {
-      onConnect?.();
+      await onConnect?.(credentials);
       onClose();
     }
   };

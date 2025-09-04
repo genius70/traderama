@@ -75,6 +75,7 @@ const AutoTrading = () => {
     connection,
     isConnecting: brokerConnecting,
     isLoading,
+    disconnectBroker,
     getAccountBalance,
     getRecentTrades,
     getStrategies,

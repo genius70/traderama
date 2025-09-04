@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 export const usePremiumStatus = () => {
   const { user } = useAuth();
@@ -15,12 +16,31 @@ export const usePremiumStatus = () => {
         return;
       }
 
-      // Temporarily disable premium subscription check until table is created
-      // Premium features will default to free tier
-      setIsPremium(false);
-      setSubscriptionTier('free');
-      setExpiresAt(null);
-      setLoading(false);
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('is_premium, subscription_tier, subscription_expires_at')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching premium status:', error);
+          setIsPremium(false);
+          setSubscriptionTier('free');
+          setExpiresAt(null);
+        } else {
+          setIsPremium(profile?.is_premium || false);
+          setSubscriptionTier(profile?.subscription_tier || 'free');
+          setExpiresAt(profile?.subscription_expires_at || null);
+        }
+      } catch (error) {
+        console.error('Error in checkPremiumStatus:', error);
+        setIsPremium(false);
+        setSubscriptionTier('free');
+        setExpiresAt(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
     checkPremiumStatus();

@@ -7,18 +7,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calculator, TrendingUp, AlertTriangle, Save, Eye } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Calculator, TrendingUp, AlertTriangle, Save, Eye, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/layout/Header';
 import TradingOptionsSelector from '@/components/trading/TradingOptionsSelector';
+import SavedStrategies from '@/components/trading/SavedStrategies';
 import StrategyBasicInfo from '@/components/trading/StrategyBasicInfo';
 import EnhancedTradingTemplate from '@/components/trading/EnhancedTradingTemplate';
-import MockOptionsChain from '@/components/trading/MockOptionsChain';
 import LiveOptionsChain from '@/components/trading/LiveOptionsChain';
 import StrategyPreview from '@/components/trading/StrategyPreview';
 import { authenticateIG } from '@/utils/igTradingAPI';
+import { format, addWeeks, isFriday, nextFriday } from 'date-fns';
 
 interface StrategyCondition {
   id: string;
@@ -29,7 +31,25 @@ interface StrategyCondition {
   timeframe: string;
 }
 
-import { TradingLeg } from '@/components/trading/types';
+interface TradingLeg {
+  id: string;
+  strike: string;
+  type: 'Call' | 'Put';
+  expiration: string;
+  buySell: 'Buy' | 'Sell';
+  size: number;
+  price: string;
+  limitPrice?: string;
+  underlying: string;
+  epic: string;
+  greeks?: {
+    delta: number;
+    gamma: number;
+    theta: number;
+    vega: number;
+    impliedVolatility: number;
+  };
+}
 
 const CreateStrategy = () => {
   const { user } = useAuth();
@@ -43,27 +63,66 @@ const CreateStrategy = () => {
   const [legs, setLegs] = useState<TradingLeg[]>([]);
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [useMockData, setUseMockData] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedExpiration, setSelectedExpiration] = useState<string>('');
+  const [selectedUnderlying, setSelectedUnderlying] = useState<string>('SPY');
+  const [optionsChainData, setOptionsChainData] = useState<any[]>([]);
 
   const indicators = ['RSI', 'MACD', 'Moving Average', 'Bollinger Bands', 'Stochastic', 'Volume', 'Price Action'];
   const operators = ['>', '<', '>=', '<=', '=', 'crosses above', 'crosses below'];
   const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
+  const underlyings = ['SPY', 'QQQ', 'IWM', 'GLD', 'SLV'];
 
-  // Authenticate with IG API on mount
+  const getWeeklyExpirations = () => {
+    const expirations: string[] = [];
+    let currentDate = new Date();
+    const maxDate = new Date();
+    maxDate.setMonth(maxDate.getMonth() + 24);
+
+    while (currentDate <= maxDate) {
+      if (isFriday(currentDate)) {
+        expirations.push(format(currentDate, 'yyyy-MM-dd'));
+      }
+      currentDate = nextFriday(addWeeks(currentDate, 1));
+    }
+    return expirations;
+  };
+
+  const weeklyExpirations = getWeeklyExpirations();
+
   useEffect(() => {
     const authenticate = async () => {
       try {
         await authenticateIG();
+        if (weeklyExpirations.length > 0) {
+          setSelectedExpiration(weeklyExpirations[0]);
+        }
       } catch (err) {
         toast({
-          title: 'Authentication Error - Using mock data as fallback',
+          title: 'Authentication Error',
           variant: 'destructive',
         });
-        setUseMockData(true); // Fallback to mock data if IG authentication fails
       }
     };
     authenticate();
   }, [toast]);
+
+  useEffect(() => {
+    const fetchOptionsChain = async () => {
+      if (!selectedUnderlying || !selectedExpiration) return;
+      try {
+        // Mock options chain data since LiveOptionsChain.fetchOptionsData doesn't exist
+        const mockData = [];
+        setOptionsChainData(mockData);
+      } catch (error) {
+        toast({
+          title: 'Error fetching options chain',
+          variant: 'destructive',
+        });
+      }
+    };
+    fetchOptionsChain();
+  }, [selectedUnderlying, selectedExpiration, toast]);
 
   const addCondition = () => {
     const newCondition: StrategyCondition = {
@@ -85,79 +144,175 @@ const CreateStrategy = () => {
     setConditions(conditions.filter((condition) => condition.id !== id));
   };
 
-  const handleTemplateSelect = (option: { id: string; name: string; template: { legs: TradingLeg[] } }) => {
+  const handleTemplateSelect = (option: any) => {
     setStrategyName(option.name);
     setCategory('Options Trading');
-    setLegs(option.template.legs.map((leg) => ({ ...leg, id: Date.now().toString() + Math.random() })));
+    // Create proper TradingLeg objects from template
+    const templateLegs = option.template.legs.map((leg: any) => ({
+      id: Date.now().toString() + Math.random(),
+      strike: leg.strike,
+      type: leg.type,
+      expiration: selectedExpiration || weeklyExpirations[0],
+      buySell: leg.buySell,
+      size: leg.size,
+      price: leg.price,
+      underlying: selectedUnderlying,
+      epic: `LIVE_${leg.strike}_${leg.type}`,
+    }));
+    setLegs(templateLegs);
   };
 
-  const handleSelectContract = (contract: { strike: number; type: 'Call' | 'Put'; ask: number; underlying: string; epic: string }) => {
+  const handleSelectContract = (contract: {
+    strike: number;
+    type: 'Call' | 'Put';
+    bid: number;
+    ask: number;
+    underlying: string;
+    epic: string;
+    greeks: { delta: number; gamma: number; theta: number; vega: number; impliedVolatility: number };
+  }) => {
     const newLeg: TradingLeg = {
       id: Date.now().toString(),
       strike: contract.strike.toString(),
       type: contract.type,
-      expiration: '30', // Placeholder: Update based on contract.expiration
+      expiration: selectedExpiration || weeklyExpirations[0],
       buySell: 'Buy',
       size: 1,
       price: contract.ask.toFixed(2),
+      limitPrice: contract.ask.toFixed(2),
       underlying: contract.underlying,
-      epic: contract.epic, // Use Polygon.io ticker or mapped IG epic
+      epic: contract.epic,
+      greeks: contract.greeks,
     };
     setLegs([...legs, newLeg]);
   };
 
+  const handleUpdateLeg = (id: string, field: keyof TradingLeg, value: any) => {
+    setLegs(legs.map((leg) => (leg.id === id ? { ...leg, [field]: value } : leg)));
+  };
+
   const handleSave = async () => {
     if (!user) {
-      toast({
-        title: 'Authentication required',
-        variant: 'destructive',
-      });
+      toast({ title: 'Authentication required', variant: 'destructive' });
       return;
     }
 
     if (!strategyName.trim() || !description.trim() || !category) {
-      toast({
-        title: 'Missing information',
-        variant: 'destructive',
-      });
+      toast({ title: 'Missing information', variant: 'destructive' });
       return;
     }
 
     setIsSaving(true);
     try {
-      const { error } = await supabase.from('trading_strategies').insert([
-        {
+      const { data, error } = await supabase
+        .from('trading_strategies')
+        .insert({
           title: strategyName,
           description,
           creator_id: user.id,
           strategy_config: JSON.stringify({ conditions, legs }),
           fee_percentage: parseFloat(feePercentage),
           is_premium_only: isPremium,
-          status: 'draft' as any,
-        },
-      ]);
+          status: 'pending_review' as const,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast({
-        title: 'Strategy created!',
+        title: 'Strategy Submitted',
       });
 
-      // Reset form
       setStrategyName('');
       setDescription('');
       setCategory('');
       setConditions([]);
       setLegs([]);
+      setSelectedExpiration(weeklyExpirations[0]);
+      setSelectedUnderlying('SPY');
     } catch (error) {
-      console.error('Error creating strategy:', error);
-      toast({
-        title: 'Error creating strategy',
-        variant: 'destructive',
-      });
+      console.error('Error submitting strategy:', error);
+      toast({ title: 'Error submitting strategy', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const submitForApproval = async () => {
+    if (!user) {
+      toast({ title: 'Please sign in to submit strategies for approval', variant: 'destructive' });
+      return;
+    }
+
+    if (!strategyName.trim()) {
+      toast({ title: 'Please enter a strategy name', variant: 'destructive' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const strategyConfig = {
+        legs: legs,
+        conditions,
+        underlying: selectedUnderlying,
+        expiration: selectedExpiration
+      };
+
+      const { error } = await supabase.from('trading_strategies').insert({
+        title: strategyName,
+        description: description,
+        creator_id: user.id,
+        strategy_config: JSON.stringify(strategyConfig),
+        fee_percentage: parseFloat(feePercentage),
+        is_premium_only: isPremium,
+        status: 'pending_review',
+        created_at: new Date().toISOString()
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Strategy submitted for approval successfully!' });
+      
+      // Reset form
+      setStrategyName('');
+      setDescription('');
+      setCategory('');
+      setLegs([]);
+      setConditions([]);
+      setFeePercentage('2');
+      setIsPremium(false);
+    } catch (error) {
+      console.error('Error submitting strategy:', error);
+      toast({ title: 'Error submitting strategy for approval', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const loadStrategy = (strategy: any) => {
+    setStrategyName(strategy.title);
+    setDescription(strategy.description || '');
+    setFeePercentage((strategy.fee_percentage || 0).toString());
+    setIsPremium(strategy.is_premium_only || false);
+
+    try {
+      const config = typeof strategy.strategy_config === 'string' 
+        ? JSON.parse(strategy.strategy_config) 
+        : strategy.strategy_config;
+      
+      if (config.legs) {
+        setLegs(config.legs);
+      }
+      if (config.conditions) {
+        setConditions(config.conditions);
+      }
+    } catch (error) {
+      console.error('Error parsing strategy config:', error);
+    }
+
+    toast({ title: `Strategy "${strategy.title}" loaded successfully` });
   };
 
   return (
@@ -173,9 +328,14 @@ const CreateStrategy = () => {
             <Eye className="h-4 w-4 mr-2" />
             {isPreview ? 'Edit' : 'Preview'}
           </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button variant="outline" onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save Strategy'}
+            Save Draft
+          </Button>
+          <Button onClick={submitForApproval} disabled={isSubmitting || !strategyName.trim()}>
+            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Submit for Approval
           </Button>
         </div>
       </div>
@@ -196,20 +356,16 @@ const CreateStrategy = () => {
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
             <TabsTrigger value="chain">Options Chain</TabsTrigger>
-           <TabsTrigger value="legs">Options Legs</TabsTrigger>
+            <TabsTrigger value="legs">Options Legs</TabsTrigger>
             <TabsTrigger value="conditions">Conditions</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="templates">
-            <TradingOptionsSelector onSelectOption={(option) => {
-              const legsWithDetails = option.template.legs.map(leg => ({
-                ...leg,
-                underlying: 'SPY',
-                epic: `TEMPLATE_${leg.strike}_${leg.type}`
-              }));
-              setLegs(legsWithDetails);
-            }} />
+          <TabsContent value="templates" className="space-y-4">
+            <div className="space-y-6">
+              <TradingOptionsSelector onSelectOption={handleTemplateSelect} />
+              <SavedStrategies onLoadStrategy={loadStrategy} />
+            </div>
           </TabsContent>
 
           <TabsContent value="basic">
@@ -224,47 +380,181 @@ const CreateStrategy = () => {
           </TabsContent>
 
           <TabsContent value="chain">
-            {useMockData ? (
-              <MockOptionsChain
-                onSelectContract={(contract) => {
-                  const newLeg: TradingLeg = {
-                    id: Date.now().toString(),
-                    strike: contract.strike.toString(),
-                    type: contract.type,
-                    expiration: '30', // Mock expiration
-                    buySell: 'Buy',
-                    size: 1,
-                    price: contract.ask.toFixed(2),
-                    underlying: 'SPY', // Mock default
-                    epic: `MOCK_${contract.strike}_${contract.type}`, // Mock epic
-                  };
-                  setLegs([...legs, newLeg]);
-                }}
-              />
-            ) : (
-              <LiveOptionsChain
-                onSelectContract={(contract) => {
-                  const newLeg: TradingLeg = {
-                    strike: contract.strike.toString(),
-                    type: contract.type,
-                    expiration: '2025-08-15',
-                    buySell: 'Buy',
-                    size: 1,
-                    price: contract.ask.toFixed(2),
-                    underlying: 'SPY',
-                    epic: `LIVE_${contract.strike}_${contract.type}`,
-                  };
-                  setLegs([...legs, newLeg]);
-                }}
-              />
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle>Options Chain</CardTitle>
+                <CardDescription>Select an options contract to add to your strategy</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="underlying">Underlying Asset</Label>
+                    <Select
+                      value={selectedUnderlying}
+                      onValueChange={setSelectedUnderlying}
+                    >
+                      <SelectTrigger id="underlying">
+                        <SelectValue placeholder="Select underlying" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {underlyings.map((asset) => (
+                          <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="expiration">Expiration Date</Label>
+                    <Select
+                      value={selectedExpiration}
+                      onValueChange={setSelectedExpiration}
+                    >
+                      <SelectTrigger id="expiration">
+                        <SelectValue placeholder="Select expiration date" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {weeklyExpirations.map((date) => (
+                          <SelectItem key={date} value={date}>
+                            {format(new Date(date), 'MMM dd, yyyy')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {optionsChainData.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Strike</TableHead>
+                        <TableHead>Bid</TableHead>
+                        <TableHead>Ask</TableHead>
+                        <TableHead>Delta</TableHead>
+                        <TableHead>Gamma</TableHead>
+                        <TableHead>Theta</TableHead>
+                        <TableHead>Vega</TableHead>
+                        <TableHead>IV</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {optionsChainData.map((contract) => (
+                        <TableRow key={`${contract.type}-${contract.strike}`}>
+                          <TableCell>{contract.type}</TableCell>
+                          <TableCell>{contract.strike}</TableCell>
+                          <TableCell>{contract.bid.toFixed(2)}</TableCell>
+                          <TableCell>{contract.ask.toFixed(2)}</TableCell>
+                          <TableCell>{contract.greeks.delta.toFixed(3)}</TableCell>
+                          <TableCell>{contract.greeks.gamma.toFixed(3)}</TableCell>
+                          <TableCell>{contract.greeks.theta.toFixed(3)}</TableCell>
+                          <TableCell>{contract.greeks.vega.toFixed(3)}</TableCell>
+                          <TableCell>{contract.greeks.impliedVolatility.toFixed(2)}%</TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              onClick={() => handleSelectContract(contract)}
+                            >
+                              Add
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
+                    <p>No options data available</p>
+                    <p className="text-sm">Select an underlying asset and expiration date to view options</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
-           <TabsContent value="legs">
-            <EnhancedTradingTemplate
-              strategyName={strategyName || 'Strategy'}
-              legs={legs}
-              onLegsChange={setLegs}
-            />
+
+          <TabsContent value="legs">
+            <Card>
+              <CardHeader>
+                <CardTitle>Options Legs</CardTitle>
+                <CardDescription>Configure the legs of your trading strategy</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EnhancedTradingTemplate
+                  strategyName={strategyName || 'Strategy'}
+                  legs={legs}
+                  onLegsChange={(newLegs: any[]) => setLegs(newLegs.map(leg => ({ ...leg, id: leg.id || Date.now().toString() })))}
+                />
+                {legs.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Underlying</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Strike</TableHead>
+                        <TableHead>Expiration</TableHead>
+                        <TableHead>Buy/Sell</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>Market Price</TableHead>
+                        <TableHead>Limit Price</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {legs.map((leg) => (
+                        <TableRow key={leg.id}>
+                          <TableCell>{leg.underlying}</TableCell>
+                          <TableCell>{leg.type}</TableCell>
+                          <TableCell>{leg.strike}</TableCell>
+                          <TableCell>{format(new Date(leg.expiration), 'MMM dd, yyyy')}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={leg.buySell}
+                              onValueChange={(value) => handleUpdateLeg(leg.id, 'buySell', value)}
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Buy">Buy</SelectItem>
+                                <SelectItem value="Sell">Sell</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={leg.size}
+                              onChange={(e) => handleUpdateLeg(leg.id, 'size', parseInt(e.target.value))}
+                              className="w-20"
+                            />
+                          </TableCell>
+                          <TableCell>{leg.price}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={leg.limitPrice || leg.price}
+                              onChange={(e) => handleUpdateLeg(leg.id, 'limitPrice', e.target.value)}
+                              className="w-24"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setLegs(legs.filter((l) => l.id !== leg.id))}
+                            >
+                              Remove
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="conditions">

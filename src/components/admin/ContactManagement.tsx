@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Send, Clock, Upload, FileUp, Download } from 'lucide-react';
+import { Loader2, Send, Clock, Upload, FileUp, Download, Mail, Users, Target } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import Papa from 'papaparse';
 
@@ -62,96 +62,144 @@ const ContactManagement: React.FC = () => {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [singleUserAction, setSingleUserAction] = useState<string>('');
 
-  // Restrict to super admin
+  // Check user authorization
   useEffect(() => {
-    if (authLoading) return;
-    if (!user || user.email !== 'royan.shaw@gmail.com' || user.role !== 'super_admin') {
-      toast({
-        title: 'Access Denied',
-        variant: 'destructive',
-      });
-      return;
-    }
+    const checkAuthorization = async () => {
+      if (authLoading) return;
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-      // Fetch users and messages
-      const fetchData = async () => {
-        setLoading(true);
-        try {
-          // Fetch profiles with all required fields
-          const { data: profiles, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, role, name, is_premium, created_at, subscription_tier');
-          
-          const { data: usersData, error: userError } = await supabase.auth.admin.listUsers();
+      try {
+        // Fetch user profile to get role
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role, email')
+          .eq('id', user.id)
+          .single();
 
-          if (profileError || userError) throw new Error('Error fetching data');
+        if (error) throw error;
 
-          const mergedUsers = usersData.users
-            .filter(u => u.email) // Filter out users without email
-            .map((u) => ({
-              id: u.id,
-              email: u.email!,
-              name: profiles?.find((p) => p.id === u.id)?.name || null,
-              role: profiles?.find((p) => p.id === u.id)?.role || 'user',
-              created_at: u.created_at,
-              last_sign_in_at: u.last_sign_in_at || null,
-              is_premium: profiles?.find((p) => p.id === u.id)?.is_premium || false,
-            }));
-          setUsers(mergedUsers);
+        setUserProfile(profile);
+        
+        // Check if user is super admin with correct email
+        const authorized = profile?.role === 'super_admin' && user.email === 'royan.shaw@gmail.com';
+        setIsAuthorized(authorized);
 
-          // Fetch message history
-          const { data: messageHistory, error: msgError } = await supabase
-            .from('messages')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-          if (!msgError && messageHistory) {
-            setMessages(messageHistory.map(msg => ({
-              id: msg.id,
-              subject: msg.subject,
-              user_count: Array.isArray(msg.user_ids) ? msg.user_ids.length : 0,
-              delivery_method: msg.delivery_method,
-              status: msg.status,
-              sent_at: msg.sent_at,
-              error: msg.error
-            })));
-          }
-
-        } catch (error) {
-          console.error('Error fetching data:', error);
+        if (!authorized) {
           toast({
-            title: 'Error loading data',
+            title: 'Access Denied',
             variant: 'destructive',
           });
-        } finally {
           setLoading(false);
+          return;
         }
-      };
 
-    fetchData();
+        // If authorized, fetch data
+        await fetchData();
+      } catch (error) {
+        console.error('Error checking authorization:', error);
+        toast({
+          title: 'Error',
+          variant: 'destructive',
+        });
+        setLoading(false);
+      }
+    };
+
+    checkAuthorization();
   }, [authLoading, user, toast]);
+
+  // Fetch users and messages
+  const fetchData = async () => {
+    try {
+      // Fetch profiles with all required fields
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, role, name, is_premium, created_at, subscription_tier');
+      
+      const { data: usersData, error: userError } = await supabase.auth.admin.listUsers();
+
+      if (profileError || userError) throw new Error('Error fetching data');
+
+      const mergedUsers = usersData.users
+        .filter(u => u.email) // Filter out users without email
+        .map((u) => ({
+          id: u.id,
+          email: u.email!,
+          name: profiles?.find((p) => p.id === u.id)?.name || null,
+          role: profiles?.find((p) => p.id === u.id)?.role || 'user',
+          created_at: u.created_at,
+          last_sign_in_at: u.last_sign_in_at || null,
+          is_premium: profiles?.find((p) => p.id === u.id)?.is_premium || false,
+        }));
+      setUsers(mergedUsers);
+
+      // Fetch message history
+      const { data: messageHistory, error: msgError } = await supabase
+        .from('messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!msgError && messageHistory) {
+        setMessages(messageHistory.map(msg => ({
+          id: msg.id,
+          subject: msg.subject,
+          user_count: Array.isArray(msg.user_ids) ? msg.user_ids.length : 0,
+          delivery_method: msg.delivery_method,
+          status: msg.status,
+          sent_at: msg.sent_at,
+          error: msg.error
+        })));
+      }
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: 'Error loading data',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Apply filters
   useEffect(() => {
-    if (!users.length) return;
+    if (!users.length) {
+      setFilteredUsers([]);
+      return;
+    }
 
     const now = new Date();
-    const filtered = users.filter((u) => {
+    let filtered = users.filter((u) => {
+      // Role filter
+      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+      
+      // Subscription filter
+      if (subscriptionFilter === 'premium' && !u.is_premium) return false;
+      if (subscriptionFilter === 'non-premium' && u.is_premium) return false;
+      
+      // Time-based filters
       const createdAt = new Date(u.created_at);
       const lastSignIn = u.last_sign_in_at ? new Date(u.last_sign_in_at) : null;
-      const daysDiff = (now.getTime() - (lastSignIn?.getTime() || now.getTime())) / (1000 * 3600 * 24);
-
-      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
-      if (subscriptionFilter !== 'all' && u.is_premium !== (subscriptionFilter === 'premium')) return false;
+      const daysSinceCreated = (now.getTime() - createdAt.getTime()) / (1000 * 3600 * 24);
+      const daysSinceLastSignIn = lastSignIn ? (now.getTime() - lastSignIn.getTime()) / (1000 * 3600 * 24) : Infinity;
 
       switch (filterType) {
         case 'not-opened-30':
-          return !lastSignIn || daysDiff >= 30;
+          return !lastSignIn || daysSinceLastSignIn >= 30;
         case 'joined-x-days':
-          return (now.getTime() - createdAt.getTime()) / (1000 * 3600 * 24) <= days;
+          return daysSinceCreated <= days;
         case 'logged-in-x-days':
-          return lastSignIn && daysDiff <= days;
+          return lastSignIn && daysSinceLastSignIn <= days;
         default:
           return true;
       }
@@ -174,9 +222,17 @@ const ContactManagement: React.FC = () => {
 
   // Send or schedule message
   const handleSendMessage = async (isScheduled: boolean = false) => {
-    if (!subject || !message || (!isScheduled && !deliveryMethod)) {
+    if (!subject.trim() && deliveryMethod !== 'whatsapp') {
       toast({
-        title: 'Required fields missing',
+        title: 'Subject is required for email delivery',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!message.trim()) {
+      toast({
+        title: 'Message is required',
         variant: 'destructive',
       });
       return;
@@ -184,88 +240,73 @@ const ContactManagement: React.FC = () => {
 
     setIsSending(true);
     try {
-      const userIds = filteredUsers.map((u) => u.id);
+      const targetUsers = selectedUser ? [selectedUser] : filteredUsers;
+      const userIds = targetUsers.map(user => user.id);
       
-      if (isScheduled) {
-        // Save to scheduled_messages table
-        const { error } = await supabase
-          .from('scheduled_messages')
-          .insert({
-            user_ids: userIds,
-            subject,
-            message,
-            delivery_method: deliveryMethod,
-            scheduled_at: scheduleDate?.toISOString() || new Date().toISOString(),
-            status: 'pending'
-          });
+      // Insert message record
+      const messageData = {
+        super_admin_id: user?.id,
+        user_ids: userIds,
+        subject,
+        message,
+        delivery_method: deliveryMethod,
+        status: isScheduled ? 'scheduled' : 'processing',
+        ...(isScheduled && { scheduled_at: scheduleDate?.toISOString() })
+      };
 
-        if (error) throw error;
-        
-        toast({
-          title: 'Message scheduled successfully',
-        });
-      } else {
-        // Save to messages table and invoke edge function
-        const { error } = await supabase
-          .from('messages')
-          .insert({
-            user_ids: userIds,
-            subject,
-            message,
-            delivery_method: deliveryMethod,
-            status: 'pending'
-          });
+      const tableName = isScheduled ? 'scheduled_messages' : 'messages';
+      const { error: insertError } = await supabase
+        .from(tableName)
+        .insert([messageData]);
 
-        if (error) throw error;
+      if (insertError) throw insertError;
 
-        // Call edge function to send messages
+      if (!isScheduled) {
+        // Send notifications via edge function
         const { error: sendError } = await supabase.functions.invoke('send-notifications', {
           body: {
             user_ids: userIds,
             subject,
             message,
-            delivery_method: deliveryMethod
+            delivery_method: deliveryMethod,
           }
         });
 
         if (sendError) throw sendError;
 
-        toast({
-          title: 'Messages sent successfully',
-        });
+        // If this is a notification action, also create notification record
+        if (singleUserAction === 'notification') {
+          const { error: notificationError } = await supabase
+            .from('notifications')
+            .insert({
+              sender_id: user?.id,
+              title: subject,
+              content: message,
+              notification_type: 'admin_message',
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+              target_audience: { user_ids: userIds }
+            });
+
+          if (notificationError) console.error('Error creating notification record:', notificationError);
+        }
       }
-      
+
+      toast({
+        title: isScheduled ? 'Message scheduled successfully!' : 'Message sent successfully!',
+      });
+
+      setIsDialogOpen(false);
       setSubject('');
       setMessage('');
-      setTemplate('none');
       setScheduleDate(undefined);
-      setIsDialogOpen(false);
-      
-      // Refresh data
-      const fetchData = async () => {
-        const { data: messageHistory } = await supabase
-          .from('messages')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (messageHistory) {
-          setMessages(messageHistory.map(msg => ({
-            id: msg.id,
-            subject: msg.subject,
-            user_count: Array.isArray(msg.user_ids) ? msg.user_ids.length : 0,
-            delivery_method: msg.delivery_method,
-            status: msg.status,
-            sent_at: msg.sent_at,
-            error: msg.error
-          })));
-        }
-      };
-      fetchData();
-      
+      setSelectedUser(null);
+      setSingleUserAction('');
+      await fetchData();
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
-        title: 'Failed to process message',
+        title: 'Failed to send message',
         variant: 'destructive',
       });
     } finally {
@@ -373,29 +414,82 @@ const ContactManagement: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleSingleUserAction = (user: User, action: string) => {
+    setSelectedUser(user);
+    setSingleUserAction(action);
+    
+    // Pre-populate form based on action
+    if (action === 'email') {
+      setDeliveryMethod('email');
+      setSubject(`Message for ${user.name || user.email}`);
+      setMessage(`Hello ${user.name || 'there'},\n\nThis is a personal message from the Traderama team.\n\nBest regards,\nTraderama Team`);
+    } else if (action === 'whatsapp') {
+      setDeliveryMethod('whatsapp');
+      setMessage(`Hello ${user.name || 'there'}, this is a message from Traderama!`);
+    } else if (action === 'notification') {
+      setDeliveryMethod('email');
+      setSubject(`System Notification - ${user.name || user.email}`);
+      setMessage(`Hello ${user.name || 'there'},\n\nYou have a new notification from Traderama.\n\nPlease check your dashboard for more details.\n\nBest regards,\nTraderama Team`);
+    }
+    
+    setIsDialogOpen(true);
+  };
+
   if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground">Loading contact management...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user || user.email !== 'royan.shaw@gmail.com' || user.role !== 'super_admin') {
+  if (!isAuthorized) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p>Access restricted to super admin.</p>
+        <div className="text-center space-y-4">
+          <div className="h-16 w-16 mx-auto bg-destructive/10 rounded-full flex items-center justify-center">
+            <Mail className="h-8 w-8 text-destructive" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Access Restricted</h3>
+            <p className="text-muted-foreground">This section is restricted to super administrators.</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900">Contact Management</h2>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Contact Management</h2>
+          <p className="text-muted-foreground">Manage user communications and contact lists</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm bg-primary/10 text-primary px-3 py-2 rounded-lg">
+            <Users className="h-4 w-4" />
+            <span className="font-medium">{users.length} Total Users</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm bg-accent/10 text-accent-foreground px-3 py-2 rounded-lg">
+            <Target className="h-4 w-4" />
+            <span className="font-medium">{filteredUsers.length} Filtered</span>
+          </div>
+        </div>
+      </div>
 
       {/* Filter Section */}
-      <div className="bg-white rounded-lg shadow p-6 space-y-6">
-        <h3 className="text-xl font-semibold text-gray-800">Filter Users</h3>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            Filter Users
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label htmlFor="filter-type">Filter Type</Label>
@@ -454,41 +548,148 @@ const ContactManagement: React.FC = () => {
             </Select>
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            {filteredUsers.length} users match the selected filters.
-          </p>
-          <div className="flex space-x-2">
+        <div className="flex items-center justify-between pt-4 border-t border-border">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              {filteredUsers.length} users match the selected filters
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {filteredUsers.length > 0 ? 'Ready to send messages to filtered audience' : 'Adjust filters to see users'}
+            </p>
+          </div>
+          <div className="flex gap-2">
             <Button
               variant="outline"
+              size="sm"
               onClick={exportUserList}
-              disabled={!filteredUsers.length}
+              disabled={filteredUsers.length === 0}
             >
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setIsImportDialogOpen(true)}
             >
               <Upload className="h-4 w-4 mr-2" />
               Import Contacts
             </Button>
             <Button
-              onClick={() => setIsDialogOpen(true)}
-              disabled={!filteredUsers.length}
-              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                setSelectedUser(null);
+                setSingleUserAction('');
+                setIsDialogOpen(true);
+              }}
+              disabled={filteredUsers.length === 0}
+              size="sm"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Send className="h-4 w-4 mr-2" />
               Compose Message
             </Button>
           </div>
         </div>
-      </div>
+        </CardContent>
+      </Card>
+
+      {/* User Management Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            User Management
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Last Login</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.length ? (
+                filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-foreground">{user.name || 'Unknown User'}</span>
+                        <span className="text-sm text-muted-foreground">{user.email}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="capitalize text-sm">{user.role}</span>
+                    </TableCell>
+                    <TableCell>
+                      {user.is_premium ? (
+                        <span className="bg-primary/10 text-primary px-2 py-1 rounded-md text-xs font-medium">Premium</span>
+                      ) : (
+                        <span className="bg-muted text-muted-foreground px-2 py-1 rounded-md text-xs font-medium">Free</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'MMM d, yyyy') : 'Never'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSingleUserAction(user, 'email')}
+                          className="h-8 px-2"
+                        >
+                          <Mail className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSingleUserAction(user, 'whatsapp')}
+                          className="h-8 px-2 text-green-600 hover:text-green-700"
+                        >
+                          📱
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSingleUserAction(user, 'notification')}
+                          className="h-8 px-2"
+                        >
+                          🔔
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      No users match the selected filters.
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Message History Table */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">Message History</h3>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            Message History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
@@ -521,13 +722,16 @@ const ContactManagement: React.FC = () => {
             )}
           </TableBody>
         </Table>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Compose Message Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Send Message to {filteredUsers.length} Users</DialogTitle>
+            <DialogTitle>
+              {selectedUser ? `Send Message to ${selectedUser.name || selectedUser.email}` : `Send Message to ${filteredUsers.length} Users`}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div>
@@ -606,7 +810,11 @@ const ContactManagement: React.FC = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsDialogOpen(false);
+              setSelectedUser(null);
+              setSingleUserAction('');
+            }}>
               Cancel
             </Button>
             <Button onClick={() => handleSendMessage(!!scheduleDate)} disabled={isSending}>
