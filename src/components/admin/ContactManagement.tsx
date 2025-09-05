@@ -22,6 +22,18 @@ interface User {
   created_at: string;
   last_sign_in_at: string | null;
   is_premium: boolean;
+  phone_number: string | null;
+  email_confirmed_at: string | null;
+  wallet_balance: number;
+  referral_code: string | null;
+  total_referrals: number;
+  membership_level: string;
+  active_strategies: number;
+  total_trades: number;
+  platform_revenue: number;
+  credits_earned: number;
+  pending_strategies: number;
+  profit_loss: number;
 }
 
 interface Message {
@@ -120,26 +132,82 @@ const ContactManagement: React.FC = () => {
   // Fetch users and messages
   const fetchData = async () => {
     try {
-      // Fetch profiles with all required fields
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, role, name, is_premium, created_at, subscription_tier');
-      
-      const { data: usersData, error: userError } = await supabase.auth.admin.listUsers();
+      // Fetch all user-related data from multiple tables
+      const [
+        { data: profiles, error: profileError },
+        { data: usersData, error: userError },
+        { data: kemCredits, error: kemError },
+        { data: analytics, error: analyticsError },
+        { data: escrowAccounts, error: escrowError },
+        { data: strategyCounts, error: strategyCountError },
+        { data: tradeCounts, error: tradeCountError }
+      ] = await Promise.all([
+        supabase.from('profiles').select('*'),
+        supabase.auth.admin.listUsers(),
+        supabase.from('kem_credits').select('user_id, credits_earned'),
+        supabase.from('analytics').select('user_id, total_trades'),
+        supabase.from('escrow_accounts').select('user_id, balance'),
+        supabase.from('trading_strategies').select('creator_id, status').then(({ data, error }) => {
+          const counts = data?.reduce((acc: any, strategy: any) => {
+            if (!acc[strategy.creator_id]) {
+              acc[strategy.creator_id] = { active: 0, pending: 0 };
+            }
+            if (strategy.status === 'approved') {
+              acc[strategy.creator_id].active++;
+            } else if (strategy.status === 'pending') {
+              acc[strategy.creator_id].pending++;
+            }
+            return acc;
+          }, {});
+          return { data: counts, error };
+        }),
+        supabase.from('iron_condor_trades').select('user_id, current_pnl, status').then(({ data, error }) => {
+          const counts = data?.reduce((acc: any, trade: any) => {
+            if (!acc[trade.user_id]) {
+              acc[trade.user_id] = { count: 0, totalPnl: 0 };
+            }
+            acc[trade.user_id].count++;
+            acc[trade.user_id].totalPnl += trade.current_pnl || 0;
+            return acc;
+          }, {});
+          return { data: counts, error };
+        })
+      ]);
 
-      if (profileError || userError) throw new Error('Error fetching data');
+      if (profileError || userError) throw new Error('Error fetching user data');
 
       const mergedUsers = usersData.users
         .filter(u => u.email) // Filter out users without email
-        .map((u) => ({
-          id: u.id,
-          email: u.email!,
-          name: profiles?.find((p) => p.id === u.id)?.name || null,
-          role: profiles?.find((p) => p.id === u.id)?.role || 'user',
-          created_at: u.created_at,
-          last_sign_in_at: u.last_sign_in_at || null,
-          is_premium: profiles?.find((p) => p.id === u.id)?.is_premium || false,
-        }));
+        .map((u) => {
+          const profile = profiles?.find((p) => p.id === u.id);
+          const credits = kemCredits?.find((k) => k.user_id === u.id);
+          const userAnalytics = analytics?.find((a) => a.user_id === u.id);
+          const escrow = escrowAccounts?.find((e) => e.user_id === u.id);
+          const strategies = strategyCounts?.[u.id] || { active: 0, pending: 0 };
+          const trades = tradeCounts?.[u.id] || { count: 0, totalPnl: 0 };
+
+          return {
+            id: u.id,
+            email: u.email!,
+            name: profile?.name || null,
+            role: profile?.role || 'user',
+            created_at: u.created_at,
+            last_sign_in_at: u.last_sign_in_at || null,
+            is_premium: profile?.is_premium || false,
+            phone_number: profile?.phone_number || null,
+            email_confirmed_at: u.email_confirmed_at || null,
+            wallet_balance: escrow?.balance || 0,
+            referral_code: profile?.referral_code || null,
+            total_referrals: 0, // Would need a separate query for referrals count
+            membership_level: profile?.subscription_tier || 'free',
+            active_strategies: strategies.active,
+            total_trades: trades.count,
+            platform_revenue: trades.totalPnl * 0.05, // Assuming 5% platform fee
+            credits_earned: credits?.credits_earned || 0,
+            pending_strategies: strategies.pending,
+            profit_loss: trades.totalPnl
+          };
+        });
       setUsers(mergedUsers);
 
       // Fetch message history
@@ -593,91 +661,138 @@ const ContactManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* User Management Table */}
+      {/* Comprehensive User Management Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
-            User Management
+            Comprehensive User Management Table
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last Login</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.length ? (
-                filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{user.name || 'Unknown User'}</span>
-                        <span className="text-sm text-muted-foreground">{user.email}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="capitalize text-sm">{user.role}</span>
-                    </TableCell>
-                    <TableCell>
-                      {user.is_premium ? (
-                        <span className="bg-primary/10 text-primary px-2 py-1 rounded-md text-xs font-medium">Premium</span>
-                      ) : (
-                        <span className="bg-muted text-muted-foreground px-2 py-1 rounded-md text-xs font-medium">Free</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[200px]">UID</TableHead>
+                  <TableHead className="min-w-[150px]">Display Name</TableHead>
+                  <TableHead className="min-w-[120px]">Phone</TableHead>
+                  <TableHead className="min-w-[120px]">Created At</TableHead>
+                  <TableHead className="min-w-[100px]">Confirmed</TableHead>
+                  <TableHead className="min-w-[120px]">Last Sign In</TableHead>
+                  <TableHead className="min-w-[80px]">Active</TableHead>
+                  <TableHead className="min-w-[120px]">Wallet Balance</TableHead>
+                  <TableHead className="min-w-[120px]">Referral ID</TableHead>
+                  <TableHead className="min-w-[120px]">Total Referrals</TableHead>
+                  <TableHead className="min-w-[140px]">Membership Level</TableHead>
+                  <TableHead className="min-w-[140px]">Active Strategies</TableHead>
+                  <TableHead className="min-w-[120px]">Total Trades</TableHead>
+                  <TableHead className="min-w-[140px]">Platform Revenue</TableHead>
+                  <TableHead className="min-w-[140px]">Credits Earned</TableHead>
+                  <TableHead className="min-w-[140px]">Pending Strategies</TableHead>
+                  <TableHead className="min-w-[140px]">Profit/(Loss)</TableHead>
+                  <TableHead className="min-w-[200px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.length ? (
+                  filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="text-xs font-mono">{user.id}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground text-sm">{user.name || 'Unknown'}</span>
+                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{user.phone_number || '-'}</TableCell>
+                      <TableCell className="text-sm">
+                        {format(new Date(user.created_at), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell>
+                        {user.email_confirmed_at ? (
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs">Yes</span>
+                        ) : (
+                          <span className="bg-red-100 text-red-800 px-2 py-1 rounded-md text-xs">No</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
                         {user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'MMM d, yyyy') : 'Never'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSingleUserAction(user, 'email')}
-                          className="h-8 px-2"
-                        >
-                          <Mail className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSingleUserAction(user, 'whatsapp')}
-                          className="h-8 px-2 text-green-600 hover:text-green-700"
-                        >
-                          📱
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSingleUserAction(user, 'notification')}
-                          className="h-8 px-2"
-                        >
-                          🔔
-                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        {user.last_sign_in_at && new Date(user.last_sign_in_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) ? (
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs">Active</span>
+                        ) : (
+                          <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-md text-xs">Inactive</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm font-mono">${user.wallet_balance.toFixed(2)}</TableCell>
+                      <TableCell className="text-sm font-mono">{user.referral_code || '-'}</TableCell>
+                      <TableCell className="text-sm text-center">{user.total_referrals}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                          user.membership_level === 'premium' 
+                            ? 'bg-primary/10 text-primary' 
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {user.membership_level.charAt(0).toUpperCase() + user.membership_level.slice(1)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-center">{user.active_strategies}</TableCell>
+                      <TableCell className="text-sm text-center">{user.total_trades}</TableCell>
+                      <TableCell className="text-sm font-mono">${user.platform_revenue.toFixed(2)}</TableCell>
+                      <TableCell className="text-sm text-center">{user.credits_earned}</TableCell>
+                      <TableCell className="text-sm text-center">{user.pending_strategies}</TableCell>
+                      <TableCell className={`text-sm font-mono ${
+                        user.profit_loss >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        ${user.profit_loss.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSingleUserAction(user, 'email')}
+                            className="h-7 w-7 p-0"
+                            title="Send Email"
+                          >
+                            <Mail className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSingleUserAction(user, 'whatsapp')}
+                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700"
+                            title="Send WhatsApp"
+                          >
+                            📱
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSingleUserAction(user, 'notification')}
+                            className="h-7 w-7 p-0"
+                            title="Send Notification"
+                          >
+                            🔔
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={18} className="text-center py-8">
+                      <div className="text-muted-foreground">
+                        No users match the selected filters.
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    <div className="text-muted-foreground">
-                      No users match the selected filters.
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
