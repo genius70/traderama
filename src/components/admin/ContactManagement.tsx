@@ -10,9 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Send, Clock, Upload, FileUp, Download, Mail, Users, Target } from 'lucide-react';
+import { Loader2, Send, Clock, Upload, FileUp, Download, Mail, Users, Target, UserPlus } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import Papa from 'papaparse';
+import AddUserForm from './AddUserForm';
 
 interface User {
   id: string;
@@ -78,6 +79,7 @@ const ContactManagement: React.FC = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [singleUserAction, setSingleUserAction] = useState<string>('');
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
 
   // Check user authorization
   useEffect(() => {
@@ -644,9 +646,22 @@ const ContactManagement: React.FC = () => {
               Import Contacts
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddUserDialogOpen(true)}
+              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add New User
+            </Button>
+            <Button
               onClick={() => {
                 setSelectedUser(null);
                 setSingleUserAction('');
+                setDeliveryMethod('email');
+                setTemplate('none');
+                setSubject('');
+                setMessage('');
                 setIsDialogOpen(true);
               }}
               disabled={filteredUsers.length === 0}
@@ -1003,6 +1018,13 @@ const ContactManagement: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add User Dialog */}
+      <AddUserForm
+        open={isAddUserDialogOpen}
+        onOpenChange={setIsAddUserDialogOpen}
+        onUserAdded={fetchData}
+      />
     </div>
   );
 };
