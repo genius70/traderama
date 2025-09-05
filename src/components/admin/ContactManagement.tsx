@@ -137,15 +137,14 @@ const ContactManagement: React.FC = () => {
       // Fetch all user-related data from multiple tables
       const [
         { data: profiles, error: profileError },
-        { data: usersData, error: userError },
         { data: kemCredits, error: kemError },
         { data: analytics, error: analyticsError },
         { data: escrowAccounts, error: escrowError },
         { data: strategyCounts, error: strategyCountError },
-        { data: tradeCounts, error: tradeCountError }
+        { data: tradeCounts, error: tradeCountError },
+        { data: referralCounts, error: referralError }
       ] = await Promise.all([
         supabase.from('profiles').select('*'),
-        supabase.auth.admin.listUsers(),
         supabase.from('kem_credits').select('user_id, credits_earned'),
         supabase.from('analytics').select('user_id, total_trades'),
         supabase.from('escrow_accounts').select('user_id, balance'),
@@ -173,35 +172,46 @@ const ContactManagement: React.FC = () => {
             return acc;
           }, {});
           return { data: counts, error };
+        }),
+        // Count referrals by grouping profiles by referred_by
+        supabase.from('profiles').select('referred_by').then(({ data, error }) => {
+          const counts = data?.reduce((acc: any, profile: any) => {
+            if (profile.referred_by) {
+              acc[profile.referred_by] = (acc[profile.referred_by] || 0) + 1;
+            }
+            return acc;
+          }, {});
+          return { data: counts, error };
         })
       ]);
 
-      if (profileError || userError) throw new Error('Error fetching user data');
+      if (profileError) throw new Error('Error fetching user profiles');
 
-      const mergedUsers = usersData.users
-        .filter(u => u.email) // Filter out users without email
-        .map((u) => {
-          const profile = profiles?.find((p) => p.id === u.id);
-          const credits = kemCredits?.find((k) => k.user_id === u.id);
-          const userAnalytics = analytics?.find((a) => a.user_id === u.id);
-          const escrow = escrowAccounts?.find((e) => e.user_id === u.id);
-          const strategies = strategyCounts?.[u.id] || { active: 0, pending: 0 };
-          const trades = tradeCounts?.[u.id] || { count: 0, totalPnl: 0 };
+      // Use profiles as the main data source instead of auth users
+      const mergedUsers = profiles
+        ?.filter(profile => profile.email) // Filter out profiles without email
+        .map((profile) => {
+          const credits = kemCredits?.find((k) => k.user_id === profile.id);
+          const userAnalytics = analytics?.find((a) => a.user_id === profile.id);
+          const escrow = escrowAccounts?.find((e) => e.user_id === profile.id);
+          const strategies = strategyCounts?.[profile.id] || { active: 0, pending: 0 };
+          const trades = tradeCounts?.[profile.id] || { count: 0, totalPnl: 0 };
+          const referrals = referralCounts?.[profile.referral_code || ''] || 0;
 
           return {
-            id: u.id,
-            email: u.email!,
-            name: profile?.name || null,
-            role: profile?.role || 'user',
-            created_at: u.created_at,
-            last_sign_in_at: u.last_sign_in_at || null,
-            is_premium: profile?.is_premium || false,
-            phone_number: profile?.phone_number || null,
-            email_confirmed_at: u.email_confirmed_at || null,
+            id: profile.id,
+            email: profile.email,
+            name: profile.name || null,
+            role: profile.role || 'user',
+            created_at: profile.created_at,
+            last_sign_in_at: null, // Not available from profiles table
+            is_premium: profile.is_premium || false,
+            phone_number: profile.phone_number || null,
+            email_confirmed_at: profile.profile_completed_at || null, // Using profile completion as proxy
             wallet_balance: escrow?.balance || 0,
-            referral_code: profile?.referral_code || null,
-            total_referrals: 0, // Would need a separate query for referrals count
-            membership_level: profile?.subscription_tier || 'free',
+            referral_code: profile.referral_code || null,
+            total_referrals: referrals,
+            membership_level: profile.subscription_tier || 'free',
             active_strategies: strategies.active,
             total_trades: trades.count,
             platform_revenue: trades.totalPnl * 0.05, // Assuming 5% platform fee
@@ -209,7 +219,8 @@ const ContactManagement: React.FC = () => {
             pending_strategies: strategies.pending,
             profit_loss: trades.totalPnl
           };
-        });
+        }) || [];
+      
       setUsers(mergedUsers);
 
       // Fetch message history
