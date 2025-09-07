@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Send, Clock, Upload, FileUp, Download, Mail, Users, Target, UserPlus, Phone, Bell } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'; // Added imports
 import { format, addDays } from 'date-fns';
 import Papa from 'papaparse';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -50,7 +51,7 @@ interface Message {
   status: string;
   sent_at: string | null;
   error: string | null;
-  progress?: number; // Added to track sending progress
+  progress?: number;
 }
 
 interface AddUserFormProps {
@@ -435,7 +436,6 @@ const ContactManagement: React.FC = () => {
         const totalUsers = userIds.length;
         let sentCount = 0;
 
-        // Simulate sending emails with progress (in reality, this would be handled by the backend)
         for (const userId of userIds) {
           const { error: sendError } = await supabase.functions.invoke('send-notifications', {
             body: {
@@ -458,7 +458,6 @@ const ContactManagement: React.FC = () => {
           const progress = Math.round((sentCount / totalUsers) * 100);
           setSendProgress(progress);
 
-          // Update message progress in database
           await supabase
             .from('messages')
             .update({ progress })
@@ -710,13 +709,13 @@ const ContactManagement: React.FC = () => {
         setTemplate={setTemplate}
         scheduleDate={scheduleDate}
         setScheduleDate={setScheduleDate}
-        selectedUser={selectedUser}
-        isSending={isSending}
-        sendProgress={sendProgress}
-        handleSendMessage={handleSendMessage}
+        selectedUsers={filteredUsers.filter(user => selectedUsers.includes(user.id))} // Convert IDs to User objects
         filteredUsers={filteredUsers}
-        selectedUsers={selectedUsers}
+        emailList={emailList}
         setEmailList={setEmailList}
+        sendProgress={sendProgress}
+        isSending={isSending}
+        handleSendMessage={handleSendMessage}
       />
 
       {/* File Import Dialog */}
