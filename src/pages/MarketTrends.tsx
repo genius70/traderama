@@ -12,11 +12,6 @@ import SpyReturnsDistribution from '@/components/strategies/SpyReturnsDistributi
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/layout/Header';
-import { createClient } from '@supabase/supabase-js';
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
-const { data, error } = await supabase.functions.invoke('market-data-sync', {
-  body: { name: 'Functions' },
-})
 
 interface MarketData {
   symbol: string;
