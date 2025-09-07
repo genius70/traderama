@@ -1,5 +1,5 @@
 import React from 'react';
-import Select from 'react-select';
+import Select from 'react-select'; // Ensure this is installed
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,11 +28,11 @@ interface MessageComposerProps {
   setTemplate: (value: string) => void;
   scheduleDate: Date | undefined;
   setScheduleDate: (value: Date | undefined) => void;
-  selectedUsers: User[]; // Kept for backward compatibility
-  filteredUsers: User[]; // New prop for available users
-  emailList: string[]; // New prop for selected emails
-  setEmailList: (value: string[]) => void; // New prop to update emailList
-  sendProgress: number; // New prop for send progress (0-100)
+  selectedUsers: User[];
+  filteredUsers: User[];
+  emailList: string[];
+  setEmailList: (value: string[]) => void;
+  sendProgress: number;
   isSending: boolean;
   handleSendMessage: (isScheduled?: boolean) => void;
 }
@@ -127,16 +127,22 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         <div className="space-y-4">
           <div>
             <Label htmlFor="recipients">Recipients</Label>
-            <Select
-              isMulti
-              options={userOptions}
-              value={selectedOptions}
-              onChange={(selected) => setEmailList(selected.map(option => option.value))}
-              placeholder="Select recipients..."
-              id="recipients"
-              className="basic-multi-select"
-              classNamePrefix="select"
-            />
+            {typeof Select !== 'undefined' ? (
+              <Select
+                isMulti
+                options={userOptions}
+                value={selectedOptions}
+                onChange={(selected) => setEmailList(selected ? selected.map(option => option.value) : [])}
+                placeholder="Select recipients..."
+                id="recipients"
+                className="basic-multi-select"
+                classNamePrefix="select"
+              />
+            ) : (
+              <div className="text-red-500 text-sm">
+                Error: Recipient selector unavailable. Please ensure all dependencies are installed.
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
