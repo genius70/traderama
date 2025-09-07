@@ -44,9 +44,9 @@ interface MessageComposerProps {
   setTemplate: (value: string) => void;
   scheduleDate: Date | undefined;
   setScheduleDate: (value: Date | undefined) => void;
-  selectedUsers: User[];
-  filteredUsers: User[];
-  emailList: string[];
+  selectedUsers: User[] | undefined; // Allow undefined
+  filteredUsers: User[] | undefined; // Allow undefined
+  emailList: string[] | undefined; // Allow undefined
   setEmailList: (value: string[]) => void;
   sendProgress: number;
   isSending: boolean;
@@ -81,9 +81,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   setTemplate,
   scheduleDate,
   setScheduleDate,
-  selectedUsers,
-  filteredUsers,
-  emailList,
+  selectedUsers = [], // Default to empty array
+  filteredUsers = [], // Default to empty array
+  emailList = [], // Default to empty array
   setEmailList,
   sendProgress,
   isSending,
@@ -125,7 +125,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
   // Display recipient names or emails
   const getRecipientDisplay = () => {
-    if (emailList.length === 0) return 'Compose Message';
+    if (!emailList || emailList.length === 0) return 'Compose Message';
     if (emailList.length === 1) {
       const user = filteredUsers.find(u => u.email === emailList[0]);
       return `Send Message to ${user?.name || user?.email || emailList[0]}`;
@@ -200,7 +200,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="Enter message subject"
-                disabled={emailList.length === 0}
+                disabled={!emailList || emailList.length === 0}
               />
             </div>
           )}
@@ -213,7 +213,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Enter your message here... Use {user_name} for personalization"
               rows={6}
-              disabled={emailList.length === 0}
+              disabled={!emailList || emailList.length === 0}
             />
           </div>
 
@@ -243,7 +243,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
             </div>
           )}
 
-          {emailList.length > 1 && (
+          {emailList && emailList.length > 1 && (
             <div>
               <Label>Selected Recipients</Label>
               <div className="mt-2 text-sm text-gray-600">
@@ -265,7 +265,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           {scheduleDate && (
             <Button
               onClick={() => handleSendMessage(true)}
-              disabled={isSending || emailList.length === 0}
+              disabled={isSending || !emailList || emailList.length === 0}
             >
               {isSending ? (
                 <>
@@ -282,7 +282,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           )}
           <Button
             onClick={() => handleSendMessage(false)}
-            disabled={isSending || emailList.length === 0}
+            disabled={isSending || !emailList || emailList.length === 0}
           >
             {isSending ? (
               <>
