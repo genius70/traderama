@@ -1,10 +1,11 @@
 import React from 'react';
+import Select from 'react-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Loader2, Send, Clock } from 'lucide-react';
 
@@ -27,23 +28,27 @@ interface MessageComposerProps {
   setTemplate: (value: string) => void;
   scheduleDate: Date | undefined;
   setScheduleDate: (value: Date | undefined) => void;
-  selectedUser: User | null;
+  selectedUsers: User[]; // Kept for backward compatibility
+  filteredUsers: User[]; // New prop for available users
+  emailList: string[]; // New prop for selected emails
+  setEmailList: (value: string[]) => void; // New prop to update emailList
+  sendProgress: number; // New prop for send progress (0-100)
   isSending: boolean;
   handleSendMessage: (isScheduled?: boolean) => void;
 }
 
 const TEMPLATES = {
-  welcome: { 
-    subject: 'Welcome to Traderama!', 
-    message: 'Hello {user_name}, welcome to Traderama! Start trading with our powerful tools.' 
+  welcome: {
+    subject: 'Welcome to Traderama!',
+    message: 'Hello {user_name}, welcome to Traderama! Start trading with our powerful tools.',
   },
-  reengage: { 
-    subject: 'We Miss You!', 
-    message: 'Hi {user_name}, it has been a while! Check out new strategies on Traderama.' 
+  reengage: {
+    subject: 'We Miss You!',
+    message: 'Hi {user_name}, it has been a while! Check out new strategies on Traderama.',
   },
-  premium: { 
-    subject: 'Upgrade to Premium', 
-    message: 'Hello {user_name}, unlock premium features with a Traderama subscription!' 
+  premium: {
+    subject: 'Upgrade to Premium',
+    message: 'Hello {user_name}, unlock premium features with a Traderama subscription!',
   },
 };
 
@@ -60,24 +65,84 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   setTemplate,
   scheduleDate,
   setScheduleDate,
-  selectedUser,
+  selectedUsers,
+  filteredUsers,
+  emailList,
+  setEmailList,
+  sendProgress,
   isSending,
   handleSendMessage,
 }) => {
+  // Handle template selection
+  React.useEffect(() => {
+    if (template !== 'none' && TEMPLATES[template as keyof typeof TEMPLATES]) {
+      const selectedTemplate = TEMPLATES[template as keyof typeof TEMPLATES];
+      setSubject(selectedTemplate.subject);
+      setMessage(selectedTemplate.message);
+    } else {
+      setSubject('');
+      setMessage('');
+    }
+  }, [template, setSubject, setMessage]);
+
+  // Sync selectedUsers with emailList
+  React.useEffect(() => {
+    if (selectedUsers.length > 0 && emailList.length === 0) {
+      setEmailList(selectedUsers.map(user => user.email));
+    }
+  }, [selectedUsers, emailList, setEmailList]);
+
+  // Map filteredUsers to react-select options
+  const userOptions = filteredUsers.map(user => ({
+    value: user.email,
+    label: user.name ? `${user.name} (${user.email})` : user.email,
+  }));
+
+  // Map emailList to react-select value
+  const selectedOptions = emailList.map(email => {
+    const user = filteredUsers.find(u => u.email === email);
+    return {
+      value: email,
+      label: user?.name ? `${user.name} (${user.email})` : email,
+    };
+  });
+
+  // Display recipient names or emails
+  const getRecipientDisplay = () => {
+    if (emailList.length === 0) return 'Compose Message';
+    if (emailList.length === 1) {
+      const user = filteredUsers.find(u => u.email === emailList[0]);
+      return `Send Message to ${user?.name || user?.email || emailList[0]}`;
+    }
+    return `Send Message to ${emailList.length} Recipients`;
+  };
+
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {selectedUser ? `Send Message to ${selectedUser.name || selectedUser.email}` : 'Compose Message'}
-          </DialogTitle>
+          <DialogTitle>{getRecipientDisplay()}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
+          <div>
+            <Label htmlFor="recipients">Recipients</Label>
+            <Select
+              isMulti
+              options={userOptions}
+              value={selectedOptions}
+              onChange={(selected) => setEmailList(selected.map(option => option.value))}
+              placeholder="Select recipients..."
+              id="recipients"
+              className="basic-multi-select"
+              classNamePrefix="select"
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="template">Template</Label>
-              <Select value={template} onValueChange={setTemplate}>
+              <ShadcnSelect value={template} onValueChange={setTemplate}>
                 <SelectTrigger id="template">
                   <SelectValue placeholder="Choose template" />
                 </SelectTrigger>
@@ -87,12 +152,12 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                   <SelectItem value="reengage">Re-engagement</SelectItem>
                   <SelectItem value="premium">Premium Upgrade</SelectItem>
                 </SelectContent>
-              </Select>
+              </ShadcnSelect>
             </div>
 
             <div>
               <Label htmlFor="delivery-method">Delivery Method</Label>
-              <Select value={deliveryMethod} onValueChange={setDeliveryMethod}>
+              <ShadcnSelect value={deliveryMethod} onValueChange={setDeliveryMethod}>
                 <SelectTrigger id="delivery-method">
                   <SelectValue placeholder="Select method" />
                 </SelectTrigger>
@@ -101,7 +166,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                   <SelectItem value="whatsapp">WhatsApp</SelectItem>
                   <SelectItem value="notification">In-App Notification</SelectItem>
                 </SelectContent>
-              </Select>
+              </ShadcnSelect>
             </div>
           </div>
 
@@ -113,6 +178,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="Enter message subject"
+                disabled={emailList.length === 0}
               />
             </div>
           )}
@@ -125,6 +191,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Enter your message here... Use {user_name} for personalization"
               rows={6}
+              disabled={emailList.length === 0}
             />
           </div>
 
@@ -140,6 +207,33 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               />
             </div>
           </div>
+
+          {sendProgress > 0 && (
+            <div>
+              <Label>Sending Progress</Label>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                <div
+                  className="bg-primary h-2.5 rounded-full"
+                  style={{ width: `${sendProgress}%` }}
+                ></div>
+              </div>
+              <span className="text-xs text-muted-foreground">{sendProgress}%</span>
+            </div>
+          )}
+
+          {emailList.length > 1 && (
+            <div>
+              <Label>Selected Recipients</Label>
+              <div className="mt-2 text-sm text-gray-600">
+                {emailList.map(email => {
+                  const user = filteredUsers.find(u => u.email === email);
+                  return (
+                    <div key={email}>{user?.name ? `${user.name} (${user.email})` : email}</div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -149,7 +243,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           {scheduleDate && (
             <Button
               onClick={() => handleSendMessage(true)}
-              disabled={isSending}
+              disabled={isSending || emailList.length === 0}
             >
               {isSending ? (
                 <>
@@ -166,7 +260,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           )}
           <Button
             onClick={() => handleSendMessage(false)}
-            disabled={isSending}
+            disabled={isSending || emailList.length === 0}
           >
             {isSending ? (
               <>
