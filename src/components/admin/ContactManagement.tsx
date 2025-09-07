@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Send, Clock, Upload, FileUp, Download, Mail, Users, Target, UserPlus, Phone, Bell } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'; // Added imports
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { format, addDays } from 'date-fns';
 import Papa from 'papaparse';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -246,6 +246,7 @@ const ContactManagement: React.FC = () => {
         }) || [];
       
       setUsers(mergedUsers);
+      setFilteredUsers(mergedUsers); // Initialize filteredUsers
 
       if (!msgError && messageHistory) {
         setMessages(messageHistory.map(msg => ({
@@ -367,7 +368,7 @@ const ContactManagement: React.FC = () => {
 
   // Handle compose message with email list generation
   const handleComposeMessage = () => {
-    const selectedEmails = filteredUsers
+    const selectedEmails = (filteredUsers || [])
       .filter(user => selectedUsers.includes(user.id))
       .map(user => user.email);
     setEmailList(selectedEmails);
@@ -405,10 +406,8 @@ const ContactManagement: React.FC = () => {
       const targetUsers = selectedUser 
         ? [selectedUser]
         : emailList.length > 0 
-          ? filteredUsers.filter(user => emailList.includes(user.email))
-          : selectedUsers.length > 0 
-            ? filteredUsers.filter(user => selectedUsers.includes(user.id))
-            : filteredUsers;
+          ? (filteredUsers || []).filter(user => emailList.includes(user.email))
+          : (filteredUsers || []).filter(user => selectedUsers.includes(user.id));
 
       const userIds = targetUsers.map(user => user.id);
       
@@ -586,7 +585,7 @@ const ContactManagement: React.FC = () => {
 
   // Export user list
   const exportUserList = () => {
-    const csvData = filteredUsers.map(user => ({
+    const csvData = (filteredUsers || []).map(user => ({
       email: user.email,
       name: user.name || '',
       role: user.role,
@@ -676,7 +675,7 @@ const ContactManagement: React.FC = () => {
         setRoleFilter={setRoleFilter}
         subscriptionFilter={subscriptionFilter}
         setSubscriptionFilter={setSubscriptionFilter}
-        filteredUsers={filteredUsers}
+        filteredUsers={filteredUsers || []} // Ensure defined
         selectedUsers={selectedUsers}
         setIsDialogOpen={setIsDialogOpen}
         setIsImportDialogOpen={setIsImportDialogOpen}
@@ -687,7 +686,7 @@ const ContactManagement: React.FC = () => {
 
       {/* User Management Table */}
       <UserTable
-        filteredUsers={filteredUsers}
+        filteredUsers={filteredUsers || []} // Ensure defined
         selectedUsers={selectedUsers}
         handleSelectAll={handleSelectAll}
         handleSelectUser={handleSelectUser}
@@ -709,8 +708,8 @@ const ContactManagement: React.FC = () => {
         setTemplate={setTemplate}
         scheduleDate={scheduleDate}
         setScheduleDate={setScheduleDate}
-        selectedUsers={filteredUsers.filter(user => selectedUsers.includes(user.id))} // Convert IDs to User objects
-        filteredUsers={filteredUsers}
+        selectedUsers={filteredUsers.filter(user => selectedUsers.includes(user.id))}
+        filteredUsers={filteredUsers || []} // Ensure defined
         emailList={emailList}
         setEmailList={setEmailList}
         sendProgress={sendProgress}
