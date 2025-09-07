@@ -30,23 +30,23 @@ interface User {
 }
 
 interface UserTableProps {
-  filteredUsers: User[];
+  filteredUsers: User[] | undefined; // Allow undefined
   selectedUsers: string[];
   handleSelectAll: () => void;
   handleSelectUser: (userId: string) => void;
   handleSort: (column: keyof User) => void;
   handleSingleUserAction: (user: User, action: string) => void;
-  emailList: string[];
+  emailList: string[] | undefined; // Allow undefined
 }
 
 const UserTable: React.FC<UserTableProps> = ({
-  filteredUsers,
+  filteredUsers = [], // Default to empty array
   selectedUsers,
   handleSelectAll,
   handleSelectUser,
   handleSort,
   handleSingleUserAction,
-  emailList,
+  emailList = [], // Default to empty array
 }) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -265,7 +265,7 @@ const UserTable: React.FC<UserTableProps> = ({
             </TableBody>
           </Table>
         </div>
-        {emailList.length > 0 && (
+        {emailList && emailList.length > 0 && (
           <div className="mt-4 p-4 bg-muted rounded-md">
             <h4 className="font-medium mb-2">Selected Email List:</h4>
             <div className="text-sm text-muted-foreground">
