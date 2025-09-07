@@ -740,20 +740,11 @@ const ContactManagement: React.FC = () => {
       </Dialog>
 
       {/* Add User Dialog */}
-      <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
-          </DialogHeader>
-          <AddUserForm 
-            onSuccess={() => {
-              setIsAddUserDialogOpen(false);
-              fetchData();
-            }}
-            onCancel={() => setIsAddUserDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      <AddUserForm 
+        open={isAddUserDialogOpen}
+        onOpenChange={setIsAddUserDialogOpen}
+        onUserAdded={fetchData}
+      />
     </div>
   );
 };
