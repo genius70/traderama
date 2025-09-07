@@ -50,6 +50,14 @@ interface Message {
   status: string;
   sent_at: string | null;
   error: string | null;
+  progress?: number; // Added to track sending progress
+}
+
+interface AddUserFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
 const TEMPLATES = {
@@ -85,6 +93,7 @@ const ContactManagement: React.FC = () => {
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [sendProgress, setSendProgress] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -110,7 +119,6 @@ const ContactManagement: React.FC = () => {
       }
 
       try {
-        // Fetch user profile to get role
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('role, email')
@@ -121,7 +129,6 @@ const ContactManagement: React.FC = () => {
 
         setUserProfile(profile);
         
-        // Check if user is super admin with correct email
         const authorized = profile?.role === 'super_admin' && user.email === 'royan.shaw@gmail.com';
         setIsAuthorized(authorized);
 
@@ -134,7 +141,6 @@ const ContactManagement: React.FC = () => {
           return;
         }
 
-        // If authorized, fetch data
         await fetchData();
       } catch (error) {
         console.error('Error checking authorization:', error);
@@ -152,7 +158,6 @@ const ContactManagement: React.FC = () => {
   // Fetch users and messages
   const fetchData = async () => {
     try {
-      // Fetch all user-related data from multiple tables
       const [
         { data: profiles, error: profileError },
         { data: kemCredits, error: kemError },
@@ -160,7 +165,8 @@ const ContactManagement: React.FC = () => {
         { data: escrowAccounts, error: escrowError },
         { data: strategyCounts, error: strategyCountError },
         { data: tradeCounts, error: tradeCountError },
-        { data: referralCounts, error: referralError }
+        { data: referralCounts, error: referralError },
+        { data: messageHistory, error: msgError }
       ] = await Promise.all([
         supabase.from('profiles').select('*'),
         supabase.from('kem_credits').select('user_id, credits_earned'),
@@ -191,7 +197,6 @@ const ContactManagement: React.FC = () => {
           }, {});
           return { data: counts, error };
         }),
-        // Count referrals by grouping profiles by referred_by
         supabase.from('profiles').select('referred_by').then(({ data, error }) => {
           const counts = data?.reduce((acc: any, profile: any) => {
             if (profile.referred_by) {
@@ -200,14 +205,14 @@ const ContactManagement: React.FC = () => {
             return acc;
           }, {});
           return { data: counts, error };
-        })
+        }),
+        supabase.from('messages').select('*').order('created_at', { ascending: false })
       ]);
 
       if (profileError) throw new Error('Error fetching user profiles');
 
-      // Use profiles as the main data source instead of auth users
       const mergedUsers = profiles
-        ?.filter(profile => profile.email) // Filter out profiles without email
+        ?.filter(profile => profile.email)
         .map((profile) => {
           const credits = kemCredits?.find((k) => k.user_id === profile.id);
           const userAnalytics = analytics?.find((a) => a.user_id === profile.id);
@@ -222,17 +227,17 @@ const ContactManagement: React.FC = () => {
             name: profile.name || null,
             role: profile.role || 'user',
             created_at: profile.created_at,
-            last_sign_in_at: null, // Not available from profiles table
+            last_sign_in_at: null,
             is_premium: profile.is_premium || false,
             phone_number: profile.phone_number || null,
-            email_confirmed_at: profile.profile_completed_at || null, // Using profile completion as proxy
+            email_confirmed_at: profile.profile_completed_at || null,
             wallet_balance: escrow?.balance || 0,
             referral_code: profile.referral_code || null,
             total_referrals: referrals,
             membership_level: profile.subscription_tier || 'free',
             active_strategies: strategies.active,
             total_trades: trades.count,
-            platform_revenue: trades.totalPnl * 0.05, // Assuming 5% platform fee
+            platform_revenue: trades.totalPnl * 0.05,
             credits_earned: credits?.credits_earned || 0,
             pending_strategies: strategies.pending,
             profit_loss: trades.totalPnl
@@ -240,12 +245,6 @@ const ContactManagement: React.FC = () => {
         }) || [];
       
       setUsers(mergedUsers);
-
-      // Fetch message history
-      const { data: messageHistory, error: msgError } = await supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: false });
 
       if (!msgError && messageHistory) {
         setMessages(messageHistory.map(msg => ({
@@ -255,7 +254,8 @@ const ContactManagement: React.FC = () => {
           delivery_method: msg.delivery_method,
           status: msg.status,
           sent_at: msg.sent_at,
-          error: msg.error
+          error: msg.error,
+          progress: msg.progress || 0
         })));
       }
 
@@ -279,14 +279,10 @@ const ContactManagement: React.FC = () => {
 
     const now = new Date();
     let filtered = users.filter((u) => {
-      // Role filter
       if (roleFilter !== 'all' && u.role !== roleFilter) return false;
-      
-      // Subscription filter
       if (subscriptionFilter === 'premium' && !u.is_premium) return false;
       if (subscriptionFilter === 'non-premium' && u.is_premium) return false;
       
-      // Time-based filters
       const createdAt = new Date(u.created_at);
       const lastSignIn = u.last_sign_in_at ? new Date(u.last_sign_in_at) : null;
       const daysSinceCreated = (now.getTime() - createdAt.getTime()) / (1000 * 3600 * 24);
@@ -306,7 +302,6 @@ const ContactManagement: React.FC = () => {
       }
     });
 
-    // Apply sorting
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
         const aValue = a[sortColumn];
@@ -369,15 +364,22 @@ const ContactManagement: React.FC = () => {
     }
   };
 
-  // Handle email list generation
-  const handleGenerateEmailList = () => {
+  // Handle compose message with email list generation
+  const handleComposeMessage = () => {
     const selectedEmails = filteredUsers
       .filter(user => selectedUsers.includes(user.id))
       .map(user => user.email);
     setEmailList(selectedEmails);
+    setSelectedUser(null);
+    setSingleUserAction('');
+    setDeliveryMethod('email');
+    setTemplate('none');
+    setSubject('');
+    setMessage('');
+    setIsDialogOpen(true);
   };
 
-  // Send or schedule message with enhanced targeting
+  // Send or schedule message with progress tracking
   const handleSendMessage = async (isScheduled: boolean = false) => {
     if (!subject.trim() && deliveryMethod !== 'whatsapp') {
       toast({
@@ -396,6 +398,8 @@ const ContactManagement: React.FC = () => {
     }
 
     setIsSending(true);
+    setSendProgress(0);
+
     try {
       const targetUsers = selectedUser 
         ? [selectedUser]
@@ -407,7 +411,6 @@ const ContactManagement: React.FC = () => {
 
       const userIds = targetUsers.map(user => user.id);
       
-      // Insert message record
       const messageData = {
         super_admin_id: user?.id,
         user_ids: userIds,
@@ -415,30 +418,53 @@ const ContactManagement: React.FC = () => {
         message,
         delivery_method: deliveryMethod,
         status: isScheduled ? 'scheduled' : 'processing',
+        progress: 0,
         ...(isScheduled && { scheduled_at: scheduleDate?.toISOString() })
       };
 
       const tableName = isScheduled ? 'scheduled_messages' : 'messages';
-      const { error: insertError } = await supabase
+      const { data: insertedMessage, error: insertError } = await supabase
         .from(tableName)
-        .insert([messageData]);
+        .insert([messageData])
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
       if (!isScheduled) {
-        // Send notifications via edge function
-        const { error: sendError } = await supabase.functions.invoke('send-notifications', {
-          body: {
-            user_ids: userIds,
-            subject,
-            message,
-            delivery_method: deliveryMethod,
+        const totalUsers = userIds.length;
+        let sentCount = 0;
+
+        // Simulate sending emails with progress (in reality, this would be handled by the backend)
+        for (const userId of userIds) {
+          const { error: sendError } = await supabase.functions.invoke('send-notifications', {
+            body: {
+              user_ids: [userId],
+              subject,
+              message,
+              delivery_method: deliveryMethod,
+            }
+          });
+
+          if (sendError) {
+            await supabase
+              .from('messages')
+              .update({ status: 'failed', error: sendError.message })
+              .eq('id', insertedMessage.id);
+            throw sendError;
           }
-        });
 
-        if (sendError) throw sendError;
+          sentCount++;
+          const progress = Math.round((sentCount / totalUsers) * 100);
+          setSendProgress(progress);
 
-        // If this is a notification action, also create notification record
+          // Update message progress in database
+          await supabase
+            .from('messages')
+            .update({ progress })
+            .eq('id', insertedMessage.id);
+        }
+
         if (singleUserAction === 'notification') {
           const { error: notificationError } = await supabase
             .from('notifications')
@@ -454,6 +480,11 @@ const ContactManagement: React.FC = () => {
 
           if (notificationError) console.error('Error creating notification record:', notificationError);
         }
+
+        await supabase
+          .from('messages')
+          .update({ status: 'sent', sent_at: new Date().toISOString(), progress: 100 })
+          .eq('id', insertedMessage.id);
       }
 
       toast({
@@ -466,6 +497,7 @@ const ContactManagement: React.FC = () => {
       setScheduleDate(undefined);
       setSelectedUser(null);
       setSingleUserAction('');
+      setEmailList([]);
       await fetchData();
     } catch (error) {
       console.error('Error sending message:', error);
@@ -475,6 +507,7 @@ const ContactManagement: React.FC = () => {
       });
     } finally {
       setIsSending(false);
+      setSendProgress(0);
     }
   };
 
@@ -494,7 +527,6 @@ const ContactManagement: React.FC = () => {
       let contacts: any[] = [];
 
       if (fileType.endsWith('.csv') || fileType.endsWith('.txt')) {
-        // Parse CSV file
         Papa.parse(importFile, {
           header: true,
           complete: (results) => {
@@ -514,14 +546,12 @@ const ContactManagement: React.FC = () => {
         throw new Error('Unsupported file format. Please use CSV, TXT, XLS, or XLSX files.');
       }
 
-      // Wait for parsing to complete
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       if (contacts.length === 0) {
         throw new Error('No contacts found in file');
       }
 
-      // Call batch import function
       const { data, error } = await supabase.rpc('batch_import_contacts', {
         p_user_id: user?.id || '',
         p_contacts: contacts
@@ -582,7 +612,6 @@ const ContactManagement: React.FC = () => {
     setSelectedUser(user);
     setSingleUserAction(action);
     
-    // Pre-populate form based on action
     if (action === 'email') {
       setDeliveryMethod('email');
       setSubject(`Message for ${user.name || user.email}`);
@@ -650,11 +679,11 @@ const ContactManagement: React.FC = () => {
         setSubscriptionFilter={setSubscriptionFilter}
         filteredUsers={filteredUsers}
         selectedUsers={selectedUsers}
-        handleGenerateEmailList={handleGenerateEmailList}
         setIsDialogOpen={setIsDialogOpen}
         setIsImportDialogOpen={setIsImportDialogOpen}
         setIsAddUserDialogOpen={setIsAddUserDialogOpen}
         exportUserList={exportUserList}
+        handleComposeMessage={handleComposeMessage}
       />
 
       {/* User Management Table */}
@@ -665,7 +694,6 @@ const ContactManagement: React.FC = () => {
         handleSelectUser={handleSelectUser}
         handleSort={handleSort}
         handleSingleUserAction={handleSingleUserAction}
-        emailList={emailList}
       />
 
       {/* Message Composer Dialog */}
@@ -684,7 +712,11 @@ const ContactManagement: React.FC = () => {
         setScheduleDate={setScheduleDate}
         selectedUser={selectedUser}
         isSending={isSending}
+        sendProgress={sendProgress}
         handleSendMessage={handleSendMessage}
+        filteredUsers={filteredUsers}
+        selectedUsers={selectedUsers}
+        setEmailList={setEmailList}
       />
 
       {/* File Import Dialog */}
@@ -740,11 +772,80 @@ const ContactManagement: React.FC = () => {
       </Dialog>
 
       {/* Add User Dialog */}
-      <AddUserForm 
-        open={isAddUserDialogOpen}
-        onOpenChange={setIsAddUserDialogOpen}
-        onUserAdded={fetchData}
-      />
+      <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+          </DialogHeader>
+          <AddUserForm 
+            open={isAddUserDialogOpen}
+            onOpenChange={setIsAddUserDialogOpen}
+            onSuccess={() => {
+              setIsAddUserDialogOpen(false);
+              fetchData();
+            }}
+            onCancel={() => setIsAddUserDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Message History Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            Message History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Subject</TableHead>
+                <TableHead>Recipients</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Progress</TableHead>
+                <TableHead>Sent/Scheduled At</TableHead>
+                <TableHead>Error</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {messages.length ? (
+                messages.map((msg) => (
+                  <TableRow key={msg.id}>
+                    <TableCell>{msg.subject}</TableCell>
+                    <TableCell>{msg.user_count}</TableCell>
+                    <TableCell>{msg.delivery_method}</TableCell>
+                    <TableCell>
+                      <Badge variant={msg.status === 'sent' ? 'success' : msg.status === 'failed' ? 'destructive' : 'default'}>
+                        {msg.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div
+                          className="bg-primary h-2.5 rounded-full"
+                          style={{ width: `${msg.progress || 0}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{msg.progress || 0}%</span>
+                    </TableCell>
+                    <TableCell>{msg.sent_at ? format(new Date(msg.sent_at), 'PPp') : 'Scheduled'}</TableCell>
+                    <TableCell>{msg.error || '-'}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">
+                    No messages sent yet.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 };
