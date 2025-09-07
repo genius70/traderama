@@ -37,7 +37,7 @@ interface UserFilterSectionProps {
   setRoleFilter: (value: string) => void;
   subscriptionFilter: string;
   setSubscriptionFilter: (value: string) => void;
-  filteredUsers: User[];
+  filteredUsers: User[] | undefined; // Allow undefined
   selectedUsers: string[];
   handleGenerateEmailList: () => void;
   setIsDialogOpen: (value: boolean) => void;
@@ -55,7 +55,7 @@ const UserFilterSection: React.FC<UserFilterSectionProps> = ({
   setRoleFilter,
   subscriptionFilter,
   setSubscriptionFilter,
-  filteredUsers,
+  filteredUsers = [], // Default to empty array
   selectedUsers,
   handleGenerateEmailList,
   setIsDialogOpen,
