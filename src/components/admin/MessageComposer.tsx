@@ -1,5 +1,5 @@
 import React from 'react';
-import Select from 'react-select'; // Ensure this is installed
+import Select from 'react-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,22 @@ interface User {
   id: string;
   email: string;
   name: string | null;
+  role: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  is_premium: boolean;
+  phone_number: string | null;
+  email_confirmed_at: string | null;
+  wallet_balance: number;
+  referral_code: string | null;
+  total_referrals: number;
+  membership_level: string;
+  active_strategies: number;
+  total_trades: number;
+  platform_revenue: number;
+  credits_earned: number;
+  pending_strategies: number;
+  profit_loss: number;
 }
 
 interface MessageComposerProps {
