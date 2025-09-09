@@ -98,6 +98,7 @@ const ContactManagement: React.FC = () => {
   const [sortColumn, setSortColumn] = useState<keyof User | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [emailList, setEmailList] = useState<string[]>([]);
+  const [sendProgress, setSendProgress] = useState<number>(0);
 
   // Check user authorization
   useEffect(() => {
@@ -682,7 +683,11 @@ const ContactManagement: React.FC = () => {
         setTemplate={setTemplate}
         scheduleDate={scheduleDate}
         setScheduleDate={setScheduleDate}
-        selectedUser={selectedUser}
+        selectedUsers={selectedUser ? [selectedUser] : filteredUsers.filter(user => selectedUsers.includes(user.id))}
+        filteredUsers={filteredUsers}
+        emailList={emailList}
+        setEmailList={setEmailList}
+        sendProgress={sendProgress}
         isSending={isSending}
         handleSendMessage={handleSendMessage}
       />
@@ -746,11 +751,11 @@ const ContactManagement: React.FC = () => {
             <DialogTitle>Add New User</DialogTitle>
           </DialogHeader>
           <AddUserForm 
-            onSuccess={() => {
-              setIsAddUserDialogOpen(false);
+            open={isAddUserDialogOpen}
+            onOpenChange={setIsAddUserDialogOpen}
+            onUserAdded={() => {
               fetchData();
             }}
-            onCancel={() => setIsAddUserDialogOpen(false)}
           />
         </DialogContent>
       </Dialog>
