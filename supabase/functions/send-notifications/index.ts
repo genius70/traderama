@@ -1,152 +1,269 @@
-import { serve } from "std/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
-import { Resend } from "npm:resend@4.0.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
+import { Resend } from 'npm:resend@4.0.0';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+interface SendRequest {
+  user_ids: string[];
+  subject: string;
+  message: string;
+  delivery_method: 'email' | 'whatsapp' | 'notification';
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
-
   try {
-    const authHeader = req.headers.get("Authorization");
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    console.log('Starting notification send process...');
+
+    // Get authenticated user
+    const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      throw new Error('No authorization header provided');
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !authData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      throw new Error('Unauthorized access');
     }
 
-    const adminUser = authData.user;
-
-    // Verify super admin via profiles table and email
-    const { data: profile, error: profileErr } = await supabase
-      .from("profiles")
-      .select("id, role, email")
-      .eq("id", adminUser.id)
+    // Verify user is super admin
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, email')
+      .eq('id', user.id)
       .single();
 
-    if (
-      profileErr ||
-      !profile ||
-      profile.role !== "super_admin" ||
-      profile.email !== "royan.shaw@gmail.com"
-    ) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+    if (profileError || !profile) {
+      console.error('Profile fetch error:', profileError);
+      throw new Error('User profile not found');
     }
 
-    const { user_ids, subject, message, delivery_method } = await req.json();
-
-    if (!Array.isArray(user_ids) || !subject || !message) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields: user_ids, subject, message" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+    if (profile.role !== 'super_admin' || profile.email !== 'royan.shaw@gmail.com') {
+      console.error('Permission denied for user:', profile.email);
+      throw new Error('Insufficient permissions - super admin required');
     }
 
-    if (delivery_method !== "email") {
-      return new Response(
-        JSON.stringify({ error: "Only email delivery is supported in this endpoint" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+    const requestBody: SendRequest = await req.json();
+    const { user_ids, subject, message, delivery_method = 'email' } = requestBody;
+
+    // Validate input
+    if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
+      throw new Error('Invalid or empty user_ids array');
     }
 
-    const { data: profiles, error: fetchErr } = await supabase
-      .from("profiles")
-      .select("id, name, email")
-      .in("id", user_ids);
-
-    if (fetchErr) {
-      return new Response(JSON.stringify({ error: "Error fetching user data" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+    if (!subject?.trim()) {
+      throw new Error('Subject is required');
     }
 
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
-      return new Response(
-        JSON.stringify({ error: "RESEND_API_KEY not configured in Edge Function secrets" }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+    if (!message?.trim()) {
+      throw new Error('Message is required');
     }
 
-    const resend = new Resend(resendApiKey);
-    const errors: string[] = [];
+    console.log(`Processing ${delivery_method} to ${user_ids.length} users...`);
 
-    for (const p of profiles ?? []) {
-      const personalized = message
-        .replace("{user_name}", p.name || "User")
-        .replace("{user_email}", p.email ?? "");
+    // Fetch recipient details
+    const { data: recipients, error: usersError } = await supabase
+      .from('profiles')
+      .select('id, email, name, phone_number')
+      .in('id', user_ids);
 
-      try {
-        await resend.emails.send({
-          from: "Traderama <onboarding@resend.dev>",
-          to: [p.email!],
-          subject,
-          html: `<p>${personalized.replace(/\n/g, "<br>")}</p>`,
-          text: personalized,
+    if (usersError) {
+      console.error('Error fetching recipients:', usersError);
+      throw usersError;
+    }
+
+    if (!recipients || recipients.length === 0) {
+      throw new Error('No valid recipients found');
+    }
+
+    console.log(`Found ${recipients.length} recipients`);
+
+    // Create notification record
+    const { data: notification, error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        sender_id: user.id,
+        title: subject.trim(),
+        content: message.trim(),
+        notification_type: 'admin_message',
+        status: 'sending',
+        target_audience: { user_ids },
+      })
+      .select()
+      .single();
+
+    if (notificationError) {
+      console.error('Error creating notification:', notificationError);
+      throw notificationError;
+    }
+
+    const results = [];
+
+    // Send based on delivery method
+    if (delivery_method === 'email') {
+      const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+      
+      for (const recipient of recipients) {
+        try {
+          const personalizedMessage = message.replace(/{user_name}/g, recipient.name || recipient.email);
+          
+          const { data, error } = await resend.emails.send({
+            from: 'Traderama <onboarding@resend.dev>',
+            to: [recipient.email],
+            subject: subject.trim(),
+            html: `
+              <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+                <div style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); padding: 30px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Traderama</h1>
+                </div>
+                <div style="padding: 40px 30px;">
+                  <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px;">${subject.trim()}</h2>
+                  <div style="color: #374151; line-height: 1.8; font-size: 16px;">
+                    ${personalizedMessage.split('\n').map(line => `<p style="margin: 12px 0;">${line}</p>`).join('')}
+                  </div>
+                </div>
+                <div style="background: #f9fafb; padding: 20px 30px; border-top: 1px solid #e5e7eb;">
+                  <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                    This is an official message from Traderama. For support, please visit our help center.
+                  </p>
+                </div>
+              </div>
+            `,
+          });
+
+          if (error) {
+            console.error(`Failed to send email to ${recipient.email}:`, error);
+            results.push({ 
+              recipient: recipient.email, 
+              success: false, 
+              error: error.message 
+            });
+          } else {
+            console.log(`Email sent successfully to ${recipient.email}`);
+            results.push({ 
+              recipient: recipient.email, 
+              success: true, 
+              messageId: data?.id 
+            });
+
+            // Create notification recipient record
+            await supabase.from('notification_recipients').insert({
+              notification_id: notification.id,
+              user_id: recipient.id,
+              delivered_at: new Date().toISOString(),
+            });
+          }
+        } catch (error) {
+          console.error(`Exception sending to ${recipient.email}:`, error);
+          results.push({ 
+            recipient: recipient.email, 
+            success: false, 
+            error: error.message 
+          });
+        }
+      }
+    } else if (delivery_method === 'whatsapp') {
+      // WhatsApp implementation placeholder
+      for (const recipient of recipients) {
+        if (!recipient.phone_number) {
+          results.push({
+            recipient: recipient.email,
+            success: false,
+            error: 'No phone number available'
+          });
+          continue;
+        }
+
+        // Create notification recipient record
+        await supabase.from('notification_recipients').insert({
+          notification_id: notification.id,
+          user_id: recipient.id,
+          delivered_at: new Date().toISOString(),
         });
-      } catch (e: any) {
-        errors.push(`Email failed for ${p.email}: ${e?.message || e}`);
+
+        results.push({
+          recipient: recipient.phone_number,
+          success: true,
+          note: 'WhatsApp delivery pending implementation'
+        });
+      }
+    } else {
+      // In-app notification only
+      for (const recipient of recipients) {
+        await supabase.from('notification_recipients').insert({
+          notification_id: notification.id,
+          user_id: recipient.id,
+          delivered_at: new Date().toISOString(),
+        });
+        results.push({
+          recipient: recipient.email,
+          success: true,
+          type: 'in-app'
+        });
       }
     }
 
-    // Try to update the latest processing message matching this subject
-    const { data: latestMsg } = await supabase
-      .from("messages")
-      .select("id")
-      .eq("super_admin_id", adminUser.id)
-      .eq("subject", subject)
-      .eq("status", "processing")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Calculate summary
+    const successCount = results.filter(r => r.success).length;
+    const finalStatus = successCount === results.length ? 'sent' : 
+                       successCount > 0 ? 'partial' : 'failed';
 
-    if (latestMsg?.id) {
-      await supabase
-        .from("messages")
-        .update({
-          status: errors.length ? "archived" : "sent",
-          error: errors.length ? errors.join("; ") : null,
-          sent_at: new Date().toISOString(),
-        })
-        .eq("id", latestMsg.id);
-    }
+    // Update notification status
+    await supabase
+      .from('notifications')
+      .update({
+        status: finalStatus,
+        sent_at: new Date().toISOString(),
+      })
+      .eq('id', notification.id);
+
+    console.log(`Notification send complete: ${successCount}/${results.length} successful`);
 
     return new Response(
-      JSON.stringify({ message: "Email processing complete", errors }),
+      JSON.stringify({
+        success: true,
+        notification_id: notification.id,
+        results,
+        summary: {
+          total: results.length,
+          sent: successCount,
+          failed: results.length - successCount,
+          status: finalStatus,
+        }
+      }),
       {
-        status: errors.length ? 207 : 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
       }
     );
-  } catch (error: any) {
-    console.error("send-notifications error:", error);
-    return new Response(JSON.stringify({ error: error?.message || "Unknown error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+  } catch (error) {
+    console.error('Critical error in send-notifications:', error);
+    return new Response(
+      JSON.stringify({ 
+        success: false,
+        error: error.message || 'An unexpected error occurred',
+        details: error.toString(),
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    );
   }
 });

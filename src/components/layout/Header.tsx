@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, User, Settings, Users, BarChart3, Plus, Menu, X } from "lucide-react";
+import { TrendingUp, User, Settings, Users, BarChart3, Plus, Menu, X, Bell } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { supabase } from "@/integrations/supabase/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import UserNotifications from "@/components/notifications/UserNotifications";
 
 const Header = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -19,6 +24,46 @@ const Header = () => {
   };
 
   const isAdmin = user?.email === 'royan.shaw@gmail.com';
+
+  // Fetch unread notifications count
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUnreadCount = async () => {
+      const { count, error } = await supabase
+        .from('notification_recipients')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .is('read_at', null);
+
+      if (!error) {
+        setUnreadCount(count || 0);
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('notification-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notification_recipients',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchUnreadCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const NavigationItems = ({ mobile = false, onItemClick = () => {} }) => (
     <div className={`${mobile ? 'flex flex-col space-y-4' : 'hidden lg:flex items-center justify-center space-x-1 min-w-0 flex-1'}`}>
@@ -121,6 +166,25 @@ const Header = () => {
           <div className="flex items-center space-x-2 flex-shrink-0">
             {user ? (
               <>
+                {/* Notifications Bell */}
+                <Popover open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Bell className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-semibold text-white bg-destructive rounded-full">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] max-h-[600px] overflow-y-auto p-0" align="end">
+                    <div className="p-4">
+                      <UserNotifications />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
                 {/* Mobile/Tablet Menu Button - Only visible on mobile/tablet */}
                 <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                   <SheetTrigger asChild>

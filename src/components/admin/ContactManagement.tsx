@@ -99,6 +99,7 @@ const ContactManagement: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [emailList, setEmailList] = useState<string[]>([]);
   const [sendProgress, setSendProgress] = useState<number>(0);
+  const [recipientMode, setRecipientMode] = useState<'all' | 'selected' | 'single'>('selected');
 
   // Check user authorization
   useEffect(() => {
@@ -372,15 +373,40 @@ const ContactManagement: React.FC = () => {
 
   // Handle email list generation
   const handleGenerateEmailList = () => {
-    const selectedEmails = filteredUsers
-      .filter(user => selectedUsers.includes(user.id))
-      .map(user => user.email);
-    setEmailList(selectedEmails);
+    let emails: string[] = [];
+    
+    if (recipientMode === 'all') {
+      emails = users.map(user => user.email);
+    } else if (recipientMode === 'selected' && selectedUsers.length > 0) {
+      emails = filteredUsers.filter(u => selectedUsers.includes(u.id)).map(u => u.email);
+    } else if (recipientMode === 'single' && selectedUser) {
+      emails = [selectedUser.email];
+    } else {
+      const selectedEmails = filteredUsers
+        .filter(user => selectedUsers.includes(user.id))
+        .map(user => user.email);
+      emails = selectedEmails;
+    }
+    
+    setEmailList(emails);
+    
+    if (emails.length > 0) {
+      setIsDialogOpen(true);
+      toast({
+        title: `${emails.length} ${emails.length === 1 ? 'user' : 'users'} selected`,
+      });
+    } else {
+      toast({
+        title: 'Please select at least one user',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Send or schedule message with enhanced targeting
   const handleSendMessage = async (isScheduled: boolean = false) => {
-    if (!subject.trim() && deliveryMethod !== 'whatsapp') {
+    // Validate inputs
+    if (!subject.trim() && deliveryMethod === 'email') {
       toast({
         title: 'Subject is required for email delivery',
         variant: 'destructive',
@@ -396,24 +422,32 @@ const ContactManagement: React.FC = () => {
       return;
     }
 
+    if (emailList.length === 0) {
+      toast({
+        title: 'No recipients selected',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSending(true);
+    setSendProgress(0);
+    
     try {
-      const targetUsers = selectedUser 
-        ? [selectedUser]
-        : emailList.length > 0 
-          ? filteredUsers.filter(user => emailList.includes(user.email))
-          : selectedUsers.length > 0 
-            ? filteredUsers.filter(user => selectedUsers.includes(user.id))
-            : filteredUsers;
+      const targetUsers = emailList.length > 0 
+        ? filteredUsers.filter(user => emailList.includes(user.email))
+        : filteredUsers;
 
       const userIds = targetUsers.map(user => user.id);
+      
+      setSendProgress(10);
       
       // Insert message record
       const messageData = {
         super_admin_id: user?.id,
         user_ids: userIds,
-        subject,
-        message,
+        subject: subject.trim(),
+        message: message.trim(),
         delivery_method: deliveryMethod,
         status: isScheduled ? 'scheduled' : 'processing',
         ...(isScheduled && { scheduled_at: scheduleDate?.toISOString() })
@@ -425,55 +459,69 @@ const ContactManagement: React.FC = () => {
         .insert([messageData]);
 
       if (insertError) throw insertError;
+      
+      setSendProgress(30);
 
       if (!isScheduled) {
         // Send notifications via edge function
-        const { error: sendError } = await supabase.functions.invoke('send-notifications', {
+        const { data, error: sendError } = await supabase.functions.invoke('send-notifications', {
           body: {
             user_ids: userIds,
-            subject,
-            message,
+            subject: subject.trim(),
+            message: message.trim(),
             delivery_method: deliveryMethod,
           }
         });
 
         if (sendError) throw sendError;
+        
+        setSendProgress(80);
 
-        // If this is a notification action, also create notification record
-        if (singleUserAction === 'notification') {
-          const { error: notificationError } = await supabase
-            .from('notifications')
-            .insert({
-              sender_id: user?.id,
-              title: subject,
-              content: message,
-              notification_type: 'admin_message',
-              status: 'sent',
-              sent_at: new Date().toISOString(),
-              target_audience: { user_ids: userIds }
-            });
+        // Create notification records for in-app notifications
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            sender_id: user?.id,
+            title: subject.trim(),
+            content: message.trim(),
+            notification_type: 'admin_message',
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+            target_audience: { user_ids: userIds },
+          });
 
-          if (notificationError) console.error('Error creating notification record:', notificationError);
-        }
+        if (notificationError) console.error('Notification record error:', notificationError);
+        
+        setSendProgress(100);
+
+        toast({
+          title: `Delivered to ${emailList.length} ${emailList.length === 1 ? 'user' : 'users'}`,
+        });
+      } else {
+        toast({
+          title: `Will be sent to ${emailList.length} users on ${format(scheduleDate || new Date(), 'PPP at p')}`,
+        });
       }
 
-      toast({
-        title: isScheduled ? 'Message scheduled successfully!' : 'Message sent successfully!',
-      });
-
+      // Reset form
       setIsDialogOpen(false);
       setSubject('');
       setMessage('');
-      setScheduleDate(undefined);
+      setEmailList([]);
+      setSelectedUsers([]);
       setSelectedUser(null);
-      setSingleUserAction('');
-      await fetchData();
+      setRecipientMode('selected');
+      setSendProgress(0);
+      
+      // Refresh data
+      fetchData();
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
-        title: 'Failed to send message',
+        title: error instanceof Error ? error.message : 'An unexpected error occurred',
         variant: 'destructive',
       });
+      setSendProgress(0);
     } finally {
       setIsSending(false);
     }
