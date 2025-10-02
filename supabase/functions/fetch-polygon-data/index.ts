@@ -1,23 +1,29 @@
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders, handleCorsPreFlight, createJsonResponse, createErrorResponse } from '../_shared/cors.ts';
+import { parseJsonBody } from '../_shared/request.ts';
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return handleCorsPreFlight();
   }
 
   try {
-    const { symbols, symbol, timeframe, startDate, endDate } = await req.json();
+    const body = await parseJsonBody<{
+      symbols?: string[];
+      symbol?: string;
+      timeframe?: { multiplier: number; timespan: string };
+      startDate?: string;
+      endDate?: string;
+    }>(req);
+
+    if (!body) {
+      return createErrorResponse('Invalid or empty request body', 400);
+    }
+
+    const { symbols, symbol, timeframe, startDate, endDate } = body;
     const apiKey = Deno.env.get('POLYGON_API_KEY');
     
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'Polygon.io API key is missing' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createErrorResponse('Polygon.io API key is missing', 500);
     }
 
     let results = [];
@@ -28,12 +34,9 @@ Deno.serve(async (req) => {
         const response = await fetch(
           `https://api.polygon.io/v2/aggs/ticker/${s}/range/1/day/${startDate}/${endDate}?adjusted=true&sort=asc&apiKey=${apiKey}`
         );
-        if (!response.ok) {
-          return new Response(JSON.stringify({ error: `HTTP error ${response.status}` }), {
-            status: response.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
+      if (!response.ok) {
+        return createErrorResponse(`HTTP error ${response.status}`, response.status);
+      }
         const data = await response.json();
         if (data.status !== 'OK' || !data.results) {
           throw new Error(data.error || `No data for ${s}`);
@@ -46,33 +49,21 @@ Deno.serve(async (req) => {
       const response = await fetch(
         `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/${multiplier}/${timespan}/${startDate}/${endDate}?adjusted=true&sort=asc&apiKey=${apiKey}`
       );
-      if (!response.ok) {
-        return new Response(JSON.stringify({ error: `HTTP error ${response.status}` }), {
-          status: response.status,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+        if (!response.ok) {
+          return createErrorResponse(`HTTP error ${response.status}`, response.status);
+        }
       const data = await response.json();
       if (data.status !== 'OK' || !data.results) {
         throw new Error(data.error || `No data for ${symbol}`);
       }
       results = data.results;
     } else {
-      return new Response(JSON.stringify({ error: 'Invalid request parameters' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createErrorResponse('Invalid request parameters', 400);
     }
 
-    return new Response(JSON.stringify({ status: 'OK', results }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return createJsonResponse({ status: 'OK', results });
   } catch (err) {
     console.error('Edge Function error:', err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return createErrorResponse(err.message, 500);
   }
 });
