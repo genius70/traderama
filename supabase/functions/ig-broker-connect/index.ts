@@ -1,5 +1,5 @@
 
-import { serve } from "std/http/server.ts";
+import { serve } from "/std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 
 const corsHeaders = {

@@ -1,5 +1,5 @@
 // supabase/functions/strategy-publish/index.ts
-import { serve } from 'std/http/server.ts';
+import { serve } from '/std/http/server.ts';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);

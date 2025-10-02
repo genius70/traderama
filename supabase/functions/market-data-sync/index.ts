@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { serve } from "std/http/server.ts";
+import { serve } from "/std/http/server.ts";
 
 serve(async () => {
   const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_ANON_KEY'));

@@ -1,4 +1,4 @@
-import { serve } from "std/http/server.ts";
+import { serve } from "/std/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
