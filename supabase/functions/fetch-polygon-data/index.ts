@@ -1,7 +1,14 @@
-// functions/fetch-polygon-data/index.ts
-import { serve } from 'https://deno.land/std@0.131.0/http/server.ts';
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     const { symbols, symbol, timeframe, startDate, endDate } = await req.json();
     const apiKey = Deno.env.get('POLYGON_API_KEY');
@@ -9,7 +16,7 @@ serve(async (req) => {
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'Polygon.io API key is missing' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -24,7 +31,7 @@ serve(async (req) => {
         if (!response.ok) {
           return new Response(JSON.stringify({ error: `HTTP error ${response.status}` }), {
             status: response.status,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         const data = await response.json();
@@ -42,7 +49,7 @@ serve(async (req) => {
       if (!response.ok) {
         return new Response(JSON.stringify({ error: `HTTP error ${response.status}` }), {
           status: response.status,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       const data = await response.json();
@@ -53,19 +60,19 @@ serve(async (req) => {
     } else {
       return new Response(JSON.stringify({ error: 'Invalid request parameters' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     return new Response(JSON.stringify({ status: 'OK', results }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     console.error('Edge Function error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
