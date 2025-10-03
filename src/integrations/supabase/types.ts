@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -1574,6 +1574,89 @@ export type Database = {
         }
         Relationships: []
       }
+      royalty_payments: {
+        Row: {
+          created_at: string | null
+          creator_id: string | null
+          creator_royalty_amount: number
+          id: string
+          platform_fee_amount: number
+          profit_amount: number
+          strategy_id: string | null
+          trade_id: string | null
+          user_strategy_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          creator_id?: string | null
+          creator_royalty_amount: number
+          id?: string
+          platform_fee_amount: number
+          profit_amount: number
+          strategy_id?: string | null
+          trade_id?: string | null
+          user_strategy_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          creator_id?: string | null
+          creator_royalty_amount?: number
+          id?: string
+          platform_fee_amount?: number
+          profit_amount?: number
+          strategy_id?: string | null
+          trade_id?: string | null
+          user_strategy_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "royalty_payments_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "trading_strategies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "royalty_payments_user_strategy_id_fkey"
+            columns: ["user_strategy_id"]
+            isOneToOne: false
+            referencedRelation: "user_strategies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_email_lists: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string
+          user_ids: string[]
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name: string
+          user_ids: string[]
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string
+          user_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_email_lists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduled_messages: {
         Row: {
           created_at: string | null
@@ -2440,13 +2523,61 @@ export type Database = {
           },
         ]
       }
+      user_strategies: {
+        Row: {
+          copied_from: string | null
+          created_at: string | null
+          id: string
+          platform_fee_percentage: number
+          royalty_percentage: number
+          status: string | null
+          strategy_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          copied_from?: string | null
+          created_at?: string | null
+          id?: string
+          platform_fee_percentage?: number
+          royalty_percentage: number
+          status?: string | null
+          strategy_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          copied_from?: string | null
+          created_at?: string | null
+          id?: string
+          platform_fee_percentage?: number
+          royalty_percentage?: number
+          status?: string | null
+          strategy_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_strategies_copied_from_fkey"
+            columns: ["copied_from"]
+            isOneToOne: false
+            referencedRelation: "trading_strategies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_strategies_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "trading_strategies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       batch_import_contacts: {
-        Args: { p_user_id: string; p_contacts: Json }
+        Args: { p_contacts: Json; p_user_id: string }
         Returns: number
       }
       calculate_profile_completion: {
@@ -2466,10 +2597,10 @@ export type Database = {
       distribute_rewards: {
         Args: {
           p_admin_id: string
-          p_user_ids: string[]
-          p_reward_type: string
           p_amount_per_user: number
           p_description?: string
+          p_reward_type: string
+          p_user_ids: string[]
         }
         Returns: string
       }
@@ -2478,7 +2609,7 @@ export type Database = {
         Returns: undefined
       }
       generate_referral_code: {
-        Args: { p_username: string; p_date_of_birth: string }
+        Args: { p_date_of_birth: string; p_username: string }
         Returns: string
       }
       get_user_contact_stats: {
@@ -2488,6 +2619,10 @@ export type Database = {
       get_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
       }
       is_admin_role: {
         Args: { role_to_check: Database["public"]["Enums"]["user_role"] }
@@ -2499,10 +2634,10 @@ export type Database = {
       }
       update_feature_usage: {
         Args: {
-          p_user_id: string
           p_feature_name: string
-          p_time_spent?: number
           p_success?: boolean
+          p_time_spent?: number
+          p_user_id: string
         }
         Returns: undefined
       }
