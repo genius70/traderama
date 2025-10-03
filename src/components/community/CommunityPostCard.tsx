@@ -11,25 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import TipModal from "./TipModal";
 
-interface PostProfile {
-  name?: string;
-  email?: string;
-}
-
-interface CommunityPost {
-  id: string | number;
-  content?: string;
-  created_at: string;
-  likes_count?: number;
-  comments_count?: number;
-  shares_count?: number;
-  profiles?: PostProfile;
-  images?: string[];
-  [key: string]: unknown; // Add index signature
-}
+import { CommunityPost as CommunityPostType } from '@/hooks/useCommunityPosts';
 
 interface CommunityPostCardProps {
-  post: CommunityPost;
+  post: CommunityPostType;
   onLike?: () => void;
 }
 
@@ -84,9 +69,19 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post, onLike }) =
               {post.profiles?.name?.[0] || post.profiles?.email?.[0]?.toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
-          <div>
-            <p className="font-semibold">{post.profiles?.name || post.profiles?.email}</p>
-            <p className="text-sm text-gray-500">{new Date(post.created_at).toLocaleDateString()}</p>
+          <div className="flex-1">
+            <p className="font-semibold text-gray-900">
+              {post.profiles?.name || post.profiles?.email || 'Anonymous User'}
+            </p>
+            <p className="text-sm text-gray-500">
+              {new Date(post.created_at).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
           </div>
         </div>
       </CardHeader>

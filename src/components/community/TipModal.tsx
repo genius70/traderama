@@ -5,18 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface Post {
-  id: string | number;
-  content?: string;
-  author?: string;
-  created_at?: string;
-  [key: string]: unknown;
-}
+import { CommunityPost } from '@/hooks/useCommunityPosts';
 
 interface TipModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  post: Post;
+  post: CommunityPost | null;
 }
 
 const TIP_AMOUNTS = [

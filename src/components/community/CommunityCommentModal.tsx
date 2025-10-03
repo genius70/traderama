@@ -91,10 +91,24 @@ export default function CommunityCommentModal({ postId, open, onOpenChange }: Co
             <div className="text-gray-500 py-6 text-center">No comments yet</div>
           ) : (
             comments.map((comment) => (
-              <div key={comment.id} className="mb-3 border-b pb-2">
-                <div className="font-semibold text-sm">{comment.profiles?.name || comment.profiles?.email}</div>
-                <div className="text-xs text-gray-500">{new Date(comment.created_at).toLocaleString()}</div>
-                <div className="mt-1">{comment.content}</div>
+              <div key={comment.id} className="mb-3 border-b pb-3 last:border-b-0 animate-fade-in">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm text-gray-900">
+                      {comment.profiles?.name || comment.profiles?.email || 'Anonymous'}
+                    </div>
+                    <div className="text-xs text-gray-500 mb-2">
+                      {new Date(comment.created_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                    <div className="text-gray-800 text-sm leading-relaxed">{comment.content}</div>
+                  </div>
+                </div>
               </div>
             ))
           )}

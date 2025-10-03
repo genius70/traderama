@@ -3,90 +3,44 @@ import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Users, MessageSquare, TrendingUp, Crown, Plus, Star } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 import CommunityPostCard from '@/components/community/CommunityPostCard';
-import CommunityCommentModal from '@/components/community/CommunityCommentModal';
-import TipModal from '@/components/community/TipModal';
 import InviteFriend from '@/components/community/InviteFriend';
 import SocialShareButton from '@/components/community/SocialShareButton';
 import PremiumGroupPostComposer from '@/components/community/PremiumGroupPostComposer';
+import CommunityStats from '@/components/community/CommunityStats';
+import CommunityFilters from '@/components/community/CommunityFilters';
+import { useCommunityPosts, PostFilters } from '@/hooks/useCommunityPosts';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Community = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [filters, setFilters] = useState<PostFilters>({ sortBy: 'recent' });
+  const { posts, loading: postsLoading, error, refetch } = useCommunityPosts(filters);
 
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      profiles: { name: 'Royan Shaw', email: 'royan.shaw@gmail.com' },
-      content: 'Excited to share my latest iron condor strategy! Check it out and let me know what you think. #ironcondor #options',
-      likes_count: 120,
-      comments_count: 35,
-      shares_count: 5,
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      isPremium: false
-    },
-    {
-      id: 2,
-      profiles: { name: 'Alice Johnson', email: 'alice.johnson@gmail.com' },
-      content: 'Just hit a 30% return on my last trade using a simple covered call strategy. Sometimes the basics are the best! #coveredcall #trading',
-      likes_count: 85,
-      comments_count: 22,
-      shares_count: 3,
-      created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-      isPremium: false
-    },
-    {
-      id: 3,
-      profiles: { name: 'TraderPro', email: 'traderpro@gmail.com' },
-      content: 'Analyzing market trends for the upcoming week. Expecting volatility in tech stocks due to earnings reports. #marketanalysis #stocks',
-      likes_count: 210,
-      comments_count: 68,
-      shares_count: 15,
-      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      isPremium: true
-    },
-    {
-      id: 4,
-      profiles: { name: 'OptionsQueen', email: 'optionsqueen@gmail.com' },
-      content: 'Anyone else trading strangles this week? Looking for insights and tips! #strangles #options',
-      likes_count: 150,
-      comments_count: 45,
-      shares_count: 8,
-      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      isPremium: true
-    },
-  ]);
-
-  const [selectedPostId, setSelectedPostId] = useState<string>('');
-  const [commentModalOpen, setCommentModalOpen] = useState(false);
-  const [tipModalOpen, setTipModalOpen] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<any>(null);
-
-  const openCommentModal = (postId: string) => {
-    setSelectedPostId(postId);
-    setCommentModalOpen(true);
+  const handleSortChange = (sortBy: 'recent' | 'popular' | 'trending') => {
+    setFilters((prev) => ({ ...prev, sortBy }));
   };
 
-  const closeCommentModal = () => {
-    setSelectedPostId('');
-    setCommentModalOpen(false);
+  const handlePostTypeChange = (postType: string) => {
+    setFilters((prev) => ({ 
+      ...prev, 
+      postType: postType === 'all' ? undefined : postType 
+    }));
   };
 
-  const openTipModal = (post: any) => {
-    setSelectedPost(post);
-    setTipModalOpen(true);
-  };
-
-  const closeTipModal = () => {
-    setSelectedPost(null);
-    setTipModalOpen(false);
-  };
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+          <p className="text-gray-600">Loading community...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
@@ -97,148 +51,157 @@ const Community = () => {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <main className="container mx-auto p-4 sm:p-6">
+      <main className="container mx-auto p-4 sm:p-6 max-w-7xl">
         {/* Community Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+        <div className="mb-8 animate-fade-in">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             Trader Community
           </h1>
-          <p className="text-gray-600">Share your strategies, insights, and connect with fellow traders</p>
+          <p className="text-gray-600 text-lg">
+            Share strategies, insights, and connect with fellow traders worldwide
+          </p>
         </div>
 
         {/* Community Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <Users className="h-5 w-5 mr-2 text-blue-600" />
-                Active Traders
-              </CardTitle>
-              <CardDescription>Connect with fellow traders</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-800">4,589</div>
-              <p className="text-sm text-gray-500">In the last 24 hours</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <MessageSquare className="h-5 w-5 mr-2 text-green-600" />
-                Posts Today
-              </CardTitle>
-              <CardDescription>New discussions and insights</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-800">326</div>
-              <p className="text-sm text-gray-500">Shared today</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <TrendingUp className="h-5 w-5 mr-2 text-purple-600" />
-                Trending Strategies
-              </CardTitle>
-              <CardDescription>Top performing strategies</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-800">Iron Condor</div>
-              <p className="text-sm text-gray-500">Most discussed</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center">
-                <Crown className="h-5 w-5 mr-2 text-yellow-600" />
-                Premium Members
-              </CardTitle>
-              <CardDescription>Exclusive content and insights</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-800">872</div>
-              <p className="text-sm text-gray-500">Active subscribers</p>
-            </CardContent>
-          </Card>
-        </div>
+        <CommunityStats />
 
         {/* Community Feed */}
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Community Feed</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold text-gray-900">Community Feed</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refetch}
+              disabled={postsLoading}
+              className="hover-scale"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${postsLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
 
-          {/* Post Composer - Using a placeholder groupId for now */}
-          <PremiumGroupPostComposer />
+          {/* Post Composer */}
+          <div className="mb-6 animate-fade-in">
+            <PremiumGroupPostComposer />
+          </div>
+
+          {/* Filters */}
+          <CommunityFilters
+            sortBy={filters.sortBy}
+            onSortChange={handleSortChange}
+            postType={filters.postType}
+            onPostTypeChange={handlePostTypeChange}
+          />
+
+          {/* Error State */}
+          {error && (
+            <Alert variant="destructive" className="mb-6 animate-fade-in">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="ml-2">
+                Failed to load posts. Please try again.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Loading State */}
+          {postsLoading && (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardHeader>
+                    <div className="flex items-center space-x-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-20 w-full mb-4" />
+                    <div className="flex gap-4">
+                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-8 w-16" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* Community Posts */}
-          <div className="space-y-4">
-            {posts.map(post => (
-              <CommunityPostCard
-                key={post.id}
-                post={post}
-              />
-            ))}
-          </div>
+          {!postsLoading && !error && (
+            <div className="space-y-4 animate-fade-in">
+              {posts.length === 0 ? (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <p className="text-gray-500 text-lg mb-4">
+                      No posts yet. Be the first to share!
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                posts.map((post) => (
+                  <CommunityPostCard key={post.id} post={post} onLike={refetch} />
+                ))
+              )}
+            </div>
+          )}
         </section>
 
-        {/* Invite Friends Section */}
-        <section className="mb-8">
-          <Card>
+        {/* Community Engagement Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Invite Friends Section */}
+          <Card className="hover:shadow-lg transition-shadow animate-fade-in">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">Invite Friends</CardTitle>
-              <CardDescription>Share the Trader Community with your friends and earn rewards</CardDescription>
+              <CardTitle className="text-xl font-semibold">Invite Friends</CardTitle>
+              <CardDescription>
+                Share the Trader Community with your friends and earn rewards
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <InviteFriend />
             </CardContent>
           </Card>
-        </section>
 
-        {/* Social Sharing Section */}
-        <section>
-          <Card>
+          {/* Social Sharing Section */}
+          <Card className="hover:shadow-lg transition-shadow animate-fade-in">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">Share the Community</CardTitle>
-              <CardDescription>Spread the word and help grow our community</CardDescription>
+              <CardTitle className="text-xl font-semibold">Share the Community</CardTitle>
+              <CardDescription>
+                Spread the word and help grow our trading community
+              </CardDescription>
             </CardHeader>
-            <CardContent className="flex justify-around">
-              <SocialShareButton postData={{
-                id: 'community',
-                content: 'Check out the Trader Community!',
-                author: 'Traderama',
-                type: 'post'
-              }} />
-              <SocialShareButton postData={{
-                id: 'community-twitter',
-                content: 'Join the Trader Community for insights and strategies!',
-                author: 'Traderama',
-                type: 'post'
-              }} />
-              <SocialShareButton postData={{
-                id: 'community-linkedin',
-                content: 'Explore trading strategies and connect with experts in the Trader Community.',
-                author: 'Traderama',
-                type: 'post'
-              }} />
+            <CardContent className="flex flex-wrap gap-4 justify-center">
+              <SocialShareButton
+                postData={{
+                  id: 'community',
+                  content: 'Check out the Trader Community on Traderama!',
+                  author: 'Traderama',
+                  type: 'post',
+                }}
+              />
+              <SocialShareButton
+                postData={{
+                  id: 'community-twitter',
+                  content: 'Join the Trader Community for insights and strategies! #trading',
+                  author: 'Traderama',
+                  type: 'post',
+                }}
+              />
+              <SocialShareButton
+                postData={{
+                  id: 'community-linkedin',
+                  content: 'Explore trading strategies and connect with experts in the Trader Community.',
+                  author: 'Traderama',
+                  type: 'post',
+                }}
+              />
             </CardContent>
           </Card>
-        </section>
-
-        {/* Comment Modal */}
-        <CommunityCommentModal
-          postId={selectedPostId}
-          open={commentModalOpen}
-          onOpenChange={setCommentModalOpen}
-        />
-
-        {/* Tip Modal */}
-        <TipModal
-          open={tipModalOpen}
-          onOpenChange={setTipModalOpen}
-          post={selectedPost}
-        />
+        </div>
       </main>
     </div>
   );
