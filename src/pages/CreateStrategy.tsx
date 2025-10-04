@@ -316,13 +316,14 @@ const CreateStrategy = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="space-y-6 p-6">
       <Header />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Create Trading Strategy</h1>
-          <p className="text-gray-600">Build and share your automated trading strategies</p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Create Trading Strategy</h1>
+            <p className="text-gray-600">Build and share your automated trading strategies</p>
+          </div>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={() => setIsPreview(!isPreview)}>
             <Eye className="h-4 w-4 mr-2" />
@@ -707,6 +708,7 @@ const CreateStrategy = () => {
           </TabsContent>
         </Tabs>
       )}
+      </div>
     </div>
   );
 };
