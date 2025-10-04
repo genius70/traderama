@@ -65,7 +65,7 @@ redirect_uri = "https://traderama.pro/auth/callback"
 # Edge Functions configuration (container for individual functions).
 [functions]
 [functions.fetch-polygon-data]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-checkout]
 verify_jwt = true
