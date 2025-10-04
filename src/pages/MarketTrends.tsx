@@ -167,16 +167,16 @@ const MarketTrends = () => {
       }
 
       const { data: freshData, error: fetchError } = await supabase.functions.invoke('fetch-polygon-data', {
-        body: {
+        body: JSON.stringify({
           symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'],
-          timeframe: 'day',
           startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           endDate: new Date().toISOString().split('T')[0],
-        },
+        }),
       });
 
       if (fetchError) {
-        throw new Error(`Edge function error: ${fetchError.message}`);
+        console.error('Fetch error details:', fetchError);
+        throw new Error(fetchError.message || 'Failed to fetch market data');
       }
 
       if (freshData && freshData.results) {
@@ -227,7 +227,10 @@ const MarketTrends = () => {
         setError(`${errorMessage} (showing cached data)`);
       }
 
-      toast({ title: 'Data Error', variant: 'destructive' });
+      toast({ 
+        title: errorMessage,
+        variant: 'destructive' 
+      });
     } finally {
       setLoading(false);
     }
@@ -268,16 +271,17 @@ const MarketTrends = () => {
 
       const { multiplier, timespan } = TIMEFRAMES[config.timeframe as keyof typeof TIMEFRAMES];
       const { data: chartResponse, error: chartError } = await supabase.functions.invoke('fetch-polygon-data', {
-        body: {
+        body: JSON.stringify({
           symbol: config.symbol,
           timeframe: { multiplier, timespan },
           startDate: config.startDate,
           endDate: config.endDate,
-        },
+        }),
       });
 
       if (chartError) {
-        throw new Error(`Chart data error: ${chartError.message}`);
+        console.error('Chart error details:', chartError);
+        throw new Error(chartError.message || 'Failed to fetch chart data');
       }
 
       if (chartResponse && chartResponse.results) {
@@ -321,7 +325,10 @@ const MarketTrends = () => {
       console.error('Error fetching chart data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chart data';
       setError(errorMessage);
-      toast({ title: 'Data Error', variant: 'destructive' });
+      toast({ 
+        title: errorMessage,
+        variant: 'destructive' 
+      });
     } finally {
       setLoading(false);
     }
