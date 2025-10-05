@@ -21,12 +21,22 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   const [hasRedirected, setHasRedirected] = useState(false);
+
+  useEffect(() => {
+    // Extract referral code from URL query parameters
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get('ref') || params.get('referral');
+    if (refCode) {
+      setReferralCode(refCode);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -103,15 +113,26 @@ const Auth = () => {
           return;
         }
 
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              referred_by: referralCode || null,
+            }
           },
         });
 
         if (error) throw error;
+
+        // If referral code was used, update the profile
+        if (referralCode && data.user) {
+          await supabase
+            .from('profiles')
+            .update({ referred_by: referralCode })
+            .eq('id', data.user.id);
+        }
 
         setSuccess("Please check your email to confirm your account");
       } else {
@@ -356,6 +377,22 @@ const Auth = () => {
                         placeholder="Enter your email"
                       />
                     </div>
+
+                    {referralCode && (
+                      <div className="space-y-2">
+                        <Label htmlFor="referral-code">Referral Code</Label>
+                        <Input
+                          id="referral-code"
+                          type="text"
+                          value={referralCode}
+                          readOnly
+                          className="bg-gray-50"
+                        />
+                        <p className="text-xs text-gray-500">
+                          You'll receive bonus credits for using this referral code
+                        </p>
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label htmlFor="signup-password">Password</Label>

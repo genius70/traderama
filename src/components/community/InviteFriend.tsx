@@ -120,34 +120,55 @@ const InviteFriend: React.FC = () => {
       return;
     }
 
+    if (!userReferralCode) {
+      toast({
+        title: "Referral Code Missing - Please complete your profile to get a referral code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const message = customMessage.trim() || defaultMessage;
-      const messageWithReferral = `${message}\n\nJoin using my referral code: ${userReferralCode}\nTraderama.com`;
+      const messageWithReferral = `${message}\n\nJoin using my referral code: ${userReferralCode}\nhttps://traderama.pro`;
+      
+      // Extract phone numbers in the format the edge function expects
+      const phoneNumbers = friends.map(friend => friend.phoneNumber);
+      
+      console.log('Sending WhatsApp invites:', { phoneNumbers, message: messageWithReferral });
       
       const response = await supabase.functions.invoke('send-whatsapp-invites', {
-        body: {
-          friends: friends,
-          message: messageWithReferral,
-          referralCode: userReferralCode
-        }
+        body: JSON.stringify({
+          phone_numbers: phoneNumbers,
+          message: messageWithReferral
+        })
       });
 
-      if (response.error) throw response.error;
+      console.log('WhatsApp invite response:', response);
+
+      if (response.error) {
+        console.error('WhatsApp invite error:', response.error);
+        throw response.error;
+      }
+
+      const results = response.data?.results || [];
+      const successCount = results.filter((r: any) => r.success).length;
+      const failCount = results.length - successCount;
 
       toast({
-        title: "Invites Sent Successfully!",
+        title: `Invites Sent! ${successCount} invite${successCount !== 1 ? 's' : ''} sent successfully${failCount > 0 ? `, ${failCount} failed` : ''}.`,
       });
 
       setFriends([]);
       setCustomMessage('');
       fetchReferralHistory();
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending invites:', error);
       toast({
-        title: "Error Sending Invites",
+        title: `Error Sending Invites: ${error.message || "Failed to send WhatsApp invites. Please try again."}`,
         variant: "destructive",
       });
     } finally {

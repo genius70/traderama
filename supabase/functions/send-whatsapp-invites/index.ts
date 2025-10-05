@@ -15,8 +15,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_ANON_KEY'));
-    const { phone_numbers, message } = await req.json();
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
+    
+    const body = await req.json();
+    const { phone_numbers, message } = body;
+    
+    console.log('Received request:', { phone_numbers, messageLength: message?.length });
 
     if (!phone_numbers || !Array.isArray(phone_numbers)) {
       return new Response(JSON.stringify({
@@ -47,22 +54,31 @@ Deno.serve(async (req) => {
     }
 
     const results = [];
+    console.log(`Sending messages to ${phone_numbers.length} numbers`);
+    
     for (const phoneNumber of phone_numbers) {
       try {
-        const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: new URLSearchParams({
-            From: `whatsapp:${twilioWhatsAppNumber}`,
-            To: `whatsapp:${phoneNumber}`,
-            Body: message || 'Join Traderama Pro for exclusive trading strategies!'
-          })
-        });
+        console.log(`Sending to: ${phoneNumber}`);
+        
+        const response = await fetch(
+          `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+              From: `whatsapp:${twilioWhatsAppNumber}`,
+              To: `whatsapp:${phoneNumber}`,
+              Body: message || 'Join Traderama Pro for exclusive trading strategies!'
+            })
+          }
+        );
 
         const data = await response.json();
+        console.log(`Response for ${phoneNumber}:`, data);
+        
         if (response.ok) {
           results.push({
             phoneNumber,
@@ -73,17 +89,20 @@ Deno.serve(async (req) => {
           results.push({
             phoneNumber,
             success: false,
-            error: data.message
+            error: data.message || 'Unknown error'
           });
         }
-      } catch (error) {
+      } catch (error: any) {
+        console.error(`Error sending to ${phoneNumber}:`, error);
         results.push({
           phoneNumber,
           success: false,
-          error: error.message
+          error: error.message || 'Network error'
         });
       }
     }
+    
+    console.log('All messages processed:', results);
 
     return new Response(JSON.stringify({
       results
