@@ -14,10 +14,11 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import Header from '@/components/layout/Header';
 import { IGBrokerConnect } from '@/components/brokers';
 import { useIGBroker } from '@/hooks/useIGBroker';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   TrendingUp, 
   TrendingDown, 
-  DollarSign, 
+  DollarSign,
   Target, 
   AlertTriangle, 
   RefreshCcw, 
@@ -234,8 +235,17 @@ const TradePositions = () => {
 
     try {
       setLoading(true);
-      // Mock close position functionality
-      console.log('Closing position:', positionId);
+      // Close position in database
+      const { error } = await supabase
+        .from('live_positions')
+        .update({ 
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+        })
+        .eq('id', positionId);
+      
+      if (error) throw error;
+      
       setPositions(prev =>
         prev.map(pos =>
           pos.id === positionId ? { ...pos, status: 'CLOSED' } : pos

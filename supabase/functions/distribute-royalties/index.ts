@@ -2,9 +2,17 @@
 import { serve } from 'std/http/server.ts';
 import { createClient } from '@supabase/supabase-js';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
   try {
     const { trade_id, user_strategy_id, profit_amount } = await req.json();
 
@@ -12,7 +20,7 @@ serve(async (req) => {
     if (profit_amount < 1) {
       return new Response(JSON.stringify({ error: 'Profit must be $1 or more' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -59,13 +67,13 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ success: true, creatorRoyaltyAmount, platformFeeAmount }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error in distribute-royalties:', error);
     return new Response(JSON.stringify({ error: 'Failed to distribute royalties' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

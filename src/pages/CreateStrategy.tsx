@@ -111,9 +111,14 @@ const CreateStrategy = () => {
     const fetchOptionsChain = async () => {
       if (!selectedUnderlying || !selectedExpiration) return;
       try {
-        // Mock options chain data since LiveOptionsChain.fetchOptionsData doesn't exist
-        const mockData = [];
-        setOptionsChainData(mockData);
+        // Fetch real options chain data
+        const { data, error } = await supabase
+          .from('live_market_data')
+          .select('*')
+          .eq('symbol', selectedUnderlying);
+        
+        if (error) throw error;
+        setOptionsChainData(data || []);
       } catch (error) {
         toast({
           title: 'Error fetching options chain',

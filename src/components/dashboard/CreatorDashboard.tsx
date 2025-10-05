@@ -101,13 +101,24 @@ const CreatorDashboard: React.FC = () => {
         const averageReturn = totalPerformance;
         const winRate = performances.filter(p => p > 0).length / Math.max(performances.length, 1) * 100;
 
-        // Mock recent activity based on strategies
-        const recentActivity = strategies?.slice(0, 3).map((strategy, index) => ({
-          name: strategy.title || `Strategy ${index + 1}`,
-          performance: performances[index] || 0,
-          timeframe: index === 0 ? 'Today' : index === 1 ? 'Yesterday' : '2 days ago',
-          color: index === 0 ? 'green' : index === 1 ? 'blue' : 'orange',
-        })) || [];
+        // Fetch recent activity from posts
+        const { data: posts } = await supabase
+          .from('posts')
+          .select('id, content, created_at')
+          .eq('user_id', user?.id || '')
+          .order('created_at', { ascending: false })
+          .limit(3);
+        
+        const recentActivity = posts?.map((post, index) => {
+          const createdAt = post.created_at ? new Date(post.created_at) : new Date();
+          const daysAgo = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+          return {
+            name: post.content.substring(0, 30) + '...',
+            performance: performances[index] || 0,
+            timeframe: daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`,
+            color: index === 0 ? 'green' : index === 1 ? 'blue' : 'orange',
+          };
+        }) || [];
 
         setMetrics({
           activeStrategies,

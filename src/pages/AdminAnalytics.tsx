@@ -1,5 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -8,18 +9,60 @@ import ContactManagement from '@/components/admin/ContactManagement';
 import { DollarSign, Target, TrendingUp } from "lucide-react";
 import UserAnalyticsPanel from "@/components/admin/UserAnalyticsPanel";
 import AdminCharts from "@/components/admin/AdminCharts";
-
-// Mock metrics for cards
-const mockAnalytics = {
-  totalStrategies: 320,
-  newStrategies: 12,
-  totalTrades: 8750,
-  newTrades: 230,
-  revenue: 15000,
-};
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const AdminAnalytics = () => {
   const { user, loading } = useAuth();
+  const { toast } = useToast();
+  const [analytics, setAnalytics] = useState({
+    totalStrategies: 0,
+    newStrategies: 0,
+    totalTrades: 0,
+    newTrades: 0,
+    revenue: 0,
+  });
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
+        
+        // Fetch platform analytics
+        const { data: platformData, error } = await supabase
+          .from('platform_analytics')
+          .select('*')
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .order('date', { ascending: true });
+
+        if (error) throw error;
+
+        // Calculate summary metrics
+        const latestData = platformData?.[platformData.length - 1];
+        const previousData = platformData?.[platformData.length - 2];
+        
+        setAnalytics({
+          totalStrategies: latestData?.total_strategies || 0,
+          newStrategies: (latestData?.new_strategies || 0),
+          totalTrades: latestData?.total_trades || 0,
+          newTrades: (latestData?.new_trades || 0),
+          revenue: latestData?.revenue || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+        toast({
+          title: 'Error loading analytics',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    if (user) {
+      fetchAnalytics();
+    }
+  }, [user, toast]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -58,9 +101,9 @@ const AdminAnalytics = () => {
                     <span className="font-medium text-gray-900">Active Strategies</span>
                     <Target className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div className="text-2xl font-bold">{mockAnalytics.totalStrategies}</div>
+                  <div className="text-2xl font-bold">{analytics.totalStrategies}</div>
                   <p className="text-xs text-muted-foreground">
-                    +{mockAnalytics.newStrategies} new this month
+                    +{analytics.newStrategies} new this month
                   </p>
                 </div>
               </Card>
@@ -70,9 +113,9 @@ const AdminAnalytics = () => {
                     <span className="font-medium text-gray-900">Total Trades</span>
                     <TrendingUp className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div className="text-2xl font-bold">{mockAnalytics.totalTrades.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{analytics.totalTrades.toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">
-                    +{mockAnalytics.newTrades} new this month
+                    +{analytics.newTrades} new this month
                   </p>
                 </div>
               </Card>
@@ -82,7 +125,7 @@ const AdminAnalytics = () => {
                     <span className="font-medium text-gray-900">Platform Revenue</span>
                     <DollarSign className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div className="text-2xl font-bold">${mockAnalytics.revenue.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">${analytics.revenue.toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">
                     Monthly recurring revenue
                   </p>
