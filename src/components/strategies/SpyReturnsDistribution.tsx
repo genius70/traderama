@@ -27,6 +27,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { BarChart3, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ReturnsData {
   range: string;
@@ -96,7 +97,7 @@ const SpyReturnsDistribution: React.FC = () => {
   const [dateError, setDateError] = useState<string | null>(null);
   const [availableSymbols, setAvailableSymbols] = useState<string[]>([]);
 
-  // Top options indices/ETFs (to be validated against Polygon.io)
+  // Top options indices/ETFs
   const initialOptionsIndices = [
     'SPY', // SPDR S&P 500 ETF
     'QQQ', // Invesco QQQ Trust (Nasdaq-100)
@@ -120,7 +121,7 @@ const SpyReturnsDistribution: React.FC = () => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     const maxDate = new Date();
-    const minDate = new Date('2000-01-01'); // Polygon.io data availability
+    const minDate = new Date('2000-01-01'); // Alpha Vantage data availability
 
     if (startDate > endDate) {
       setDateError('Start date must be before end date');
@@ -138,35 +139,15 @@ const SpyReturnsDistribution: React.FC = () => {
     return true;
   };
 
-  // Fetch available tickers from Polygon.io
+  // Use predefined list of popular ETFs and indices
   const fetchAvailableSymbols = async () => {
-    try {
-      const response = await fetch(
-        'https://api.polygon.io/v3/reference/tickers?type=ETF&market=stocks&active=true&apiKey=' +
-          process.env.POLYGON_API_KEY
-      );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch symbols: ${response.statusText}`);
-      }
-      const data = await response.json();
-      const symbols = data.results
-        .filter((ticker: any) => initialOptionsIndices.includes(ticker.ticker))
-        .map((ticker: any) => ticker.ticker);
-      setAvailableSymbols(symbols.length ? symbols : initialOptionsIndices);
-    } catch (err) {
-      console.error('Error fetching available symbols:', err);
-      setAvailableSymbols(initialOptionsIndices); // Fallback to default list
-    }
+    // Set predefined list directly
+    setAvailableSymbols(initialOptionsIndices);
   };
 
-  // Fetch market data from Polygon.io
+  // Fetch market data from Alpha Vantage API
   const fetchMarketData = async () => {
     if (!validateDates(config.startDate, config.endDate)) {
-      return;
-    }
-
-    if (!process.env.POLYGON_API_KEY) {
-      setError('Polygon.io API key is missing. Please check your environment configuration.');
       return;
     }
 
@@ -174,24 +155,37 @@ const SpyReturnsDistribution: React.FC = () => {
     setError(null);
 
     try {
-      const multiplier = config.timeframe === '1d' ? 1 : config.timeframe === '1w' ? 1 : 1;
-      const timespan = config.timeframe === '1d' ? 'day' : config.timeframe === '1w' ? 'week' : 'month';
-      const response = await fetch(
-        `https://api.polygon.io/v2/aggs/ticker/${config.symbol}/range/${multiplier}/${timespan}/${config.startDate}/${config.endDate}?adjusted=true&sort=asc&apiKey=${process.env.POLYGON_API_KEY}`
-      );
+      // Determine Alpha Vantage function type based on timeframe
+      const functionType = config.timeframe === '1d' ? 'TIME_SERIES_DAILY' : 
+                          config.timeframe === '1w' ? 'TIME_SERIES_WEEKLY' :
+                          'TIME_SERIES_MONTHLY';
+      
+      const requestBody: any = {
+        symbol: config.symbol,
+        function: functionType,
+        outputsize: 'full'
+      };
 
-      if (!response.ok) {
-        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+      const { data: alphaData, error: alphaError } = await supabase.functions.invoke('alpha-vantage-data', {
+        body: requestBody,
+      });
+
+      if (alphaError) {
+        throw new Error(alphaError.message || 'Failed to fetch market data');
       }
 
-      const data = await response.json();
-      if (data.status !== 'OK' || !data.results) {
-        throw new Error(data.error || 'No data returned from Polygon.io');
+      // Parse Alpha Vantage response
+      const timeSeriesKey = Object.keys(alphaData).find(key => key.includes('Time Series'));
+      if (!alphaData || !timeSeriesKey) {
+        throw new Error('No data returned from Alpha Vantage API');
       }
 
-      const prices = data.results.map((item: any) => ({
-        close: item.c,
-        timestamp: item.t,
+      const timeSeries = alphaData[timeSeriesKey];
+      const dates = Object.keys(timeSeries).sort();
+      
+      const prices = dates.map(date => ({
+        close: parseFloat(timeSeries[date]['4. close'] || '0'),
+        timestamp: new Date(date).getTime(),
       }));
 
       // Calculate daily returns

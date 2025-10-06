@@ -37,6 +37,27 @@ const Community = () => {
     }));
   };
 
+  const generateReferralCode = (): string => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const digits = '0123456789';
+    const digitPositions: number[] = [];
+    while (digitPositions.length < 2) {
+      const pos = Math.floor(Math.random() * 6);
+      if (!digitPositions.includes(pos)) {
+        digitPositions.push(pos);
+      }
+    }
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      if (digitPositions.includes(i)) {
+        code += digits.charAt(Math.floor(Math.random() * digits.length));
+      } else {
+        code += letters.charAt(Math.floor(Math.random() * letters.length));
+      }
+    }
+    return code;
+  };
+
   const fetchReferralCode = useCallback(async () => {
     if (!user) return;
 
@@ -48,7 +69,22 @@ const Community = () => {
         .single();
 
       if (error) throw error;
-      setReferralCode(data?.referral_code || null);
+      
+      // If no referral code exists, generate and save one
+      if (!data?.referral_code) {
+        const newReferralCode = generateReferralCode();
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ referral_code: newReferralCode })
+          .eq('id', user.id);
+          
+        if (!updateError) {
+          setReferralCode(newReferralCode);
+        }
+      } else {
+        setReferralCode(data.referral_code);
+      }
     } catch (error) {
       console.error('Error fetching referral code:', error);
     }
