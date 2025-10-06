@@ -166,12 +166,9 @@ const MarketTrends = () => {
         return;
       }
 
-      const { data: freshData, error: fetchError } = await supabase.functions.invoke('fetch-polygon-data', {
-        body: JSON.stringify({
-          symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'],
-          startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          endDate: new Date().toISOString().split('T')[0],
-        }),
+      // Use Alpha Vantage API for market data
+      const { data: freshData, error: fetchError } = await supabase.functions.invoke('alpha-vantage-market-data', {
+        body: { symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'] },
       });
 
       if (fetchError) {
@@ -179,27 +176,15 @@ const MarketTrends = () => {
         throw new Error(fetchError.message || 'Failed to fetch market data');
       }
 
-      if (freshData && freshData.results) {
-        const formattedData = freshData.results.map((item: any) => ({
-          symbol: item.ticker,
-          price: item.c,
-          change: item.c - (item.o || item.c),
-          changePercent: ((item.c - (item.o || item.c)) / (item.o || item.c)) * 100,
-          volume: item.v || 0,
+      if (freshData && freshData.data && freshData.data.length > 0) {
+        const formattedData = freshData.data.map((item: any) => ({
+          symbol: item.symbol,
+          price: item.price,
+          change: (item.price * item.change_percent) / 100,
+          changePercent: item.change_percent,
+          volume: item.volume || 0,
         }));
         setMarketData(formattedData);
-
-        // Cache the data
-        await supabase.from('live_market_data').insert(
-          formattedData.map(item => ({
-            symbol: item.symbol,
-            price: item.price,
-            change: item.change_percent || 0,
-            change_percent: item.changePercent,
-            volume: item.volume,
-            timestamp: new Date().toISOString(),
-          }))
-        );
       } else {
         throw new Error('No data returned from market data service');
       }
@@ -269,14 +254,24 @@ const MarketTrends = () => {
         return;
       }
 
-      const { multiplier, timespan } = TIMEFRAMES[config.timeframe as keyof typeof TIMEFRAMES];
-      const { data: chartResponse, error: chartError } = await supabase.functions.invoke('fetch-polygon-data', {
-        body: JSON.stringify({
-          symbol: config.symbol,
-          timeframe: { multiplier, timespan },
-          startDate: config.startDate,
-          endDate: config.endDate,
-        }),
+      // Use Alpha Vantage API for historical data
+      const functionType = config.timeframe === 'daily' ? 'TIME_SERIES_DAILY' : 
+                          config.timeframe === 'weekly' ? 'TIME_SERIES_WEEKLY' :
+                          config.timeframe === 'monthly' ? 'TIME_SERIES_MONTHLY' :
+                          'TIME_SERIES_INTRADAY';
+      
+      const requestBody: any = {
+        symbol: config.symbol,
+        function: functionType,
+        outputsize: 'compact'
+      };
+
+      if (config.timeframe === 'hourly') {
+        requestBody.interval = '60min';
+      }
+
+      const { data: chartResponse, error: chartError } = await supabase.functions.invoke('alpha-vantage-data', {
+        body: requestBody,
       });
 
       if (chartError) {
@@ -284,14 +279,19 @@ const MarketTrends = () => {
         throw new Error(chartError.message || 'Failed to fetch chart data');
       }
 
-      if (chartResponse && chartResponse.results) {
-        const prices = chartResponse.results.map((item: any) => item.c || 0);
+      // Parse Alpha Vantage response
+      const timeSeriesKey = Object.keys(chartResponse).find(key => key.includes('Time Series'));
+      if (chartResponse && timeSeriesKey) {
+        const timeSeries = chartResponse[timeSeriesKey];
+        const dates = Object.keys(timeSeries).sort().reverse().slice(0, 100);
+        
+        const prices = dates.map(date => parseFloat(timeSeries[date]['4. close'] || '0'));
         const { sma20, rsi, macd, signal, upperBB, lowerBB } = calculateIndicators(prices);
 
-        const transformedData: ChartData[] = chartResponse.results.map((item: any, index: number) => ({
-          date: new Date(item.t).toISOString().split('T')[0],
-          price: item.c || 0,
-          volume: item.v || 0,
+        const transformedData: ChartData[] = dates.map((date, index) => ({
+          date,
+          price: parseFloat(timeSeries[date]['4. close'] || '0'),
+          volume: parseInt(timeSeries[date]['5. volume'] || '0'),
           sma20: sma20[index] || 0,
           rsi: rsi[index] || 50,
           macd: macd[index] || 0,
