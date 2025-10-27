@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import HeroSection from "@/components/home/OLDHeroSection";
+import HeroSection from "@/components/home/HeroSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
 import StrategiesSection from "@/components/home/StrategiesSection";
 import CTASection from "@/components/home/CTASection";
