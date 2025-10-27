@@ -6,9 +6,14 @@ import { Link } from "react-router-dom";
 interface HeroSectionProps {
   user: any;
   userRole: string | null;
+  showBadge: boolean; // Added prop for badge visibility
 }
 
-const HeroSection: React.FC<HeroSectionProps> = ({ user, userRole }) => {
+const HeroSection: React.FC<HeroSectionProps> = ({
+  user,
+  userRole,
+  showBadge,
+}) => {
   const benefits = [
     "Professional-grade iron condor strategies",
     "Copy successful traders automatically",
@@ -66,7 +71,17 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, userRole }) => {
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             </Link>
-            {user && (userRole === "strategy_creator" || userRole === "admin" || userRole === "super_admin") && (
+            {showBadge &&
+              <div
+                id="nb-badge"
+                data-product="TRADERAMA PRO"
+                data-slug="traderama-pro"
+                data-align="center"
+              />}
+            {user &&
+              (userRole === "strategy_creator" ||
+                userRole === "admin" ||
+                userRole === "super_admin") &&
               <Link to="/create-strategy">
                 <Button
                   size="lg"
@@ -75,17 +90,23 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, userRole }) => {
                   <Plus className="h-5 w-5 mr-2" />
                   Create Strategy
                 </Button>
-              </Link>
-            )}
+              </Link>}
           </div>
+          {showBadge &&
+            <script
+              defer
+              src="https://nextbigproduct.com/assets/badge/badge.js"
+            />}
 
           <div className="flex flex-wrap items-center justify-center gap-8 text-gray-300 text-sm">
-            {benefits.map((benefit, index) => (
+            {benefits.map((benefit, index) =>
               <div key={index} className="flex items-center space-x-2">
                 <CheckCircle className="h-4 w-4 text-green-400" />
-                <span>{benefit}</span>
-              </div>
-            ))}
+                <span>
+                  {benefit}
+                </span>
+              </div>,
+            )}
           </div>
         </div>
       </div>

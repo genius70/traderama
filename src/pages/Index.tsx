@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import HeroSection from "@/components/home/HeroSection";
+import HeroSection from "@/components/home/OLDHeroSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
 import StrategiesSection from "@/components/home/StrategiesSection";
 import CTASection from "@/components/home/CTASection";
@@ -149,7 +149,7 @@ const Index: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <HeroSection user={user} userRole={userRole} />
+      <HeroSection user={user} userRole={userRole} showBadge={!user} />
       <FeaturesSection />
       <StrategiesSection
         strategies={strategies}
