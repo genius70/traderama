@@ -11,7 +11,7 @@ import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
 import ErrorBoundary from "@/components/analytics/ErrorBoundary";
 
 // Lazy load components for better performance
-const Index = React.lazy(() => import("./pages/OLDIndex"));
+const Index = React.lazy(() => import("./pages/Index"));
 const Dashboard = React.lazy(() => import("./pages/Dashboard"));
 const Auth = React.lazy(() => import("./pages/Auth"));
 const AdminAuth = React.lazy(() => import("./pages/AdminAuth"));
