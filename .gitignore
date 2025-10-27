@@ -24,5 +24,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-OLDIndex.tsx
-OLDHeroSection.tsx
+*.txt
+*.md
+*.env

@@ -649,6 +649,7 @@ const Profile = () => {
                   accept=".png,.jpg,.jpeg"
                   onChange={handleAvatarUpload}
                   className="hidden"
+                  title="Upload your avatar image"
                 />
                 {isEditing && (
                   <Button
