@@ -92,11 +92,20 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                 </Button>
               </Link>}
           </div>
-          {showBadge &&
-            <script
-              defer
-              src="https://nextbigproduct.com/assets/badge/badge.js"
-            />}
+          {showBadge && (
+          
+              <a href="https://nextbigproduct.com/product/traderama-pro"
+    target="_blank"
+    rel="noopener"
+  >
+    <img
+      src="https://nextbigproduct.com/assets/badge/nbp_badge.png"
+      alt="Featured on NextBigProduct"
+      style={{ maxWidth: '320px', height: 'auto' }}
+    />
+  </a>
+          )
+    }
 
           <div className="flex flex-wrap items-center justify-center gap-8 text-gray-300 text-sm">
             {benefits.map((benefit, index) =>
