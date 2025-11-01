@@ -308,6 +308,122 @@ export type Database = {
         }
         Relationships: []
       }
+      email_campaigns: {
+        Row: {
+          bounced_count: number
+          clicked_count: number
+          created_at: string
+          failed_count: number
+          id: string
+          message: string
+          opened_count: number
+          scheduled_at: string | null
+          sender_id: string | null
+          sent_at: string | null
+          sent_count: number
+          status: string
+          subject: string
+          total_recipients: number
+          updated_at: string
+        }
+        Insert: {
+          bounced_count?: number
+          clicked_count?: number
+          created_at?: string
+          failed_count?: number
+          id?: string
+          message: string
+          opened_count?: number
+          scheduled_at?: string | null
+          sender_id?: string | null
+          sent_at?: string | null
+          sent_count?: number
+          status?: string
+          subject: string
+          total_recipients?: number
+          updated_at?: string
+        }
+        Update: {
+          bounced_count?: number
+          clicked_count?: number
+          created_at?: string
+          failed_count?: number
+          id?: string
+          message?: string
+          opened_count?: number
+          scheduled_at?: string | null
+          sender_id?: string | null
+          sent_at?: string | null
+          sent_count?: number
+          status?: string
+          subject?: string
+          total_recipients?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      email_tracking: {
+        Row: {
+          bounced_at: string | null
+          campaign_id: string | null
+          click_count: number
+          clicked_at: string | null
+          created_at: string
+          email: string
+          error_message: string | null
+          id: string
+          open_count: number
+          opened_at: string | null
+          sent_at: string | null
+          status: string
+          tracking_token: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          bounced_at?: string | null
+          campaign_id?: string | null
+          click_count?: number
+          clicked_at?: string | null
+          created_at?: string
+          email: string
+          error_message?: string | null
+          id?: string
+          open_count?: number
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string
+          tracking_token?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          bounced_at?: string | null
+          campaign_id?: string | null
+          click_count?: number
+          clicked_at?: string | null
+          created_at?: string
+          email?: string
+          error_message?: string | null
+          id?: string
+          open_count?: number
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string
+          tracking_token?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_tracking_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_logs: {
         Row: {
           created_at: string | null
@@ -1018,7 +1134,7 @@ export type Database = {
           device_type: string | null
           duration_seconds: number | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           page_path: string
           page_title: string | null
           referrer_url: string | null
@@ -1033,7 +1149,7 @@ export type Database = {
           device_type?: string | null
           duration_seconds?: number | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           page_path: string
           page_title?: string | null
           referrer_url?: string | null
@@ -1048,7 +1164,7 @@ export type Database = {
           device_type?: string | null
           duration_seconds?: number | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           page_path?: string
           page_title?: string | null
           referrer_url?: string | null
@@ -2142,7 +2258,7 @@ export type Database = {
           device_type: string | null
           duration_seconds: number | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           page_url: string | null
           referred_by: string | null
           referrer_url: string | null
@@ -2159,7 +2275,7 @@ export type Database = {
           device_type?: string | null
           duration_seconds?: number | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           page_url?: string | null
           referred_by?: string | null
           referrer_url?: string | null
@@ -2176,7 +2292,7 @@ export type Database = {
           device_type?: string | null
           duration_seconds?: number | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           page_url?: string | null
           referred_by?: string | null
           referrer_url?: string | null
@@ -2435,7 +2551,7 @@ export type Database = {
           duration_seconds: number | null
           ended_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           pages_visited: number | null
           session_id: string
           started_at: string | null
@@ -2450,7 +2566,7 @@ export type Database = {
           duration_seconds?: number | null
           ended_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           pages_visited?: number | null
           session_id: string
           started_at?: string | null
@@ -2465,7 +2581,7 @@ export type Database = {
           duration_seconds?: number | null
           ended_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           pages_visited?: number | null
           session_id?: string
           started_at?: string | null
@@ -2590,10 +2706,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
-      cleanup_expired_rewards: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      cleanup_expired_rewards: { Args: never; Returns: number }
       distribute_rewards: {
         Args: {
           p_admin_id: string
@@ -2604,34 +2717,22 @@ export type Database = {
         }
         Returns: string
       }
-      end_user_session: {
-        Args: { p_session_id: string }
-        Returns: undefined
-      }
+      end_user_session: { Args: { p_session_id: string }; Returns: undefined }
       generate_referral_code: {
         Args: { p_date_of_birth: string; p_username: string }
         Returns: string
       }
-      get_user_contact_stats: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
+      get_user_contact_stats: { Args: { p_user_id: string }; Returns: Json }
       get_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
-      is_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
       is_admin_role: {
         Args: { role_to_check: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
       }
-      process_pending_rewards: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      process_pending_rewards: { Args: never; Returns: number }
       update_feature_usage: {
         Args: {
           p_feature_name: string

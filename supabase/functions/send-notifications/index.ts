@@ -94,6 +94,26 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${recipients.length} recipients`);
 
+    // Create email campaign record
+    const { data: campaign, error: campaignError } = await supabase
+      .from('email_campaigns')
+      .insert({
+        sender_id: user.id,
+        subject: subject.trim(),
+        message: message.trim(),
+        total_recipients: recipients.length,
+        status: 'sending',
+      })
+      .select()
+      .single();
+
+    if (campaignError) {
+      console.error('Error creating campaign:', campaignError);
+      throw campaignError;
+    }
+
+    console.log(`Created campaign: ${campaign.id}`);
+
     // Create notification record
     const { data: notification, error: notificationError } = await supabase
       .from('notifications')
@@ -118,37 +138,77 @@ Deno.serve(async (req) => {
     // Send based on delivery method
     if (delivery_method === 'email') {
       const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+      const baseUrl = Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '') || '';
       
       for (const recipient of recipients) {
+        // Generate unique tracking token
+        const trackingToken = crypto.randomUUID();
+        
+        // Create tracking record
+        const { error: trackingError } = await supabase
+          .from('email_tracking')
+          .insert({
+            campaign_id: campaign.id,
+            user_id: recipient.id,
+            email: recipient.email,
+            status: 'queued',
+            tracking_token: trackingToken,
+          });
+
+        if (trackingError) {
+          console.error('Error creating tracking record:', trackingError);
+        }
+
         try {
           const personalizedMessage = message.replace(/{user_name}/g, recipient.name || recipient.email);
           
+          // Add tracking pixel and links
+          const trackingPixelUrl = `${baseUrl}/functions/v1/track-email-open?token=${trackingToken}`;
+          const trackedHtml = `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+              <div style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Traderama</h1>
+              </div>
+              <div style="padding: 40px 30px;">
+                <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px;">${subject.trim()}</h2>
+                <div style="color: #374151; line-height: 1.8; font-size: 16px;">
+                  ${personalizedMessage.split('\n').map(line => `<p style="margin: 12px 0;">${line}</p>`).join('')}
+                </div>
+              </div>
+              <div style="background: #f9fafb; padding: 20px 30px; border-top: 1px solid #e5e7eb;">
+                <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                  This is an official message from Traderama. For support, please visit our help center.
+                </p>
+              </div>
+              <img src="${trackingPixelUrl}" width="1" height="1" style="display:none;" />
+            </div>
+          `;
+          
+          // Update tracking status to sending
+          await supabase
+            .from('email_tracking')
+            .update({ status: 'sending' })
+            .eq('tracking_token', trackingToken);
+
           const { data, error } = await resend.emails.send({
             from: 'Traderama <onboarding@resend.dev>',
             to: [recipient.email],
             subject: subject.trim(),
-            html: `
-              <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-                <div style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); padding: 30px; text-align: center;">
-                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Traderama</h1>
-                </div>
-                <div style="padding: 40px 30px;">
-                  <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px;">${subject.trim()}</h2>
-                  <div style="color: #374151; line-height: 1.8; font-size: 16px;">
-                    ${personalizedMessage.split('\n').map(line => `<p style="margin: 12px 0;">${line}</p>`).join('')}
-                  </div>
-                </div>
-                <div style="background: #f9fafb; padding: 20px 30px; border-top: 1px solid #e5e7eb;">
-                  <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                    This is an official message from Traderama. For support, please visit our help center.
-                  </p>
-                </div>
-              </div>
-            `,
+            html: trackedHtml,
           });
 
           if (error) {
             console.error(`Failed to send email to ${recipient.email}:`, error);
+            
+            // Update tracking with failure
+            await supabase
+              .from('email_tracking')
+              .update({ 
+                status: 'failed',
+                error_message: error.message 
+              })
+              .eq('tracking_token', trackingToken);
+
             results.push({ 
               recipient: recipient.email, 
               success: false, 
@@ -156,6 +216,16 @@ Deno.serve(async (req) => {
             });
           } else {
             console.log(`Email sent successfully to ${recipient.email}`);
+            
+            // Update tracking with success
+            await supabase
+              .from('email_tracking')
+              .update({ 
+                status: 'sent',
+                sent_at: new Date().toISOString() 
+              })
+              .eq('tracking_token', trackingToken);
+
             results.push({ 
               recipient: recipient.email, 
               success: true, 
@@ -171,6 +241,16 @@ Deno.serve(async (req) => {
           }
         } catch (error) {
           console.error(`Exception sending to ${recipient.email}:`, error);
+          
+          // Update tracking with error
+          await supabase
+            .from('email_tracking')
+            .update({ 
+              status: 'failed',
+              error_message: error.message 
+            })
+            .eq('tracking_token', trackingToken);
+
           results.push({ 
             recipient: recipient.email, 
             success: false, 
@@ -224,6 +304,15 @@ Deno.serve(async (req) => {
     const finalStatus = successCount === results.length ? 'sent' : 
                        successCount > 0 ? 'partial' : 'failed';
 
+    // Update campaign status
+    await supabase
+      .from('email_campaigns')
+      .update({
+        status: finalStatus === 'sent' ? 'completed' : finalStatus,
+        sent_at: new Date().toISOString(),
+      })
+      .eq('id', campaign.id);
+
     // Update notification status
     await supabase
       .from('notifications')
@@ -233,11 +322,12 @@ Deno.serve(async (req) => {
       })
       .eq('id', notification.id);
 
-    console.log(`Notification send complete: ${successCount}/${results.length} successful`);
+    console.log(`Campaign ${campaign.id} complete: ${successCount}/${results.length} successful`);
 
     return new Response(
       JSON.stringify({
         success: true,
+        campaign_id: campaign.id,
         notification_id: notification.id,
         results,
         summary: {
