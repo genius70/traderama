@@ -80,23 +80,17 @@ const Auth = () => {
   }, [user, toast]);
 
   useEffect(() => {
-    if (user && userRole && !hasRedirected) {
-      const isOnAdminDashboard = location.pathname.startsWith("/admin");
-      const isOnDashboard = location.pathname.startsWith("/dashboard");
-
-      if (userRole === "super_admin" && !isOnAdminDashboard) {
+    if (user && userRole && !hasRedirected && location.pathname === "/auth") {
+      if (userRole === "super_admin" || userRole === "admin") {
         setHasRedirected(true);
         setError("");
         setSuccess("");
-        navigate("/admin");
-      } else if (
-        (userRole === "admin" || userRole === "strategy_creator" || userRole === "user") &&
-        !isOnDashboard
-      ) {
+        navigate("/admin", { replace: true });
+      } else if (userRole === "strategy_creator" || userRole === "user") {
         setHasRedirected(true);
         setError("");
         setSuccess("");
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
       }
     }
   }, [user, userRole, navigate, location.pathname, hasRedirected]);

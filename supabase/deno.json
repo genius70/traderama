@@ -7,6 +7,7 @@
     "nodemailer": "https://esm.sh/nodemailer@6.9.15?deno-std=0.190.0",
     "resend": "npm:resend@4.0.0"
   },
+  "nodeModulesDir": "auto",
   "tasks": {
     "start": "deno run --allow-net --allow-read --allow-env --allow-write --allow-plugin --unstable server.ts",
     "test": "deno test --allow-net --allow-read --allow-env --allow-write --allow-plugin --unstable"
