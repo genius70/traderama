@@ -1,9 +1,10 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import AssetForm from './AssetForm';
 import AssetListItem from './AssetListItem';
 
@@ -29,35 +30,8 @@ interface AssetFormData {
 
 const AssetManagement = () => {
   const { toast } = useToast();
-  const [assets, setAssets] = useState<Asset[]>([
-    {
-      id: '1',
-      symbol: 'SPY',
-      name: 'SPDR S&P 500 ETF Trust',
-      asset_type: 'etf',
-      exchange: 'NYSE',
-      is_options_available: true,
-      is_active: true
-    },
-    {
-      id: '2',
-      symbol: 'QQQ',
-      name: 'Invesco QQQ Trust',
-      asset_type: 'etf',
-      exchange: 'NASDAQ',
-      is_options_available: true,
-      is_active: true
-    },
-    {
-      id: '3',
-      symbol: 'AAPL',
-      name: 'Apple Inc.',
-      asset_type: 'stock',
-      exchange: 'NASDAQ',
-      is_options_available: true,
-      is_active: true
-    }
-  ]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [newAsset, setNewAsset] = useState<AssetFormData>({
@@ -68,6 +42,49 @@ const AssetManagement = () => {
     is_options_available: false
   });
   const [showAddForm, setShowAddForm] = useState(false);
+
+  // Fetch assets from market_data table
+  useEffect(() => {
+    const fetchAssets = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('market_data')
+          .select('symbol, ticker')
+          .order('symbol');
+
+        if (error) throw error;
+
+        // Create unique assets from market data
+        const uniqueAssets = new Map<string, Asset>();
+        data?.forEach((item) => {
+          const symbol = item.symbol || item.ticker;
+          if (symbol && !uniqueAssets.has(symbol)) {
+            uniqueAssets.set(symbol, {
+              id: symbol,
+              symbol: symbol,
+              name: symbol,
+              asset_type: 'stock',
+              exchange: 'Unknown',
+              is_options_available: true,
+              is_active: true
+            });
+          }
+        });
+
+        setAssets(Array.from(uniqueAssets.values()));
+      } catch (error) {
+        console.error('Error fetching assets:', error);
+        toast({
+          title: 'Error loading assets',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssets();
+  }, [toast]);
 
   const handleAddAsset = () => {
     if (!newAsset.symbol || !newAsset.name || !newAsset.exchange) {
@@ -128,12 +145,22 @@ const AssetManagement = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Loading assets...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Asset Management</h2>
-          <p className="text-gray-600">Manage stocks, ETFs, indices, and crypto assets</p>
+          <p className="text-gray-600">Assets available for trading based on market data</p>
         </div>
         <Button onClick={() => setShowAddForm(true)} className="flex items-center">
           <Plus className="h-4 w-4 mr-2" />
@@ -162,7 +189,14 @@ const AssetManagement = () => {
 
       {/* Assets List */}
       <div className="grid gap-4">
-        {assets.map((asset) => (
+        {assets.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center text-muted-foreground">
+              No assets found in market data. Assets will appear here once market data is synced.
+            </CardContent>
+          </Card>
+        ) : (
+          assets.map((asset) => (
           <Card key={asset.id}>
             <CardContent className="p-4">
               {editingAsset?.id === asset.id ? (
@@ -188,7 +222,8 @@ const AssetManagement = () => {
               )}
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
