@@ -1,7 +1,5 @@
-
-import { serve } from "std/http/server.ts";
-import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import Stripe from "https://esm.sh/stripe@14.21.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
 
 const corsHeaders = {
@@ -9,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

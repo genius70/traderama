@@ -1,8 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
-import { serve } from "std/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
-serve(async (req) => {
-  const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_ANON_KEY'));
+Deno.serve(async (req) => {
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
   const { user_id } = await req.json();
 
   const { data: trades, error } = await supabase
