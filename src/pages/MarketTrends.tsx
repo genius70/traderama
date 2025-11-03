@@ -166,11 +166,11 @@ const MarketTrends = () => {
         return;
       }
 
-      // Use Polygon.io API for market data
+      // Use Alpaca API for market data
       const endDate = new Date().toISOString().split('T')[0];
       const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
-      const { data: freshData, error: fetchError } = await supabase.functions.invoke('fetch-polygon-data', {
+      const { data: freshData, error: fetchError } = await supabase.functions.invoke('alpaca-data', {
         body: { 
           symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'],
           startDate,
@@ -186,7 +186,7 @@ const MarketTrends = () => {
       if (freshData && freshData.results && freshData.results.length > 0) {
         // Group by ticker and get most recent data for each
         const latestBySymbol = freshData.results.reduce((acc: any, item: any) => {
-          const symbol = item.ticker || item.T;
+          const symbol = item.ticker;
           if (!acc[symbol] || item.t > acc[symbol].t) {
             acc[symbol] = item;
           }
@@ -194,17 +194,17 @@ const MarketTrends = () => {
         }, {});
 
         const formattedData = Object.values(latestBySymbol).map((item: any) => {
-          const open = item.o || item.open || 0;
-          const close = item.c || item.close || 0;
+          const open = item.o;
+          const close = item.c;
           const change = close - open;
           const changePercent = open > 0 ? (change / open) * 100 : 0;
 
           return {
-            symbol: item.ticker || item.T,
+            symbol: item.ticker,
             price: close,
             change,
             changePercent,
-            volume: item.v || item.volume || 0,
+            volume: item.v,
           };
         });
 
@@ -218,7 +218,7 @@ const MarketTrends = () => {
             change_percent: item.changePercent,
             volume: item.volume,
             timestamp: new Date().toISOString(),
-            source: 'polygon'
+            source: 'alpaca'
           })),
           { onConflict: 'symbol' }
         );
@@ -293,10 +293,10 @@ const MarketTrends = () => {
         return;
       }
 
-      // Use Polygon.io API for historical data
+      // Use Alpaca API for historical data
       const timeframeConfig = TIMEFRAMES[config.timeframe as keyof typeof TIMEFRAMES];
       
-      const { data: chartResponse, error: chartError } = await supabase.functions.invoke('fetch-polygon-data', {
+      const { data: chartResponse, error: chartError } = await supabase.functions.invoke('alpaca-data', {
         body: {
           symbol: config.symbol,
           timeframe: timeframeConfig,
@@ -312,13 +312,13 @@ const MarketTrends = () => {
 
       if (chartResponse && chartResponse.results && chartResponse.results.length > 0) {
         const results = chartResponse.results.sort((a: any, b: any) => a.t - b.t);
-        const prices = results.map((item: any) => item.c || item.close || 0);
+        const prices = results.map((item: any) => item.c);
         const { sma20, rsi, macd, signal, upperBB, lowerBB } = calculateIndicators(prices);
 
         const transformedData: ChartData[] = results.map((item: any, index: number) => ({
           date: new Date(item.t).toISOString().split('T')[0],
-          price: item.c || item.close || 0,
-          volume: item.v || item.volume || 0,
+          price: item.c,
+          volume: item.v,
           sma20: sma20[index] || 0,
           rsi: rsi[index] || 50,
           macd: macd[index] || 0,

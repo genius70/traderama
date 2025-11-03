@@ -155,7 +155,7 @@ const SpyReturnsDistribution: React.FC = () => {
     setError(null);
 
     try {
-      // Map timeframe to Polygon.io format
+      // Map timeframe to Alpaca format
       const timeframeMap: Record<string, { multiplier: number; timespan: string }> = {
         '1d': { multiplier: 1, timespan: 'day' },
         '1w': { multiplier: 1, timespan: 'week' },
@@ -164,7 +164,7 @@ const SpyReturnsDistribution: React.FC = () => {
       
       const timeframe = timeframeMap[config.timeframe] || { multiplier: 1, timespan: 'day' };
 
-      const { data: polygonData, error: polygonError } = await supabase.functions.invoke('fetch-polygon-data', {
+      const { data: alpacaData, error: alpacaError } = await supabase.functions.invoke('alpaca-data', {
         body: {
           symbol: config.symbol,
           timeframe,
@@ -173,18 +173,18 @@ const SpyReturnsDistribution: React.FC = () => {
         },
       });
 
-      if (polygonError) {
-        throw new Error(polygonError.message || 'Failed to fetch market data');
+      if (alpacaError) {
+        throw new Error(alpacaError.message || 'Failed to fetch market data');
       }
 
-      if (!polygonData || !polygonData.results || polygonData.results.length === 0) {
-        throw new Error('No data returned from Polygon.io API');
+      if (!alpacaData || !alpacaData.results || alpacaData.results.length === 0) {
+        throw new Error('No data returned from Alpaca API');
       }
 
-      const results = polygonData.results.sort((a: any, b: any) => a.t - b.t);
+      const results = alpacaData.results.sort((a: any, b: any) => a.t - b.t);
       
       const prices = results.map((item: any) => ({
-        close: item.c || item.close || 0,
+        close: item.c,
         timestamp: item.t,
       }));
 
