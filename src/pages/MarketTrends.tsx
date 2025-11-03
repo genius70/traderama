@@ -166,9 +166,16 @@ const MarketTrends = () => {
         return;
       }
 
-      // Use Alpha Vantage API for market data
-      const { data: freshData, error: fetchError } = await supabase.functions.invoke('alpha-vantage-market-data', {
-        body: { symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'] },
+      // Use Polygon.io API for market data
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      const { data: freshData, error: fetchError } = await supabase.functions.invoke('fetch-polygon-data', {
+        body: { 
+          symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'],
+          startDate,
+          endDate
+        },
       });
 
       if (fetchError) {
@@ -176,15 +183,45 @@ const MarketTrends = () => {
         throw new Error(fetchError.message || 'Failed to fetch market data');
       }
 
-      if (freshData && freshData.data && freshData.data.length > 0) {
-        const formattedData = freshData.data.map((item: any) => ({
-          symbol: item.symbol,
-          price: item.price,
-          change: (item.price * item.change_percent) / 100,
-          changePercent: item.change_percent,
-          volume: item.volume || 0,
-        }));
+      if (freshData && freshData.results && freshData.results.length > 0) {
+        // Group by ticker and get most recent data for each
+        const latestBySymbol = freshData.results.reduce((acc: any, item: any) => {
+          const symbol = item.ticker || item.T;
+          if (!acc[symbol] || item.t > acc[symbol].t) {
+            acc[symbol] = item;
+          }
+          return acc;
+        }, {});
+
+        const formattedData = Object.values(latestBySymbol).map((item: any) => {
+          const open = item.o || item.open || 0;
+          const close = item.c || item.close || 0;
+          const change = close - open;
+          const changePercent = open > 0 ? (change / open) * 100 : 0;
+
+          return {
+            symbol: item.ticker || item.T,
+            price: close,
+            change,
+            changePercent,
+            volume: item.v || item.volume || 0,
+          };
+        });
+
         setMarketData(formattedData);
+
+        // Cache the data
+        await supabase.from('live_market_data').upsert(
+          formattedData.map(item => ({
+            symbol: item.symbol,
+            price: item.price,
+            change_percent: item.changePercent,
+            volume: item.volume,
+            timestamp: new Date().toISOString(),
+            source: 'polygon'
+          })),
+          { onConflict: 'symbol' }
+        );
       } else {
         throw new Error('No data returned from market data service');
       }
@@ -234,10 +271,12 @@ const MarketTrends = () => {
         .from('price_history')
         .select('*')
         .eq('symbol', config.symbol)
-        .order('timestamp', { ascending: false })
+        .gte('date', config.startDate)
+        .lte('date', config.endDate)
+        .order('date', { ascending: true })
         .limit(100);
 
-      if (!priceError && cachedPriceData && cachedPriceData.length > 0) {
+      if (!priceError && cachedPriceData && cachedPriceData.length > 20) {
         const transformedData: ChartData[] = cachedPriceData.map(item => ({
           date: item.date,
           price: item.price,
@@ -249,29 +288,21 @@ const MarketTrends = () => {
           upperBB: item.upperbb || 0,
           lowerBB: item.lowerbb || 0,
         }));
-        setChartData(transformedData.slice(0, 30));
+        setChartData(transformedData);
         setLoading(false);
         return;
       }
 
-      // Use Alpha Vantage API for historical data
-      const functionType = config.timeframe === 'daily' ? 'TIME_SERIES_DAILY' : 
-                          config.timeframe === 'weekly' ? 'TIME_SERIES_WEEKLY' :
-                          config.timeframe === 'monthly' ? 'TIME_SERIES_MONTHLY' :
-                          'TIME_SERIES_INTRADAY';
+      // Use Polygon.io API for historical data
+      const timeframeConfig = TIMEFRAMES[config.timeframe as keyof typeof TIMEFRAMES];
       
-      const requestBody: any = {
-        symbol: config.symbol,
-        function: functionType,
-        outputsize: 'compact'
-      };
-
-      if (config.timeframe === 'hourly') {
-        requestBody.interval = '60min';
-      }
-
-      const { data: chartResponse, error: chartError } = await supabase.functions.invoke('alpha-vantage-data', {
-        body: requestBody,
+      const { data: chartResponse, error: chartError } = await supabase.functions.invoke('fetch-polygon-data', {
+        body: {
+          symbol: config.symbol,
+          timeframe: timeframeConfig,
+          startDate: config.startDate,
+          endDate: config.endDate
+        },
       });
 
       if (chartError) {
@@ -279,19 +310,15 @@ const MarketTrends = () => {
         throw new Error(chartError.message || 'Failed to fetch chart data');
       }
 
-      // Parse Alpha Vantage response
-      const timeSeriesKey = Object.keys(chartResponse).find(key => key.includes('Time Series'));
-      if (chartResponse && timeSeriesKey) {
-        const timeSeries = chartResponse[timeSeriesKey];
-        const dates = Object.keys(timeSeries).sort().reverse().slice(0, 100);
-        
-        const prices = dates.map(date => parseFloat(timeSeries[date]['4. close'] || '0'));
+      if (chartResponse && chartResponse.results && chartResponse.results.length > 0) {
+        const results = chartResponse.results.sort((a: any, b: any) => a.t - b.t);
+        const prices = results.map((item: any) => item.c || item.close || 0);
         const { sma20, rsi, macd, signal, upperBB, lowerBB } = calculateIndicators(prices);
 
-        const transformedData: ChartData[] = dates.map((date, index) => ({
-          date,
-          price: parseFloat(timeSeries[date]['4. close'] || '0'),
-          volume: parseInt(timeSeries[date]['5. volume'] || '0'),
+        const transformedData: ChartData[] = results.map((item: any, index: number) => ({
+          date: new Date(item.t).toISOString().split('T')[0],
+          price: item.c || item.close || 0,
+          volume: item.v || item.volume || 0,
           sma20: sma20[index] || 0,
           rsi: rsi[index] || 50,
           macd: macd[index] || 0,
@@ -300,24 +327,27 @@ const MarketTrends = () => {
           lowerBB: lowerBB[index] || 0,
         }));
 
-        setChartData(transformedData.slice(0, 30));
+        setChartData(transformedData);
 
         // Cache the data
-        await supabase.from('price_history').insert(
-          transformedData.map(item => ({
-            symbol: config.symbol,
-            date: item.date,
-            price: item.price,
-            volume: item.volume,
-            sma20: item.sma20,
-            rsi: item.rsi,
-            macd: item.macd,
-            signal: item.signal,
-            upperbb: item.upperBB,
-            lowerbb: item.lowerBB,
-            timestamp: new Date().toISOString(),
-          }))
-        );
+        const cacheData = transformedData.map(item => ({
+          symbol: config.symbol,
+          date: item.date,
+          price: item.price,
+          volume: item.volume,
+          sma20: item.sma20,
+          rsi: item.rsi,
+          macd: item.macd,
+          signal: item.signal,
+          upperbb: item.upperBB,
+          lowerbb: item.lowerBB,
+          timestamp: new Date().toISOString(),
+        }));
+
+        await supabase.from('price_history').upsert(cacheData, {
+          onConflict: 'symbol,date',
+          ignoreDuplicates: false
+        });
       } else {
         throw new Error('No data returned from chart data service');
       }

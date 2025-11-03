@@ -155,37 +155,37 @@ const SpyReturnsDistribution: React.FC = () => {
     setError(null);
 
     try {
-      // Determine Alpha Vantage function type based on timeframe
-      const functionType = config.timeframe === '1d' ? 'TIME_SERIES_DAILY' : 
-                          config.timeframe === '1w' ? 'TIME_SERIES_WEEKLY' :
-                          'TIME_SERIES_MONTHLY';
-      
-      const requestBody: any = {
-        symbol: config.symbol,
-        function: functionType,
-        outputsize: 'full'
+      // Map timeframe to Polygon.io format
+      const timeframeMap: Record<string, { multiplier: number; timespan: string }> = {
+        '1d': { multiplier: 1, timespan: 'day' },
+        '1w': { multiplier: 1, timespan: 'week' },
+        '1mo': { multiplier: 1, timespan: 'month' },
       };
+      
+      const timeframe = timeframeMap[config.timeframe] || { multiplier: 1, timespan: 'day' };
 
-      const { data: alphaData, error: alphaError } = await supabase.functions.invoke('alpha-vantage-data', {
-        body: requestBody,
+      const { data: polygonData, error: polygonError } = await supabase.functions.invoke('fetch-polygon-data', {
+        body: {
+          symbol: config.symbol,
+          timeframe,
+          startDate: config.startDate,
+          endDate: config.endDate
+        },
       });
 
-      if (alphaError) {
-        throw new Error(alphaError.message || 'Failed to fetch market data');
+      if (polygonError) {
+        throw new Error(polygonError.message || 'Failed to fetch market data');
       }
 
-      // Parse Alpha Vantage response
-      const timeSeriesKey = Object.keys(alphaData).find(key => key.includes('Time Series'));
-      if (!alphaData || !timeSeriesKey) {
-        throw new Error('No data returned from Alpha Vantage API');
+      if (!polygonData || !polygonData.results || polygonData.results.length === 0) {
+        throw new Error('No data returned from Polygon.io API');
       }
 
-      const timeSeries = alphaData[timeSeriesKey];
-      const dates = Object.keys(timeSeries).sort();
+      const results = polygonData.results.sort((a: any, b: any) => a.t - b.t);
       
-      const prices = dates.map(date => ({
-        close: parseFloat(timeSeries[date]['4. close'] || '0'),
-        timestamp: new Date(date).getTime(),
+      const prices = results.map((item: any) => ({
+        close: item.c || item.close || 0,
+        timestamp: item.t,
       }));
 
       // Calculate daily returns
