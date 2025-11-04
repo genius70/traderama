@@ -42,38 +42,55 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized access');
     }
 
-    // Verify user is super admin
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role, email')
-      .eq('id', user.id)
+    // Verify user is super admin using secure user_roles table
+    const { data: userRole, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'super_admin')
       .single();
 
-    if (profileError || !profile) {
-      console.error('Profile fetch error:', profileError);
-      throw new Error('User profile not found');
-    }
-
-    if (profile.role !== 'super_admin' || profile.email !== 'royan.shaw@gmail.com') {
-      console.error('Permission denied for user:', profile.email);
+    if (roleError || !userRole) {
+      console.error('Permission denied - not super admin');
       throw new Error('Insufficient permissions - super admin required');
     }
 
     const requestBody: SendRequest = await req.json();
     const { user_ids, subject, message, delivery_method = 'email' } = requestBody;
 
-    // Validate input
+    // Comprehensive input validation
     if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
       throw new Error('Invalid or empty user_ids array');
     }
 
-    if (!subject?.trim()) {
+    if (!subject || typeof subject !== 'string' || subject.trim().length === 0) {
       throw new Error('Subject is required');
     }
 
-    if (!message?.trim()) {
+    if (subject.length > 200) {
+      throw new Error('Subject must be less than 200 characters');
+    }
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
       throw new Error('Message is required');
     }
+
+    if (message.length > 10000) {
+      throw new Error('Message must be less than 10,000 characters');
+    }
+
+    // Sanitize HTML content to prevent XSS
+    const sanitizedSubject = subject
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+      .replace(/javascript:/gi, '')
+      .trim();
+    
+    const sanitizedMessage = message
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+      .replace(/javascript:/gi, '')
+      .trim();
 
     console.log(`Processing ${delivery_method} to ${user_ids.length} users...`);
 
@@ -99,8 +116,8 @@ Deno.serve(async (req) => {
       .from('email_campaigns')
       .insert({
         sender_id: user.id,
-        subject: subject.trim(),
-        message: message.trim(),
+        subject: sanitizedSubject,
+        message: sanitizedMessage,
         total_recipients: recipients.length,
         status: 'sending',
       })
@@ -119,8 +136,8 @@ Deno.serve(async (req) => {
       .from('notifications')
       .insert({
         sender_id: user.id,
-        title: subject.trim(),
-        content: message.trim(),
+        title: sanitizedSubject,
+        content: sanitizedMessage,
         notification_type: 'admin_message',
         status: 'sending',
         target_audience: { user_ids },
@@ -160,7 +177,7 @@ Deno.serve(async (req) => {
         }
 
         try {
-          const personalizedMessage = message.replace(/{user_name}/g, recipient.name || recipient.email);
+          const personalizedMessage = sanitizedMessage.replace(/{user_name}/g, recipient.name || recipient.email);
           
           // Add tracking pixel and links
           const trackingPixelUrl = `${baseUrl}/functions/v1/track-email-open?token=${trackingToken}`;
@@ -170,7 +187,7 @@ Deno.serve(async (req) => {
                 <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Traderama</h1>
               </div>
               <div style="padding: 40px 30px;">
-                <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px;">${subject.trim()}</h2>
+                <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px;">${sanitizedSubject}</h2>
                 <div style="color: #374151; line-height: 1.8; font-size: 16px;">
                   ${personalizedMessage.split('\n').map(line => `<p style="margin: 12px 0;">${line}</p>`).join('')}
                 </div>
@@ -193,7 +210,7 @@ Deno.serve(async (req) => {
           const { data, error } = await resend.emails.send({
             from: 'Traderama <onboarding@resend.dev>',
             to: [recipient.email],
-            subject: subject.trim(),
+            subject: sanitizedSubject,
             html: trackedHtml,
           });
 
