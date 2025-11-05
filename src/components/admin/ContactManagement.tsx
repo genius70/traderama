@@ -114,7 +114,6 @@ const ContactManagement: React.FC = () => {
       if (!isSuperAdmin) {
         toast({
           title: 'Access Denied',
-          description: 'Only super admins can access this page.',
           variant: 'destructive',
         });
         setLoading(false);
