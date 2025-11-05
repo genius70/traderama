@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,7 +69,8 @@ const TEMPLATES = {
 };
 
 const ContactManagement: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
+  const { isSuperAdmin, loading: roleLoading } = useUserRole();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -89,8 +91,6 @@ const ContactManagement: React.FC = () => {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [singleUserAction, setSingleUserAction] = useState<string>('');
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
@@ -101,55 +101,32 @@ const ContactManagement: React.FC = () => {
   const [sendProgress, setSendProgress] = useState<number>(0);
   const [recipientMode, setRecipientMode] = useState<'all' | 'selected' | 'single'>('selected');
 
-  // Check user authorization
+  // Check user authorization and fetch data
   useEffect(() => {
-    const checkAuthorization = async () => {
-      if (authLoading) return;
+    const initializeData = async () => {
+      if (roleLoading) return;
       
       if (!user) {
         setLoading(false);
         return;
       }
 
-      try {
-        // Fetch user profile to get role
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role, email')
-          .eq('id', user.id)
-          .single();
-
-        if (error) throw error;
-
-        setUserProfile(profile);
-        
-        // Check if user is super admin with correct email
-        const authorized = profile?.role === 'super_admin' && user.email === 'royan.shaw@gmail.com';
-        setIsAuthorized(authorized);
-
-        if (!authorized) {
-          toast({
-            title: 'Access Denied',
-            variant: 'destructive',
-          });
-          setLoading(false);
-          return;
-        }
-
-        // If authorized, fetch data
-        await fetchData();
-      } catch (error) {
-        console.error('Error checking authorization:', error);
+      if (!isSuperAdmin) {
         toast({
-          title: 'Error',
+          title: 'Access Denied',
+          description: 'Only super admins can access this page.',
           variant: 'destructive',
         });
         setLoading(false);
+        return;
       }
+
+      // If authorized, fetch data
+      await fetchData();
     };
 
-    checkAuthorization();
-  }, [authLoading, user, toast]);
+    initializeData();
+  }, [roleLoading, user, isSuperAdmin]);
 
   // Fetch users and messages
   const fetchData = async () => {
@@ -648,7 +625,7 @@ const ContactManagement: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  if (loading || authLoading) {
+  if (loading || roleLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">
@@ -659,7 +636,7 @@ const ContactManagement: React.FC = () => {
     );
   }
 
-  if (!isAuthorized) {
+  if (!isSuperAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
