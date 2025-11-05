@@ -1469,6 +1469,47 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_access_logs: {
+        Row: {
+          access_type: string
+          accessed_fields: string[] | null
+          accessed_profile_id: string
+          accessor_user_id: string
+          created_at: string
+          id: string
+          ip_address: unknown
+          user_agent: string | null
+        }
+        Insert: {
+          access_type: string
+          accessed_fields?: string[] | null
+          accessed_profile_id: string
+          accessor_user_id: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          user_agent?: string | null
+        }
+        Update: {
+          access_type?: string
+          accessed_fields?: string[] | null
+          accessed_profile_id?: string
+          accessor_user_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_access_logs_accessed_profile_id_fkey"
+            columns: ["accessed_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address_line1: string | null
