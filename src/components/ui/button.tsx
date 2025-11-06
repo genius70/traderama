@@ -10,15 +10,15 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-[hsl(215,25%,27%)] active:text-white",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-[hsl(215,25%,27%)] active:text-white",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground active:bg-[hsl(215,25%,27%)] active:text-white active:border-[hsl(215,25%,27%)]",
+          "border border-input bg-background hover:bg-[hsl(var(--muted))] hover:text-foreground active:bg-[hsl(220,13%,18%)] active:text-white",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-[hsl(215,25%,27%)] active:text-white",
-        ghost: "hover:bg-accent hover:text-accent-foreground active:bg-[hsl(215,25%,27%)] active:text-white",
-        link: "text-primary underline-offset-4 hover:underline active:bg-[hsl(215,25%,27%)] active:text-white active:no-underline active:px-2 active:py-1 active:rounded",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground active:bg-[hsl(220,13%,18%)] active:text-white",
+        link: "text-primary underline-offset-4 hover:underline active:text-white",
       },
       size: {
         default: "h-10 px-4 py-2",
