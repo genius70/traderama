@@ -28,6 +28,7 @@ import {
 } from 'recharts';
 import { BarChart3, AlertTriangle, RefreshCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReturnsData {
   range: string;
@@ -60,6 +61,18 @@ interface StatisticsCardProps {
   description: string;
 }
 
+interface PriceData {
+  close: number;
+  date: string;
+}
+
+// Define all 20 available symbols as a constant
+const AVAILABLE_SYMBOLS = [
+  'SPY', 'QQQ', 'IWM', 'VIX', 'GLD', 'DIA', 'EEM', 'TLT', 
+  'XLF', 'XLE', 'XLK', 'XLV', 'XLI', 'XLP', 'XLY', 'XLU', 
+  'XLB', 'XLRE', 'XLC', 'SMH'
+];
+
 const StatisticsCard: React.FC<StatisticsCardProps> = ({
   title,
   value,
@@ -77,6 +90,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 );
 
 const SpyReturnsDistribution: React.FC = () => {
+  const { toast } = useToast();
+  
   // Set default date range (last 12 months)
   const today = new Date();
   const defaultEndDate = today.toISOString().split('T')[0];
@@ -95,33 +110,13 @@ const SpyReturnsDistribution: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
-  const [availableSymbols, setAvailableSymbols] = useState<string[]>([]);
-
-  // Top options indices/ETFs
-  const initialOptionsIndices = [
-    'SPY', // SPDR S&P 500 ETF
-    'QQQ', // Invesco QQQ Trust (Nasdaq-100)
-    'IWM', // iShares Russell 2000 ETF
-    'DIA', // SPDR Dow Jones Industrial Average ETF
-    'XLF', // Financial Select Sector SPDR Fund
-    'XLE', // Energy Select Sector SPDR Fund
-    'XLK', // Technology Select Sector SPDR Fund
-    'XLV', // Health Care Select Sector SPDR Fund
-    'XLY', // Consumer Discretionary Select Sector SPDR Fund
-    'XLI', // Industrial Select Sector SPDR Fund
-    'XLB', // Materials Select Sector SPDR Fund
-    'XLP', // Consumer Staples Select Sector SPDR Fund
-    'XLU', // Utilities Select Sector SPDR Fund
-    'GLD', // SPDR Gold Shares
-    'SLV', // iShares Silver Trust
-  ];
 
   // Validate date inputs
   const validateDates = (start: string, end: string): boolean => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     const maxDate = new Date();
-    const minDate = new Date('2000-01-01'); // Alpha Vantage data availability
+    const minDate = new Date('2000-01-01');
 
     if (startDate > endDate) {
       setDateError('Start date must be before end date');
@@ -139,10 +134,80 @@ const SpyReturnsDistribution: React.FC = () => {
     return true;
   };
 
-  // Use predefined list of popular ETFs and indices
-  const fetchAvailableSymbols = async () => {
-    // Set predefined list directly
-    setAvailableSymbols(initialOptionsIndices);
+  // Process price data and calculate returns distribution
+  const processPriceData = (priceData: PriceData[]) => {
+    if (priceData.length < 2) {
+      throw new Error('Insufficient data points for analysis');
+    }
+
+    // Calculate returns
+    const returns = priceData
+      .slice(1)
+      .map((current, index) => {
+        const previous = priceData[index];
+        return ((current.close - previous.close) / previous.close) * 100;
+      })
+      .filter(r => !isNaN(r) && isFinite(r));
+
+    if (returns.length === 0) {
+      throw new Error('Unable to calculate returns from price data');
+    }
+
+    // Create returns distribution bins
+    const bins = [
+      { range: '<-10%', min: -Infinity, max: -10 },
+      { range: '-10% to -5%', min: -10, max: -5 },
+      { range: '-5% to -3%', min: -5, max: -3 },
+      { range: '-3% to -1%', min: -3, max: -1 },
+      { range: '-1% to 0%', min: -1, max: 0 },
+      { range: '0% to 1%', min: 0, max: 1 },
+      { range: '1% to 3%', min: 1, max: 3 },
+      { range: '3% to 5%', min: 3, max: 5 },
+      { range: '5% to 10%', min: 5, max: 10 },
+      { range: '>10%', min: 10, max: Infinity },
+    ];
+
+    const distribution = bins.map((bin) => {
+      const frequency = returns.filter(
+        (r: number) => r > bin.min && r <= bin.max
+      ).length;
+      const percentage = returns.length ? (frequency / returns.length) * 100 : 0;
+      return { range: bin.range, frequency, percentage };
+    });
+
+    setReturnsData(distribution);
+
+    // Calculate performance metrics
+    const meanReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length;
+    const periodsPerYear = config.timeframe === '1d' ? 252 : config.timeframe === '1w' ? 52 : 12;
+    const annualReturn = meanReturn * periodsPerYear;
+    
+    const variance = returns.reduce(
+      (sum: number, r: number) => sum + Math.pow(r - meanReturn, 2),
+      0
+    ) / returns.length;
+    const volatility = Math.sqrt(variance) * Math.sqrt(periodsPerYear);
+    const sharpeRatio = volatility ? annualReturn / volatility : 0;
+    
+    // Calculate max drawdown
+    let peak = priceData[0].close;
+    let maxDD = 0;
+    priceData.forEach(item => {
+      if (item.close > peak) {
+        peak = item.close;
+      }
+      const drawdown = ((item.close - peak) / peak) * 100;
+      if (drawdown < maxDD) {
+        maxDD = drawdown;
+      }
+    });
+
+    setPerformance({
+      annualReturn: parseFloat(annualReturn.toFixed(2)),
+      volatility: parseFloat(volatility.toFixed(2)),
+      sharpeRatio: parseFloat(sharpeRatio.toFixed(2)),
+      maxDrawdown: parseFloat(maxDD.toFixed(2)),
+    });
   };
 
   // Fetch market data from Alpha Vantage API
@@ -155,121 +220,166 @@ const SpyReturnsDistribution: React.FC = () => {
     setError(null);
 
     try {
-      // Map timeframe to Alpaca format
-      const timeframeMap: Record<string, { multiplier: number; timespan: string }> = {
-        '1d': { multiplier: 1, timespan: 'day' },
-        '1w': { multiplier: 1, timespan: 'week' },
-        '1mo': { multiplier: 1, timespan: 'month' },
+      // Check cache first
+      const { data: cachedData, error: cacheError } = await supabase
+        .from('price_history')
+        .select('*')
+        .eq('symbol', config.symbol)
+        .gte('date', config.startDate)
+        .lte('date', config.endDate)
+        .order('date', { ascending: true });
+
+      if (!cacheError && cachedData && cachedData.length > 30) {
+        // Use cached data if we have sufficient data points
+        processPriceData(cachedData.map(item => ({
+          close: item.price,
+          date: item.date
+        })));
+        setLoadingData(false);
+        return;
+      }
+
+      // Determine Alpha Vantage function based on timeframe
+      const functionMap: { [key: string]: string } = {
+        '1d': 'TIME_SERIES_DAILY',
+        '1w': 'TIME_SERIES_WEEKLY',
+        '1m': 'TIME_SERIES_MONTHLY',
       };
       
-      const timeframe = timeframeMap[config.timeframe] || { multiplier: 1, timespan: 'day' };
+      const requestBody: any = {
+        symbol: config.symbol,
+        function: functionMap[config.timeframe] || 'TIME_SERIES_DAILY',
+        outputsize: 'full'
+      };
 
-      const { data: alpacaData, error: alpacaError } = await supabase.functions.invoke('alpaca-data', {
-        body: {
-          symbol: config.symbol,
-          timeframe,
-          startDate: config.startDate,
-          endDate: config.endDate
-        },
+      const { data: alphaData, error: alphaError } = await supabase.functions.invoke('alpha-vantage-data', {
+        body: requestBody,
       });
 
-      if (alpacaError) {
-        throw new Error(alpacaError.message || 'Failed to fetch market data');
+      if (alphaError) {
+        console.error('Alpha Vantage error:', alphaError);
+        throw new Error(alphaError.message || 'Failed to fetch market data');
       }
 
-      if (!alpacaData || !alpacaData.results || alpacaData.results.length === 0) {
-        throw new Error('No data returned from Alpaca API');
+      // Parse Alpha Vantage response with robust error handling
+      if (!alphaData || typeof alphaData !== 'object') {
+        throw new Error('Invalid data format from AlphaVantage');
       }
 
-      const results = alpacaData.results.sort((a: any, b: any) => a.t - b.t);
-      
-      const prices = results.map((item: any) => ({
-        close: item.c,
-        timestamp: item.t,
-      }));
+      // Check for API errors
+      if (alphaData['Error Message']) {
+        throw new Error(`AlphaVantage Error: ${alphaData['Error Message']}`);
+      }
+      if (alphaData['Note']) {
+        throw new Error('API rate limit reached. Please try again in a minute.');
+      }
 
-      // Calculate daily returns
-      const returns = prices
-        .slice(1)
-        .map((current: any, index: number) => {
-          const previous = prices[index];
-          return ((current.close - previous.close) / previous.close) * 100;
-        });
-
-      // Create returns distribution
-      const bins = [
-        { range: '<-10%', min: -Infinity, max: -10 },
-        { range: '-10% to -5%', min: -10, max: -5 },
-        { range: '-5% to -3%', min: -5, max: -3 },
-        { range: '-3% to -1%', min: -3, max: -1 },
-        { range: '-1% to 0%', min: -1, max: 0 },
-        { range: '0% to 1%', min: 0, max: 1 },
-        { range: '1% to 3%', min: 1, max: 3 },
-        { range: '3% to 5%', min: 3, max: 5 },
-        { range: '5% to 10%', min: 5, max: 10 },
-        { range: '>10%', min: 10, max: Infinity },
-      ];
-
-      const distribution = bins.map((bin) => {
-        const frequency = returns.filter(
-          (r: number) => r > bin.min && r <= bin.max
-        ).length;
-        const percentage = returns.length ? (frequency / returns.length) * 100 : 0;
-        return { range: bin.range, frequency, percentage };
-      });
-
-      setReturnsData(distribution);
-
-      // Calculate performance metrics
-      const meanReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length;
-      const annualReturn = meanReturn * (config.timeframe === '1d' ? 252 : config.timeframe === '1w' ? 52 : 12);
-      const variance = returns.reduce(
-        (sum: number, r: number) => sum + Math.pow(r - meanReturn, 2),
-        0
-      ) / returns.length;
-      const volatility = Math.sqrt(variance) * Math.sqrt(config.timeframe === '1d' ? 252 : config.timeframe === '1w' ? 52 : 12);
-      const sharpeRatio = volatility ? annualReturn / volatility : 0;
-      const cumulativeReturns = returns.reduce((acc: number[], r: number, i: number) => {
-        acc.push((acc[i - 1] || 0) + r);
-        return acc;
-      }, []);
-      const maxDrawdown = cumulativeReturns.length
-        ? Math.min(
-            ...cumulativeReturns.map((r: number, i: number) => {
-              const peak = Math.max(...cumulativeReturns.slice(0, i + 1));
-              return peak ? (r - peak) / peak : 0;
-            })
-          ) * 100
-        : 0;
-
-      setPerformance({
-        annualReturn: parseFloat(annualReturn.toFixed(2)),
-        volatility: parseFloat(volatility.toFixed(2)),
-        sharpeRatio: parseFloat(sharpeRatio.toFixed(2)),
-        maxDrawdown: parseFloat(maxDrawdown.toFixed(2)),
-      });
-    } catch (err: any) {
-      setError(
-        err.message.includes('HTTP error')
-          ? `Failed to fetch data: ${err.message}`
-          : err.message.includes('No data')
-          ? `No data available for ${config.symbol} in the selected date range`
-          : 'Failed to fetch market data. Please check your configuration or try again.'
+      // Find the time series key
+      const timeSeriesKey = Object.keys(alphaData).find(key => 
+        key.includes('Time Series') || key.includes('Weekly') || key.includes('Monthly')
       );
+
+      if (!timeSeriesKey || !alphaData[timeSeriesKey]) {
+        throw new Error('No valid time series data returned from Alpha Vantage');
+      }
+
+      const timeSeries = alphaData[timeSeriesKey];
+      const dates = Object.keys(timeSeries).sort();
+      
+      if (dates.length === 0) {
+        throw new Error('No data available for the selected period');
+      }
+
+      // Filter dates based on selected range
+      const filteredDates = dates.filter(date => {
+        const d = new Date(date);
+        return d >= new Date(config.startDate) && d <= new Date(config.endDate);
+      });
+
+      if (filteredDates.length < 2) {
+        throw new Error('Insufficient data points in the selected date range. Please select a wider range.');
+      }
+
+      // Extract prices
+      const priceData: PriceData[] = filteredDates.map(date => {
+        const dayData = timeSeries[date];
+        return {
+          close: parseFloat(dayData['4. close'] || dayData['4. Close'] || dayData['close'] || '0'),
+          date
+        };
+      }).filter(item => item.close > 0);
+
+      if (priceData.length < 2) {
+        throw new Error('Unable to extract valid price data');
+      }
+
+      // Process the data
+      processPriceData(priceData);
+
+      // Cache the data
+      await supabase.from('price_history').upsert(
+        priceData.map(item => ({
+          symbol: config.symbol,
+          date: item.date,
+          price: item.close,
+          volume: 0,
+          sma20: 0,
+          rsi: 50,
+          macd: 0,
+          signal: 0,
+          upperbb: 0,
+          lowerbb: 0,
+          timestamp: new Date().toISOString(),
+        })),
+        { onConflict: 'symbol,date' }
+      );
+
+      toast({
+        title: 'Data Loaded Successfully',
+        description: `Analyzed ${priceData.length} data points for ${config.symbol}`,
+      });
+
+    } catch (err: any) {
       console.error('Fetch error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch market data';
+      setError(errorMessage);
       setReturnsData([]);
       setPerformance(null);
+
+      toast({
+        title: 'Error Loading Data',
+        description: errorMessage,
+        variant: 'destructive'
+      });
+
+      // Try to load any cached data as fallback
+      const { data: fallbackData } = await supabase
+        .from('price_history')
+        .select('*')
+        .eq('symbol', config.symbol)
+        .order('date', { ascending: true })
+        .limit(365);
+
+      if (fallbackData && fallbackData.length > 30) {
+        try {
+          processPriceData(fallbackData.map(item => ({
+            close: item.price,
+            date: item.date
+          })));
+          setError(`${errorMessage} (showing cached data)`);
+        } catch (fallbackErr) {
+          console.error('Fallback processing error:', fallbackErr);
+        }
+      }
     } finally {
       setLoadingData(false);
     }
   };
 
   useEffect(() => {
-    fetchAvailableSymbols();
-  }, []);
-
-  useEffect(() => {
-    fetchMarketData();
+    if (config.symbol && config.timeframe && config.startDate && config.endDate) {
+      fetchMarketData();
+    }
   }, [config.symbol, config.timeframe, config.startDate, config.endDate]);
 
   const handleConfigChange = (field: keyof StrategyConfig, value: string) => {
@@ -338,7 +448,7 @@ const SpyReturnsDistribution: React.FC = () => {
           />
           <StatisticsCard
             title="Sharpe Ratio"
-            value={performance.sharpeRatio.toString()}
+            value={performance.sharpeRatio.toFixed(2)}
             description="Risk-adjusted return"
           />
           <StatisticsCard
@@ -369,8 +479,8 @@ const SpyReturnsDistribution: React.FC = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Select symbol" />
                 </SelectTrigger>
-                <SelectContent>
-                  {availableSymbols.map((symbol) => (
+                <SelectContent className="max-h-[300px]">
+                  {AVAILABLE_SYMBOLS.map((symbol) => (
                     <SelectItem key={symbol} value={symbol}>
                       {symbol}
                     </SelectItem>
@@ -403,15 +513,15 @@ const SpyReturnsDistribution: React.FC = () => {
                   type="date"
                   value={config.startDate}
                   onChange={(e) => handleConfigChange('startDate', e.target.value)}
-                  max={defaultEndDate}
+                  max={config.endDate}
                   min="2000-01-01"
                 />
                 <Input
                   type="date"
                   value={config.endDate}
                   onChange={(e) => handleConfigChange('endDate', e.target.value)}
-                  max={defaultEndDate}
-                  min="2000-01-01"
+                  max={new Date().toISOString().split('T')[0]}
+                  min={config.startDate}
                 />
               </div>
             </div>
@@ -424,7 +534,10 @@ const SpyReturnsDistribution: React.FC = () => {
                 Fetching Data...
               </>
             ) : (
-              'Fetch Data'
+              <>
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Fetch Data
+              </>
             )}
           </Button>
         </CardContent>
@@ -467,7 +580,7 @@ const SpyReturnsDistribution: React.FC = () => {
       )}
 
       {/* Statistical Insights */}
-      {returnsData.length > 0 && (
+      {returnsData.length > 0 && performance && (
         <Card>
           <CardHeader>
             <CardTitle>Key Insights</CardTitle>
@@ -484,26 +597,56 @@ const SpyReturnsDistribution: React.FC = () => {
               <div>
                 <h4 className="font-semibold text-sm text-gray-700">Risk Management</h4>
                 <p className="text-sm text-gray-600">
-                  About 68% of {config.timeframe === '1d' ? 'daily' : config.timeframe === '1w' ? 'weekly' : 'monthly'} returns fall within ±1% range, making it
+                  About {(
+                    (returnsData.find((d) => d.range === '-1% to 0%')?.percentage || 0) +
+                    (returnsData.find((d) => d.range === '0% to 1%')?.percentage || 0)
+                  ).toFixed(0)}% of {config.timeframe === '1d' ? 'daily' : config.timeframe === '1w' ? 'weekly' : 'monthly'} returns fall within ±1% range, making it
                   suitable for various options strategies.
                 </p>
               </div>
               <div>
                 <h4 className="font-semibold text-sm text-gray-700">Tail Risk</h4>
                 <p className="text-sm text-gray-600">
-                  Extreme moves (5% or more) occur approximately{' '}
-                  {(returnsData.find((d) => d.range === '>10%')?.percentage || 0) +
-                    (returnsData.find((d) => d.range === '5% to 10%')?.percentage || 0)}% of the time,
-                  highlighting the importance of position sizing.
+                  Extreme moves (±5% or more) occur approximately{' '}
+                  {(
+                    (returnsData.find((d) => d.range === '>10%')?.percentage || 0) +
+                    (returnsData.find((d) => d.range === '5% to 10%')?.percentage || 0) +
+                    (returnsData.find((d) => d.range === '<-10%')?.percentage || 0) +
+                    (returnsData.find((d) => d.range === '-10% to -5%')?.percentage || 0)
+                  ).toFixed(1)}% of the time, highlighting the importance of position sizing.
                 </p>
               </div>
               <div>
                 <h4 className="font-semibold text-sm text-gray-700">Trading Opportunities</h4>
                 <p className="text-sm text-gray-600">
-                  The predictable distribution pattern creates opportunities for
+                  The predictable distribution pattern with a Sharpe ratio of {performance.sharpeRatio.toFixed(2)} creates opportunities for
                   systematic options trading strategies.
                 </p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {loadingData && returnsData.length === 0 && (
+        <Card>
+          <CardContent className="py-12">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <RefreshCcw className="h-8 w-8 animate-spin text-blue-600" />
+              <p className="text-gray-600">Loading market data for {config.symbol}...</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty State */}
+      {!loadingData && returnsData.length === 0 && !error && (
+        <Card>
+          <CardContent className="py-12">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <BarChart3 className="h-12 w-12 text-gray-400" />
+              <p className="text-gray-600">Click "Fetch Data" to load returns distribution</p>
             </div>
           </CardContent>
         </Card>
