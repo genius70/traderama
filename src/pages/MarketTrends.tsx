@@ -166,15 +166,10 @@ const MarketTrends = () => {
         return;
       }
 
-      // Use Alpaca API for market data
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
-      const { data: freshData, error: fetchError } = await supabase.functions.invoke('alpaca-data', {
+      // Use AlphaVantage API for market data
+      const { data: freshData, error: fetchError } = await supabase.functions.invoke('alpha-vantage-market-data', {
         body: { 
-          symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'],
-          startDate,
-          endDate
+          symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD']
         },
       });
 
@@ -183,42 +178,26 @@ const MarketTrends = () => {
         throw new Error(fetchError.message || 'Failed to fetch market data');
       }
 
-      if (freshData && freshData.results && freshData.results.length > 0) {
-        // Group by ticker and get most recent data for each
-        const latestBySymbol = freshData.results.reduce((acc: any, item: any) => {
-          const symbol = item.ticker;
-          if (!acc[symbol] || item.t > acc[symbol].t) {
-            acc[symbol] = item;
-          }
-          return acc;
-        }, {});
-
-        const formattedData = Object.values(latestBySymbol).map((item: any) => {
-          const open = item.o;
-          const close = item.c;
-          const change = close - open;
-          const changePercent = open > 0 ? (change / open) * 100 : 0;
-
-          return {
-            symbol: item.ticker,
-            price: close,
-            change,
-            changePercent,
-            volume: item.v,
-          };
-        });
+      if (freshData && freshData.success && freshData.data && freshData.data.length > 0) {
+        const formattedData = freshData.data.map((item: any) => ({
+          symbol: item.symbol,
+          price: item.price,
+          change: item.price * (item.change_percent / 100),
+          changePercent: item.change_percent,
+          volume: item.volume,
+        }));
 
         setMarketData(formattedData);
 
         // Cache the data
         await supabase.from('live_market_data').upsert(
-          formattedData.map(item => ({
+          formattedData.map((item: any) => ({
             symbol: item.symbol,
             price: item.price,
             change_percent: item.changePercent,
             volume: item.volume,
             timestamp: new Date().toISOString(),
-            source: 'alpaca'
+            source: 'alpha_vantage'
           })),
           { onConflict: 'symbol' }
         );
@@ -293,15 +272,21 @@ const MarketTrends = () => {
         return;
       }
 
-      // Use Alpaca API for historical data
-      const timeframeConfig = TIMEFRAMES[config.timeframe as keyof typeof TIMEFRAMES];
+      // Use AlphaVantage API for historical data
+      const timeframeMap: Record<string, string> = {
+        hourly: '60min',
+        daily: 'TIME_SERIES_DAILY',
+        weekly: 'TIME_SERIES_WEEKLY',
+        monthly: 'TIME_SERIES_MONTHLY',
+        yearly: 'TIME_SERIES_MONTHLY' // AlphaVantage doesn't have yearly, use monthly
+      };
       
-      const { data: chartResponse, error: chartError } = await supabase.functions.invoke('alpaca-data', {
+      const { data: chartResponse, error: chartError } = await supabase.functions.invoke('alpha-vantage-data', {
         body: {
           symbol: config.symbol,
-          timeframe: timeframeConfig,
-          startDate: config.startDate,
-          endDate: config.endDate
+          function: timeframeMap[config.timeframe] || 'TIME_SERIES_DAILY',
+          interval: config.timeframe === 'hourly' ? '60min' : undefined,
+          outputsize: 'full'
         },
       });
 
@@ -310,13 +295,38 @@ const MarketTrends = () => {
         throw new Error(chartError.message || 'Failed to fetch chart data');
       }
 
-      if (chartResponse && chartResponse.results && chartResponse.results.length > 0) {
-        const results = chartResponse.results.sort((a: any, b: any) => a.t - b.t);
+      if (chartResponse) {
+        // Parse AlphaVantage response format
+        const timeSeriesKey = Object.keys(chartResponse).find(key => key.includes('Time Series'));
+        if (!timeSeriesKey || !chartResponse[timeSeriesKey]) {
+          throw new Error('Invalid data format from AlphaVantage');
+        }
+        
+        const timeSeries = chartResponse[timeSeriesKey];
+        const results = Object.entries(timeSeries)
+          .map(([date, values]: [string, any]) => ({
+            date,
+            o: parseFloat(values['1. open']),
+            h: parseFloat(values['2. high']),
+            l: parseFloat(values['3. low']),
+            c: parseFloat(values['4. close']),
+            v: parseInt(values['5. volume'] || values['6. volume'] || '0'),
+          }))
+          .filter(item => {
+            const itemDate = new Date(item.date);
+            return itemDate >= new Date(config.startDate) && itemDate <= new Date(config.endDate);
+          })
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        if (results.length === 0) {
+          throw new Error('No data available for the selected date range');
+        }
+
         const prices = results.map((item: any) => item.c);
         const { sma20, rsi, macd, signal, upperBB, lowerBB } = calculateIndicators(prices);
 
         const transformedData: ChartData[] = results.map((item: any, index: number) => ({
-          date: new Date(item.t).toISOString().split('T')[0],
+          date: item.date,
           price: item.c,
           volume: item.v,
           sma20: sma20[index] || 0,
