@@ -169,7 +169,7 @@ const MarketTrends = () => {
       // Use AlphaVantage API for market data
       const { data: freshData, error: fetchError } = await supabase.functions.invoke('alpha-vantage-market-data', {
         body: { 
-          symbols: ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD']
+          symbols: symbols = ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD', 'DIA', 'EEM', 'TLT', 'XLF', 'XLE', 'XLK', 'XLV', 'XLI', 'XLP', 'XLY', 'XLU', 'XLB', 'XLRE', 'XLC', 'SMH']
         },
       });
 
