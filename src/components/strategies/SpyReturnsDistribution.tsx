@@ -66,7 +66,7 @@ interface PriceData {
   date: string;
 }
 
-// Define all 20 available symbols as a constant
+// All 20 available option symbols
 const AVAILABLE_SYMBOLS = [
   'SPY', 'QQQ', 'IWM', 'VIX', 'GLD', 'DIA', 'EEM', 'TLT', 
   'XLF', 'XLE', 'XLK', 'XLV', 'XLI', 'XLP', 'XLY', 'XLU', 
@@ -133,8 +133,7 @@ const SpyReturnsDistribution: React.FC = () => {
     setDateError(null);
     return true;
   };
-
-  // Process price data and calculate returns distribution
+// Process price data and calculate returns distribution
   const processPriceData = (priceData: PriceData[]) => {
     if (priceData.length < 2) {
       throw new Error('Insufficient data points for analysis');
@@ -210,7 +209,7 @@ const SpyReturnsDistribution: React.FC = () => {
     });
   };
 
-  // Fetch market data from Alpha Vantage API
+  // Fetch market data from Alpha Vantage API with robust error handling
   const fetchMarketData = async () => {
     if (!validateDates(config.startDate, config.endDate)) {
       return;
@@ -273,13 +272,20 @@ const SpyReturnsDistribution: React.FC = () => {
       if (alphaData['Note']) {
         throw new Error('API rate limit reached. Please try again in a minute.');
       }
+      if (alphaData['Information']) {
+        throw new Error('API call frequency exceeded. Please wait and try again.');
+      }
 
-      // Find the time series key
+      // Find the time series key with multiple fallback options
       const timeSeriesKey = Object.keys(alphaData).find(key => 
-        key.includes('Time Series') || key.includes('Weekly') || key.includes('Monthly')
+        key.includes('Time Series') || 
+        key.includes('Weekly') || 
+        key.includes('Monthly') ||
+        key.includes('Daily')
       );
 
       if (!timeSeriesKey || !alphaData[timeSeriesKey]) {
+        console.error('Alpha Vantage response:', alphaData);
         throw new Error('No valid time series data returned from Alpha Vantage');
       }
 
@@ -300,23 +306,31 @@ const SpyReturnsDistribution: React.FC = () => {
         throw new Error('Insufficient data points in the selected date range. Please select a wider range.');
       }
 
-      // Extract prices
+      // Extract prices with multiple fallback field names for compatibility
       const priceData: PriceData[] = filteredDates.map(date => {
         const dayData = timeSeries[date];
+        const closePrice = parseFloat(
+          dayData['4. close'] || 
+          dayData['4. Close'] || 
+          dayData['close'] || 
+          dayData['Close'] ||
+          dayData['4.close'] ||
+          '0'
+        );
         return {
-          close: parseFloat(dayData['4. close'] || dayData['4. Close'] || dayData['close'] || '0'),
+          close: closePrice,
           date
         };
       }).filter(item => item.close > 0);
 
       if (priceData.length < 2) {
-        throw new Error('Unable to extract valid price data');
+        throw new Error('Unable to extract valid price data from API response');
       }
 
       // Process the data
       processPriceData(priceData);
 
-      // Cache the data
+      // Cache the data for future use
       await supabase.from('price_history').upsert(
         priceData.map(item => ({
           symbol: config.symbol,
@@ -335,7 +349,8 @@ const SpyReturnsDistribution: React.FC = () => {
       );
 
       toast({
-        title: `Data Loaded: Analyzed ${priceData.length} data points for ${config.symbol}`,
+        title: 'Data Loaded Successfully',
+        description: `Analyzed ${priceData.length} data points for ${config.symbol}`,
       });
 
     } catch (err: any) {
@@ -346,7 +361,8 @@ const SpyReturnsDistribution: React.FC = () => {
       setPerformance(null);
 
       toast({
-        title: errorMessage,
+        title: 'Error Loading Data',
+        description: errorMessage,
         variant: 'destructive'
       });
 
@@ -409,8 +425,7 @@ const SpyReturnsDistribution: React.FC = () => {
     }
     return null;
   };
-
-  return (
+return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Returns Distribution Analysis</h2>
