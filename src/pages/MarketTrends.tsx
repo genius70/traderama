@@ -194,15 +194,15 @@ const MarketTrends = () => {
         throw new Error(fetchError.message || 'Failed to fetch market data');
       }
 
-      // Parse Alpha Vantage response
-      if (freshData && Array.isArray(freshData)) {
-        const formattedData = freshData.map((item: any) => ({
-          symbol: item.symbol || item['01. symbol'] || '',
-          price: parseFloat(item.price || item['05. price'] || '0'),
-          change: parseFloat(item.change || item['09. change'] || '0'),
-          changePercent: parseFloat(item.change_percent || item['10. change percent']?.replace('%', '') || '0'),
-          volume: parseInt(item.volume || item['06. volume'] || '0'),
-        })).filter(item => item.symbol); // Filter out invalid entries
+      // Parse Alpha Vantage response - the edge function returns { success, data, message }
+      if (freshData && freshData.success && Array.isArray(freshData.data)) {
+        const formattedData = freshData.data.map((item: any) => ({
+          symbol: item.symbol,
+          price: item.price,
+          change: (item.price * item.change_percent) / 100,
+          changePercent: item.change_percent,
+          volume: item.volume,
+        })).filter(item => item.symbol && item.price > 0); // Filter out invalid entries
 
         if (formattedData.length > 0) {
           setMarketData(formattedData);
@@ -215,14 +215,16 @@ const MarketTrends = () => {
               change_percent: item.changePercent,
               volume: item.volume,
               timestamp: new Date().toISOString(),
+              source: 'alpha_vantage',
             })),
-            { onConflict: 'symbol,timestamp' }
+            { onConflict: 'symbol' }
           );
         } else {
           throw new Error('No valid data returned from market data service');
         }
       } else {
-        throw new Error('Invalid response format from market data service');
+        const errorMsg = freshData?.error || 'Invalid response format from market data service';
+        throw new Error(errorMsg);
       }
     } catch (err) {
       console.error('Error fetching market data:', err);
@@ -250,8 +252,7 @@ const MarketTrends = () => {
       }
 
       toast({ 
-        title: 'Market Data Warning',
-        description: errorMessage,
+        title: errorMessage,
         variant: 'destructive' 
       });
     } finally {
@@ -411,8 +412,7 @@ const MarketTrends = () => {
       setError(errorMessage);
       
       toast({ 
-        title: 'Chart Data Error',
-        description: errorMessage,
+        title: errorMessage,
         variant: 'destructive' 
       });
 

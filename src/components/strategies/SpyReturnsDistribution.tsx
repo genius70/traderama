@@ -335,8 +335,7 @@ const SpyReturnsDistribution: React.FC = () => {
       );
 
       toast({
-        title: 'Data Loaded Successfully',
-        description: `Analyzed ${priceData.length} data points for ${config.symbol}`,
+        title: `Data Loaded: Analyzed ${priceData.length} data points for ${config.symbol}`,
       });
 
     } catch (err: any) {
@@ -347,8 +346,7 @@ const SpyReturnsDistribution: React.FC = () => {
       setPerformance(null);
 
       toast({
-        title: 'Error Loading Data',
-        description: errorMessage,
+        title: errorMessage,
         variant: 'destructive'
       });
 
