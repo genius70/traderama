@@ -535,7 +535,7 @@ const MarketTrends = () => {
             <div className="space-y-2">
               <Label htmlFor="symbol">Symbol</Label>
               <div className="flex flex-wrap gap-2">
-                {['SPY', 'QQQ', 'IWM', 'GLD', 'DIA'].map((symbol) => (
+                {['SPY', 'QQQ', 'IWM', 'VIX', 'GLD', 'DIA', 'EEM', 'TLT', 'XLF', 'XLE', 'XLK', 'XLV', 'XLI', 'XLP', 'XLY', 'XLU', 'XLB', 'XLRE', 'XLC', 'SMH'].map((symbol) => (
                   <Button
                     key={symbol}
                     variant={config.symbol === symbol ? 'default' : 'outline'}
