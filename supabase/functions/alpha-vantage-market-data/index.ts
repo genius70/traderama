@@ -5,6 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// All 20 available option symbols
+const AVAILABLE_SYMBOLS = [
+  'SPY', 'QQQ', 'IWM', 'VIX', 'GLD', 'DIA', 'EEM', 'TLT', 
+  'XLF', 'XLE', 'XLK', 'XLV', 'XLI', 'XLP', 'XLY', 'XLU', 
+  'XLB', 'XLRE', 'XLC', 'SMH'
+];
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -22,39 +29,63 @@ Deno.serve(async (req) => {
       throw new Error('Alpha Vantage API key not configured');
     }
 
-    const { symbols = ['SPY', 'QQQ', 'IWM', 'VIX', 'GLD'] } = await req.json();
+    // Get custom symbols from request or use all available
+    const { symbols = AVAILABLE_SYMBOLS } = await req.json().catch(() => ({ symbols: AVAILABLE_SYMBOLS }));
+    const symbolsToFetch = Array.isArray(symbols) ? symbols : AVAILABLE_SYMBOLS;
 
-    console.log('Fetching market data for symbols:', symbols);
+    console.log(`Fetching market data for ${symbolsToFetch.length} symbols:`, symbolsToFetch);
 
     const results = [];
+    const errors = [];
     
-    for (let i = 0; i < symbols.length; i++) {
-      const symbol = symbols[i];
+    for (let i = 0; i < symbolsToFetch.length; i++) {
+      const ticker = symbolsToFetch[i];
       
       try {
-        // Add delay to avoid rate limits
+        // Alpha Vantage free tier: 5 requests per minute, 500 per day
+        // Add 12 second delay between requests to stay under limit
         if (i > 0) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 12000));
         }
 
         const response = await fetch(
-          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
+          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
         );
         
         const data = await response.json();
 
-        if (data['Error Message'] || data['Note'] || !data['Global Quote']) {
-          console.error(`API error for ${symbol}:`, data);
+        // Handle API errors
+        if (data['Error Message']) {
+          console.error(`API error for ${ticker}:`, data['Error Message']);
+          errors.push({ ticker, error: data['Error Message'] });
+          continue;
+        }
+
+        if (data['Note']) {
+          console.error(`Rate limit reached for ${ticker}`);
+          errors.push({ ticker, error: 'Rate limit reached' });
+          // Stop processing if we hit rate limit
+          break;
+        }
+
+        if (!data['Global Quote'] || Object.keys(data['Global Quote']).length === 0) {
+          console.error(`No data available for ${ticker}`);
+          errors.push({ ticker, error: 'No data available' });
           continue;
         }
 
         const quote = data['Global Quote'];
         const marketData = {
-          symbol,
+          ticker,
           price: parseFloat(quote['05. price'] || '0') || 0,
-          change_percent: parseFloat(quote['10. change percent']?.replace('%', '') || '0') || 0,
+          open: parseFloat(quote['02. open'] || '0') || 0,
+          high: parseFloat(quote['03. high'] || '0') || 0,
+          low: parseFloat(quote['04. low'] || '0') || 0,
           volume: parseInt(quote['06. volume'] || '0') || 0,
-          timestamp: new Date().toISOString(),
+          change_percent: parseFloat(quote['10. change percent']?.replace('%', '') || '0') || 0,
+          previous_close: parseFloat(quote['08. previous close'] || '0') || 0,
+          timestamp: new Date(quote['07. latest trading day']).toISOString(),
+          synced_at: new Date().toISOString(),
           source: 'alpha_vantage'
         };
 
@@ -64,30 +95,40 @@ Deno.serve(async (req) => {
         const { error: insertError } = await supabase
           .from('live_market_data')
           .upsert(marketData, { 
-            onConflict: 'symbol',
+            onConflict: 'ticker',
             ignoreDuplicates: false 
           });
 
         if (insertError) {
-          console.error(`Error saving ${symbol} to database:`, insertError);
+          console.error(`Error saving ${ticker} to database:`, insertError);
+          errors.push({ ticker, error: insertError.message });
+        } else {
+          console.log(`✓ Synced ${ticker}: $${marketData.price} (${marketData.change_percent > 0 ? '+' : ''}${marketData.change_percent.toFixed(2)}%)`);
         }
 
       } catch (error) {
-        console.error(`Error fetching data for ${symbol}:`, error);
+        console.error(`Error fetching data for ${ticker}:`, error);
+        errors.push({ ticker, error: error.message });
       }
     }
 
-    console.log(`Successfully processed ${results.length} symbols`);
+    const response = {
+      success: results.length > 0,
+      synced: results.length,
+      total: symbolsToFetch.length,
+      data: results,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `Successfully synced ${results.length}/${symbolsToFetch.length} symbols`,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log(`Market data sync complete: ${results.length}/${symbolsToFetch.length} successful`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        data: results,
-        message: `Fetched data for ${results.length} symbols`
-      }),
+      JSON.stringify(response),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: results.length > 0 ? 200 : 500,
       }
     );
 
@@ -95,8 +136,9 @@ Deno.serve(async (req) => {
     console.error('Error in alpha-vantage-market-data function:', error);
     return new Response(
       JSON.stringify({
+        success: false,
         error: error.message,
-        success: false
+        timestamp: new Date().toISOString()
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
