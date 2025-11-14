@@ -6,6 +6,7 @@ import AdminAirdropPanel from '@/components/gamification/AdminAirdropPanel';
 import StrategyApproval from '@/components/admin/StrategyApproval';
 import AssetManagement from '@/components/admin/AssetManagement';
 import ContactManagement from '@/components/admin/ContactManagement';
+import CampaignReporting from '@/components/admin/CampaignReporting';
 import AdminCharts from '@/components/admin/AdminCharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -119,13 +120,14 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">User Analytics</TabsTrigger>
             <TabsTrigger value="strategies">Strategy Approval</TabsTrigger>
             <TabsTrigger value="airdrop">Airdrop Management</TabsTrigger>
             <TabsTrigger value="assets">Assets</TabsTrigger>
             <TabsTrigger value="email">Email Users</TabsTrigger>
+            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -228,6 +230,11 @@ const AdminDashboard: React.FC = () => {
           {/* Email Users Tab */}
           <TabsContent value="email">
             <ContactManagement />
+          </TabsContent>
+
+          {/* Campaigns Tab */}
+          <TabsContent value="campaigns">
+            <CampaignReporting />
           </TabsContent>
         </Tabs>
       </main>

@@ -34,10 +34,6 @@ const AdminAuth = () => {
     }
   };
 
-  const useAdminCredentials = () => {
-    setEmail('royan.shaw@gmail.com');
-    setPassword('321xbetacashplus');
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-100 p-4">
@@ -54,20 +50,6 @@ const AdminAuth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Admin Default Credentials Section */}
-          <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
-            <h3 className="text-sm font-semibold mb-3 text-red-700">Admin Access</h3>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full justify-start border-red-200 text-red-700 hover:bg-red-100"
-              onClick={useAdminCredentials}
-            >
-              <Shield className="h-4 w-4 mr-2" />
-              Use Admin Credentials
-            </Button>
-          </div>
-
           <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Admin Email</Label>

@@ -107,3 +107,6 @@ verify_jwt = true
 
 [functions.user-analytics]
 verify_jwt = true
+
+[functions.track-email-open]
+verify_jwt = false

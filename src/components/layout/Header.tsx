@@ -6,13 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, User, Settings, Users, BarChart3, Plus, Menu, X, Bell } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import UserNotifications from "@/components/notifications/UserNotifications";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const Header = () => {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -22,8 +25,6 @@ const Header = () => {
     await signOut();
     navigate('/auth');
   };
-
-  const isAdmin = user?.email === 'royan.shaw@gmail.com';
 
   // Fetch unread notifications count
   useEffect(() => {
@@ -66,10 +67,10 @@ const Header = () => {
   }, [user]);
 
   const NavigationItems = ({ mobile = false, onItemClick = () => {} }) => (
-    <div className={`${mobile ? 'flex flex-col space-y-4' : 'hidden lg:flex items-center justify-center space-x-1 min-w-0 flex-1'}`}>
+    <div className={`${mobile ? 'flex flex-col space-y-2' : 'hidden lg:flex items-center justify-center space-x-1 min-w-0 flex-1'}`}>
       <Link 
         to="/market-trends" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-foreground hover:text-primary transition-colors font-medium px-3 py-2 rounded-lg hover:bg-accent whitespace-nowrap text-sm"
         onClick={onItemClick}
       > 
         Markets
@@ -78,52 +79,52 @@ const Header = () => {
       
       <Link 
         to="/dashboard" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-foreground hover:text-primary transition-colors font-medium px-3 py-2 rounded-lg hover:bg-accent whitespace-nowrap text-sm"
         onClick={onItemClick}
       >
         Dashboard
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-border mx-1'}`} />
       
       <Link 
         to="/trade-positions" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-foreground hover:text-primary transition-colors font-medium px-3 py-2 rounded-lg hover:bg-accent whitespace-nowrap text-sm"
         onClick={onItemClick}
       >
         Positions
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-border mx-1'}`} />
       
       <Link 
         to="/options-trading" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-foreground hover:text-primary transition-colors font-medium px-3 py-2 rounded-lg hover:bg-accent whitespace-nowrap text-sm"
         onClick={onItemClick}
       >
         Training
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-border mx-1'}`} />
       
       <Link 
         to="/auto-trading" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-foreground hover:text-primary transition-colors font-medium px-3 py-2 rounded-lg hover:bg-accent whitespace-nowrap text-sm"
         onClick={onItemClick}
       >
         Auto Trading
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-border mx-1'}`} />
       
       <Link 
         to="/community" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-foreground hover:text-primary transition-colors font-medium px-3 py-2 rounded-lg hover:bg-accent whitespace-nowrap text-sm"
         onClick={onItemClick}
       >
         Community
       </Link>
-      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
+      <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-border mx-1'}`} />
       
       <Link 
         to="/create-strategy" 
-        className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+        className="text-foreground hover:text-primary transition-colors font-medium px-3 py-2 rounded-lg hover:bg-accent whitespace-nowrap text-sm"
         onClick={onItemClick}
       >
         Create Strategy
@@ -131,10 +132,10 @@ const Header = () => {
       
       {isAdmin && (
         <>
-          <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-gray-300 mx-1'}`} />
+          <div className={`${mobile ? 'hidden' : 'h-4 w-px bg-border mx-1'}`} />
           <Link 
             to="/admin" 
-            className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-2 lg:px-3 py-2 rounded-md hover:bg-gray-50 whitespace-nowrap"
+            className="text-foreground hover:text-primary transition-colors font-medium px-3 py-2 rounded-lg hover:bg-accent whitespace-nowrap text-sm"
             onClick={onItemClick}
           >
             Analytics
@@ -145,14 +146,14 @@ const Header = () => {
   );
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+    <header className="bg-background/80 backdrop-blur-md shadow-sm border-b border-border sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 min-w-0">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 flex-shrink-0">
-            <TrendingUp className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900 hidden sm:block">Traderama</span>
-            <span className="text-lg font-bold text-gray-900 sm:hidden">TR</span>
+            <TrendingUp className="h-8 w-8 text-primary" />
+            <span className="text-xl font-bold text-foreground hidden sm:block">Traderama</span>
+            <span className="text-lg font-bold text-foreground sm:hidden">TR</span>
           </Link>
 
           {/* Desktop Navigation - Only visible on desktop */}
@@ -163,9 +164,12 @@ const Header = () => {
           )}
 
           {/* Right Side - User Menu and Mobile Menu */}
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
             {user ? (
               <>
+                {/* Theme Toggle */}
+                <ThemeToggle />
+
                 {/* Notifications Bell */}
                 <Popover open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
                   <PopoverTrigger asChild>
@@ -178,7 +182,7 @@ const Header = () => {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[400px] max-h-[600px] overflow-y-auto p-0" align="end">
+                  <PopoverContent className="w-[90vw] sm:w-[400px] max-h-[80vh] sm:max-h-[600px] overflow-y-auto p-0" align="end">
                     <div className="p-4">
                       <UserNotifications />
                     </div>

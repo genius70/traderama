@@ -86,7 +86,17 @@ const UserAnalyticsPanel: React.FC = () => {
         const avgSessionDuration =
           pageViewsData.reduce((sum, view) => sum + (view.duration_seconds || 0), 0) /
           (totalSessions || 1);
-        const bounceRate = Math.random() * 30 + 10; // Mock bounce rate calculation
+        
+        // Calculate bounce rate from sessions with duration < 10 seconds or single page views
+        const { data: sessionsData } = await supabase
+          .from('user_sessions')
+          .select('duration_seconds')
+          .gte('started_at', thirtyDaysAgo.toISOString());
+        
+        const bouncedSessions = sessionsData?.filter(
+          session => (session.duration_seconds || 0) < 10
+        ).length || 0;
+        const bounceRate = sessionsData?.length ? (bouncedSessions / sessionsData.length) * 100 : 0;
 
         // Fetch trading data
         const { data: tradesData, error: tradesError } = await supabase

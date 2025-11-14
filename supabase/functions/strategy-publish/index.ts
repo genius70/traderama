@@ -1,10 +1,9 @@
 // supabase/functions/strategy-publish/index.ts
-import { serve } from 'std/http/server.ts';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   try {
     const { strategy_id, status } = await req.json();
     const { data: strategy, error: strategyError } = await supabase
