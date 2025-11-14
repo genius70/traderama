@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
           volume: parseInt(quote['06. volume'] || '0') || 0,
           change_percent: parseFloat(quote['10. change percent']?.replace('%', '') || '0') || 0,
           previous_close: parseFloat(quote['08. previous close'] || '0') || 0,
-          timestamp: new Date(quote['07. latest trading day']).toISOString(),
+          data_timestamp: new Date(quote['07. latest trading day']).toISOString(),
           synced_at: new Date().toISOString(),
           source: 'alpha_vantage'
         };
@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       data: results,
       errors: errors.length > 0 ? errors : undefined,
       message: `Successfully synced ${results.length}/${symbolsToFetch.length} symbols`,
-      timestamp: new Date().toISOString()
+      data_timestamp: new Date().toISOString()
     };
 
     console.log(`Market data sync complete: ${results.length}/${symbolsToFetch.length} successful`);
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: false,
         error: error.message,
-        timestamp: new Date().toISOString()
+        data_timestamp: new Date().toISOString()
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
