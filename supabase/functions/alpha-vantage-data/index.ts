@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         symbol,
         function: func || 'TIME_SERIES_DAILY',
         data,
-        timestamp: new Date().toISOString()
+        data_timestamp: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: false,
         error: error.message,
-        timestamp: new Date().toISOString()
+        data_timestamp: new Date().toISOString()
       }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
