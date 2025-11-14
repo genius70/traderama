@@ -1,6 +1,6 @@
 .
-├── .gitignore
-├── .hintrc
+├── OLDHeroSection.txt
+├── OLDIndexFile.txt
 ├── Project_Tree.md
 ├── README.md
 ├── audit_fixes.md
@@ -107,12 +107,17 @@
 │   ├── App.tsx
 │   ├── components
 │   │   ├── admin
+│   │   │   ├── AddUserForm.tsx
 │   │   │   ├── AdminCharts.tsx
 │   │   │   ├── AssetForm.tsx
 │   │   │   ├── AssetListItem.tsx
 │   │   │   ├── AssetManagement.tsx
 │   │   │   ├── ContactManagement.tsx
+│   │   │   ├── MessageComposer.tsx
+│   │   │   ├── StrategyApproval.tsx
 │   │   │   ├── UserAnalyticsPanel.tsx
+│   │   │   ├── UserFilterSection.tsx
+│   │   │   ├── UserTable.tsx
 │   │   │   └── index.ts
 │   │   ├── analytics
 │   │   │   ├── AnalyticsProvider.tsx
@@ -125,7 +130,9 @@
 │   │   │   └── index.ts
 │   │   ├── community
 │   │   │   ├── CommunityCommentModal.tsx
+│   │   │   ├── CommunityFilters.tsx
 │   │   │   ├── CommunityPostCard.tsx
+│   │   │   ├── CommunityStats.tsx
 │   │   │   ├── EnhancedSocialShare.tsx
 │   │   │   ├── InviteFriend.tsx
 │   │   │   ├── PremiumGroupCheckoutDialog.tsx
@@ -161,7 +168,8 @@
 │   │   │   ├── MarketChart.tsx
 │   │   │   └── MarketSummaryStats.tsx
 │   │   ├── notifications
-│   │   │   └── NotificationManager.tsx
+│   │   │   ├── NotificationManager.tsx
+│   │   │   └── UserNotifications.tsx
 │   │   ├── strategies
 │   │   │   ├── SpyReturnsDistribution.tsx
 │   │   │   └── StrategyMarketplace.tsx
@@ -178,6 +186,7 @@
 │   │   │   ├── OptionsChainPanel.tsx
 │   │   │   ├── OptionsChainTable.tsx
 │   │   │   ├── ProfitLossPanel.tsx
+│   │   │   ├── SavedStrategies.tsx
 │   │   │   ├── SocialShareModal.tsx
 │   │   │   ├── StrategyBasicInfo.tsx
 │   │   │   ├── StrategyPreview.tsx
@@ -251,6 +260,8 @@
 │   │   ├── use-toast.ts
 │   │   ├── useAnalytics.tsx
 │   │   ├── useAuth.tsx
+│   │   ├── useCommunityPosts.tsx
+│   │   ├── useCommunityStats.tsx
 │   │   ├── useErrorTracking.tsx
 │   │   ├── useIGBroker.tsx
 │   │   ├── useKemCredits.tsx
@@ -294,17 +305,12 @@
 │   │   └── polygonAPI.ts
 │   └── vite-env.d.ts
 ├── supabase
-│   ├── .temp
-│   │   ├── cli-latest
-│   │   ├── gotrue-version
-│   │   ├── pooler-url
-│   │   ├── postgres-version
-│   │   ├── project-ref
-│   │   ├── rest-version
-│   │   └── storage-version
 │   ├── config.toml
 │   ├── deno.json
 │   ├── functions
+│   │   ├── _shared
+│   │   │   ├── cors.ts
+│   │   │   └── request.ts
 │   │   ├── airdrop-distribute
 │   │   │   └── index.ts
 │   │   ├── alpaca-data
@@ -316,6 +322,8 @@
 │   │   ├── create-checkout
 │   │   │   └── index.ts
 │   │   ├── customer-portal
+│   │   │   └── index.ts
+│   │   ├── distribute-royalties
 │   │   │   └── index.ts
 │   │   ├── fetch-polygon-data
 │   │   │   └── index.ts
@@ -354,11 +362,12 @@
 │       ├── 20250805033804_b0e9b3c5-1134-4c5f-bb7f-3f6d0b7684ee.sql
 │       ├── 20250805040105_18df59b3-6666-4e3e-8ce4-22ddde2ab9fe.sql
 │       ├── 20250806003814_9fe64859-c7a4-4829-8a6d-4257dacc3b0a.sql
-│       └── 20250806004904_fd550cf5-8f69-4a71-8f95-a67f58486b77.sql
+│       ├── 20250806004904_fd550cf5-8f69-4a71-8f95-a67f58486b77.sql
+│       └── 20251003021947_eddda500-d4d3-42aa-99fd-3a5327b020ba.sql
 ├── tailwind.config.ts
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
 
-49 directories, 313 files
+50 directories, 321 files

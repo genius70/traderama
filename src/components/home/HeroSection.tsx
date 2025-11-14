@@ -64,23 +64,21 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             trading potential.
           </p>
 
-          {/* Buttons & Badge - Responsive Layout */}
+          {/* Buttons & Badge – responsive, larger primary, smaller badge */}
           <div className="flex flex-col items-center justify-center gap-6 w-full max-w-4xl mx-auto">
-            {/* Mobile: Badge on top, then button */}
-            {/* Desktop: Button left, badge right */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
-              {/* Start Trading Now Button */}
+              {/* Start Trading Now – slightly larger */}
               <Link to={getRedirectPath()} className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto px-8 py-4 text-lg bg-blue-600 hover:bg-red-600 text-white transition-all duration-300 flex items-center justify-center"
+                  className="w-full sm:w-auto px-10 py-5 text-xl bg-blue-600 hover:bg-red-600 text-white transition-all duration-300 flex items-center justify-center"
                 >
                   Start Trading Now
-                  <ArrowRight className="h-5 w-5 ml-2" />
+                  <ArrowRight className="h-6 w-6 ml-2" />
                 </Button>
               </Link>
 
-              {/* NextBigProduct Badge - Only for logged-out users */}
+              {/* NextBigProduct Badge – slightly smaller */}
               {showBadge &&
                 <a
                   href="https://nextbigproduct.com/product/traderama-pro"
@@ -91,12 +89,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                   <img
                     src="https://nextbigproduct.com/assets/badge/nbp_badge.png"
                     alt="Featured on NextBigProduct"
-                    className="max-w-[250px] sm:max-w-[320px] w-full h-auto mx-auto sm:mx-0"
+                    className="max-w-[260px] sm:max-w-[300px] w-full h-auto mx-auto sm:mx-0"
                   />
                 </a>}
             </div>
 
-            {/* Create Strategy Button - Only for authorized users */}
+            {/* Create Strategy Button – unchanged */}
             {user &&
               (userRole === "strategy_creator" ||
                 userRole === "admin" ||
